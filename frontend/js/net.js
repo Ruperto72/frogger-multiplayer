@@ -8,7 +8,7 @@ export class Net {
   _connect() {
     const url = location.hostname === 'localhost'
       ? 'ws://localhost:3000'
-      : 'wss://frogger-backend.onrender.com';
+      : 'wss://frogger-backend.onrender.com'; // TODO: ersätt med din faktiska Render-URL
 
     this._ws = new WebSocket(url);
 
