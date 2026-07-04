@@ -1,4 +1,4 @@
-const KEY_MAP = {
+export const KEY_MAP = {
   ArrowUp:    'up',
   ArrowDown:  'down',
   ArrowLeft:  'left',
@@ -18,11 +18,15 @@ export class Input {
       const dir = KEY_MAP[e.code];
       if (!dir) return;
       e.preventDefault();
-      const now = performance.now();
-      if (now - this._last < 50) return; // matcha serverns rate-limit
-      this._last = now;
-      const seq = this._state.predictMove(dir);
-      if (seq !== null) this._net.send({ type: 'move', direction: dir, seq });
+      this.move(dir);
     });
+  }
+
+  move(dir) {
+    const now = performance.now();
+    if (now - this._last < 50) return; // matcha serverns rate-limit
+    this._last = now;
+    const seq = this._state.predictMove(dir);
+    if (seq !== null) this._net.send({ type: 'move', direction: dir, seq });
   }
 }
