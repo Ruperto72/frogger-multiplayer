@@ -59,6 +59,17 @@ broadcastas i state och renderas via `SKINS`-tabellen i
   `SKINS` + knapp i lobbypanelen (`index.html`)
 - Ev. riktningsberoende sprites (grodan roterar med senaste draget)
 
+## Mobil
+
+Grunden finns: touchknappar i `frontend/js/touch.js` (visas vid coarse
+pointer, döljs permanent vid fysiskt tangentbordstryck) och CSS-skalad
+canvas. Kvar att göra:
+
+- Hold-to-repeat på knapparna (nu ger en tap ett drag)
+- Testa på riktiga enheter (iOS/Android) — knappstorlek och placering
+  kan behöva justeras
+- Fullskärm/PWA-manifest för hemskärmsinstallation utan webbläsar-chrome
+
 ## Övrigt
 
 - Render free tier sover efter 15 min — överväg extern uptime-pinger

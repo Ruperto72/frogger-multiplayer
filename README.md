@@ -12,6 +12,7 @@ Realtids-Frogger för två spelare, byggd med vanilla JavaScript och WebSockets.
 - Bilar dödar vid kollision, floden dödar om du inte står på en stock. Varje spelare har 3 liv per runda.
 - **Rundvinst:** nå målet 3 gånger, eller att motståndaren förlorar alla liv. **Matchvinst:** 3 vunna rundor (bäst av 5).
 - **Stöt-mekanik:** hoppar du på motståndarens ruta studsar hen ett steg bakåt — hamnar hen på en farlig ruta respawnar hen (utan livförlust).
+- **Styrning:** piltangenter eller WASD. På touch-enheter visas skärmknappar (vänster tumme ◀ ▶, höger tumme ▲ ▼) som döljs automatiskt om ett fysiskt tangentbord används.
 
 ## Arkitektur
 
