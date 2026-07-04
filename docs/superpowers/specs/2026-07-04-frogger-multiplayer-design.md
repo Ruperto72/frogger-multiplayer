@@ -41,6 +41,15 @@ rad 13–14:  STARTZON — spelarna börjar här
 - Når man målraden → poäng +1 för rundan, respawn i startzon
 - Förlorar man alla 3 liv → rundan går förlorad omedelbart
 
+### Spelarmöten (grodor på samma ruta)
+
+När spelare A hoppar in på spelare B:s ruta gäller:
+
+1. B studsar ett steg i **motsatt riktning** mot A:s rörelse (tillbaka mot varifrån A kom)
+2. A landar på B:s tidigare ruta normalt
+3. Om B:s studsruta är farlig (bil, vatten utan stock, utanför spelplanen) → B respawnar i startzon utan att förlora liv
+4. B förlorar aldrig liv enbart på grund av en stöt
+
 ### Hinder
 
 Servern genererar hinder (antal körfält, hastigheter, riktningar) slumpmässigt men med ny variation per runda för omväxling. Hindren har float-x-koordinater för mjuk klient-interpolering.
