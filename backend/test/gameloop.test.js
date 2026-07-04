@@ -43,8 +43,17 @@ test('tickObstacles lindar bil vid höger kant', () => {
   assert.ok(obs[0].x < 1.0, `x borde vara < 1, var ${obs[0].x}`);
 });
 
-test('tickObstacles lindar stock vid vänster kant', () => {
+test('tickObstacles lindar INTE stock vid vänster kant förrän helt utanför', () => {
+  // width=3, x=0.02 → efter tick x=-0.08 → -0.08 > -3 → ingen lindning
   const obs = [{ lane: 2, x: 0.02, width: 3, type: 'log', speed: 0.1, dir: -1 }];
   tickObstacles(obs);
-  assert.ok(obs[0].x > 10.0, `x borde vara > 10, var ${obs[0].x}`);
+  assert.ok(obs[0].x < 0, `x borde vara negativt, var ${obs[0].x}`);
+  assert.ok(obs[0].x > -3, `x borde inte ha lindats, var ${obs[0].x}`);
+});
+
+test('tickObstacles lindar stock när den helt lämnat vänster kant', () => {
+  // width=3, x=-2.95 → efter tick x=-3.05 → -3.05 < -3 → lindning
+  const obs = [{ lane: 2, x: -2.95, width: 3, type: 'log', speed: 0.1, dir: -1 }];
+  tickObstacles(obs);
+  assert.ok(obs[0].x > 9.0, `x borde vara > 9 efter lindning, var ${obs[0].x}`);
 });

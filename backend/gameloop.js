@@ -57,7 +57,7 @@ function tickObstacles(obstacles) {
   for (const obs of obstacles) {
     obs.x += obs.speed * obs.dir;
     if (obs.x >= COLS)         obs.x -= COLS;
-    if (obs.x < 0)    obs.x += COLS;
+    if (obs.x < -obs.width)    obs.x += COLS;
   }
 }
 
