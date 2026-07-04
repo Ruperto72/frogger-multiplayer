@@ -2,10 +2,12 @@ export class Net {
   constructor(state) {
     this.state = state;
     this._ws = null;
+    this._reconnectTimer = null;
     this._connect();
   }
 
   _connect() {
+    clearTimeout(this._reconnectTimer);
     const url = location.hostname === 'localhost'
       ? 'ws://localhost:3000'
       : 'wss://frogger-multiplayer.onrender.com';
@@ -23,7 +25,7 @@ export class Net {
 
     this._ws.addEventListener('close', () => {
       console.log('Frånkopplad — försöker igen om 3s');
-      setTimeout(() => this._connect(), 3000);
+      this._reconnectTimer = setTimeout(() => this._connect(), 3000);
     });
   }
 

@@ -1,4 +1,4 @@
-const { COLS, ROWS, GOAL_ROW, SPAWN, LIVES, GOALS_TO_WIN_ROUND, ROUNDS_TO_WIN_MATCH, TICK_MS } = require('./constants');
+const { COLS, ROWS, GOAL_ROW, GOAL_COLS, SPAWN, LIVES, GOALS_TO_WIN_ROUND, ROUNDS_TO_WIN_MATCH, TICK_MS } = require('./constants');
 const { generateLanes, tickObstacles } = require('./gameloop');
 const { isHazardous } = require('./collision');
 
@@ -13,6 +13,8 @@ class Room {
   constructor(ws1, ws2) {
     this.sockets = { p1: ws1, p2: ws2 };
     this.state = this._initialState();
+    this._roundTimer = null;
+    this._lastMove = { p1: 0, p2: 0 };
     this._attachHandlers();
     this._tick = setInterval(() => this._onTick(), TICK_MS);
     this._send('p1', { type: 'match_start', you: 'p1' });
@@ -49,6 +51,9 @@ class Room {
 
   handleMove(pid, direction) {
     if (!DIRS[direction]) return;
+    const now = Date.now();
+    if (now - this._lastMove[pid] < 50) return;
+    this._lastMove[pid] = now;
     const p = this.state.players[pid];
     const { dx, dy } = DIRS[direction];
     const nx = p.x + dx;
@@ -91,6 +96,7 @@ class Room {
     if (this.state.phase !== 'playing') return;
     const p = this.state.players[pid];
     if (p.y !== GOAL_ROW) return;
+    if (!GOAL_COLS.has(p.x)) { this._kill(pid); return; }
     p.score++;
     this._respawn(pid, false);
     if (p.score >= GOALS_TO_WIN_ROUND) this._endRound(pid);
@@ -112,17 +118,18 @@ class Room {
 
   _endRound(winnerId) {
     if (this.state.phase !== 'playing') return;
-    this.state.roundScores[winnerId]++;
+    if (winnerId) this.state.roundScores[winnerId]++;
     this.state.phase = 'round_over';
     this._broadcastEvent('round_over', { winner: winnerId });
-    if (this.state.roundScores[winnerId] >= ROUNDS_TO_WIN_MATCH) {
+    if (winnerId && this.state.roundScores[winnerId] >= ROUNDS_TO_WIN_MATCH) {
       this._endMatch(winnerId);
     } else {
-      setTimeout(() => this._startNewRound(), 3000);
+      this._roundTimer = setTimeout(() => this._startNewRound(), 3000);
     }
   }
 
   _endMatch(winnerId) {
+    clearTimeout(this._roundTimer);
     this.state.phase = 'match_over';
     this._broadcastEvent('match_over', {
       winner: winnerId,
@@ -143,12 +150,30 @@ class Room {
   _onTick() {
     if (this.state.phase !== 'playing') return;
     tickObstacles(this.state.obstacles);
-    for (const pid of ['p1', 'p2']) this._checkHazard(pid);
+
+    const hazardous = ['p1', 'p2'].filter(pid => {
+      const p = this.state.players[pid];
+      return isHazardous(this.state.obstacles, p.x, p.y);
+    });
+
+    if (hazardous.length < 2) {
+      for (const pid of hazardous) this._kill(pid);
+    } else {
+      for (const pid of hazardous) this._respawn(pid, true);
+      const depleted = hazardous.filter(pid => this.state.players[pid].lives <= 0);
+      if (depleted.length === 1) {
+        this._endRound(depleted[0] === 'p1' ? 'p2' : 'p1');
+      } else if (depleted.length === 2) {
+        this._endRound(null);
+      }
+    }
+
     this._broadcast();
   }
 
   _onDisconnect() {
     if (this.state.phase === 'match_over') return;
+    clearTimeout(this._roundTimer);
     clearInterval(this._tick);
     this.state.phase = 'match_over';
     this._broadcastEvent('opponent_disconnected', {});

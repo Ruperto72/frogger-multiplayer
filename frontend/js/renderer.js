@@ -78,10 +78,8 @@ export class Renderer {
       const w  = obs.width * cell - 4;
       const h  = cell - 8;
       ctx.fillRect(x, y, w, h);
-      // Lindning: om hindret går utanför höger kant
-      if (x + w > this.cols * cell) {
-        ctx.fillRect(x - this.cols * cell, y, w, h);
-      }
+      const overflow = x + w - this.cols * cell;
+      if (overflow > 0) ctx.fillRect(0, y, overflow, h);
     }
   }
 
