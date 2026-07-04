@@ -1,4 +1,8 @@
-const { COLS, ROWS, GOAL_ROW, GOAL_COLS, SPAWN, LIVES, GOALS_TO_WIN_ROUND, ROUNDS_TO_WIN_MATCH, TICK_MS } = require('./constants');
+const {
+  COLS, ROWS, GOAL_ROW, GOAL_COLS, SPAWN, LIVES, GOALS_TO_WIN_ROUND,
+  ROUNDS_TO_WIN_MATCH, TICK_MS, SKINS, DEFAULT_SKIN, DEFAULT_NAMES,
+  NAME_MAX_LEN, COUNTDOWN_MS
+} = require('./constants');
 const { generateLanes, tickObstacles } = require('./gameloop');
 const { isHazardous } = require('./collision');
 
@@ -15,6 +19,7 @@ class Room {
     this.state = this._initialState();
     this._roundTimer = null;
     this._lastMove = { p1: 0, p2: 0 };
+    this._seq = { p1: 0, p2: 0 };
     this._attachHandlers();
     this._tick = setInterval(() => this._onTick(), TICK_MS);
     this._send('p1', { type: 'match_start', you: 'p1' });
@@ -23,15 +28,19 @@ class Room {
   }
 
   _initialState() {
+    const seed = Date.now() >>> 0;
+    const newPlayer = (pid) => ({
+      ...SPAWN[pid], lives: LIVES, score: 0,
+      name: DEFAULT_NAMES[pid], skin: DEFAULT_SKIN, ready: false
+    });
     return {
-      players: {
-        p1: { ...SPAWN.p1, lives: LIVES, score: 0 },
-        p2: { ...SPAWN.p2, lives: LIVES, score: 0 }
-      },
-      obstacles: generateLanes(Date.now()),
+      players: { p1: newPlayer('p1'), p2: newPlayer('p2') },
+      seed,
+      tick: 0,
+      obstacles: generateLanes(seed),
       round: 1,
       roundScores: { p1: 0, p2: 0 },
-      phase: 'playing'
+      phase: 'lobby'
     };
   }
 
@@ -40,13 +49,33 @@ class Room {
       ws.on('message', (data) => {
         try {
           const msg = JSON.parse(data);
-          if (msg.type === 'move' && this.state.phase === 'playing') {
-            this.handleMove(pid, msg.direction);
+          if (msg.type === 'move') {
+            // Acka seq även för drag som avvisas, så klientens prediction släpper
+            if (Number.isFinite(msg.seq)) this._seq[pid] = msg.seq;
+            if (this.state.phase === 'playing') this.handleMove(pid, msg.direction);
+          } else if (msg.type === 'ready' && this.state.phase === 'lobby') {
+            this._handleReady(pid, msg);
           }
         } catch {}
       });
       ws.on('close', () => this._onDisconnect());
     }
+  }
+
+  _handleReady(pid, msg) {
+    const p = this.state.players[pid];
+    p.name = String(msg.name ?? '').trim().slice(0, NAME_MAX_LEN) || DEFAULT_NAMES[pid];
+    p.skin = SKINS.includes(msg.skin) ? msg.skin : DEFAULT_SKIN;
+    p.ready = true;
+    if (this.state.players.p1.ready && this.state.players.p2.ready) {
+      this.state.phase = 'countdown';
+      this._broadcastEvent('countdown', { duration: COUNTDOWN_MS });
+      this._startTimer = setTimeout(() => {
+        this.state.phase = 'playing';
+        this._broadcast();
+      }, COUNTDOWN_MS);
+    }
+    this._broadcast();
   }
 
   handleMove(pid, direction) {
@@ -140,15 +169,20 @@ class Room {
 
   _startNewRound() {
     this.state.round++;
-    this.state.obstacles = generateLanes(Date.now());
-    this.state.players.p1 = { ...SPAWN.p1, lives: LIVES, score: 0 };
-    this.state.players.p2 = { ...SPAWN.p2, lives: LIVES, score: 0 };
+    this.state.seed = Date.now() >>> 0;
+    this.state.tick = 0;
+    this.state.obstacles = generateLanes(this.state.seed);
+    for (const pid of ['p1', 'p2']) {
+      const { name, skin, ready } = this.state.players[pid];
+      this.state.players[pid] = { ...SPAWN[pid], lives: LIVES, score: 0, name, skin, ready };
+    }
     this.state.phase = 'playing';
     this._broadcast();
   }
 
   _onTick() {
     if (this.state.phase !== 'playing') return;
+    this.state.tick++;
     tickObstacles(this.state.obstacles);
 
     const hazardous = ['p1', 'p2'].filter(pid => {
@@ -174,13 +208,19 @@ class Room {
   _onDisconnect() {
     if (this.state.phase === 'match_over') return;
     clearTimeout(this._roundTimer);
+    clearTimeout(this._startTimer);
     clearInterval(this._tick);
     this.state.phase = 'match_over';
     this._broadcastEvent('opponent_disconnected', {});
   }
 
   _broadcast() {
-    const msg = JSON.stringify({ type: 'state', ...this.state });
+    // Hindren skickas inte — klienten simulerar dem deterministiskt från seed+tick
+    const { players, seed, tick, round, roundScores, phase } = this.state;
+    const msg = JSON.stringify({
+      type: 'state', players, seed, tick, round, roundScores, phase,
+      ack: this._seq
+    });
     for (const ws of Object.values(this.sockets)) {
       if (ws.readyState === 1) ws.send(msg);
     }

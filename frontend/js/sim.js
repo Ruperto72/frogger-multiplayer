@@ -1,4 +1,9 @@
-const { COLS } = require('./constants');
+// Deterministisk hindersimulering — MÅSTE vara identisk med backend/gameloop.js.
+// Konsistensen verifieras av backend/test/sim-consistency.test.js.
+
+export const COLS = 13;
+export const ROWS = 15;
+export const TICK_MS = 100;
 
 function seededRandom(seed) {
   let s = seed >>> 0;
@@ -11,7 +16,7 @@ function seededRandom(seed) {
   };
 }
 
-function generateLanes(seed) {
+export function generateLanes(seed) {
   const rand = seededRandom(seed);
   const obstacles = [];
 
@@ -27,7 +32,6 @@ function generateLanes(seed) {
       const width = 1 + Math.floor(rand() * 2);
       obstacles.push({
         lane,
-        // jitter begränsas så hindret ryms i sin slot med ≥0.5 cells lucka
         x: slot * i + rand() * (slot - width - 0.5),
         width,
         type: 'car',
@@ -58,12 +62,11 @@ function generateLanes(seed) {
   return obstacles;
 }
 
-function tickObstacles(obstacles) {
-  for (const obs of obstacles) {
-    obs.x += obs.speed * obs.dir;
-    if (obs.x >= COLS)         obs.x -= COLS;
-    if (obs.x < -obs.width)    obs.x += COLS;
-  }
+// Position vid (eventuellt fraktionell) tick t, ekvivalent med serverns
+// iterativa tickObstacles. Servern lindar med modulus COLS; fönstret beror
+// på riktning: höger → [0, COLS), vänster → [-width, COLS - width).
+export function obstacleXAt(obs, t) {
+  const lo = obs.dir === 1 ? 0 : -obs.width;
+  const x = obs.x + obs.speed * obs.dir * t;
+  return (((x - lo) % COLS) + COLS) % COLS + lo;
 }
-
-module.exports = { generateLanes, tickObstacles };

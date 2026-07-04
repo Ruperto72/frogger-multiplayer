@@ -10,9 +10,15 @@ const LIVES = 3;
 const GOALS_TO_WIN_ROUND = 3;
 const ROUNDS_TO_WIN_MATCH = 3;
 const TICK_MS = 100;
+const SKINS = ['green', 'yellow', 'blue'];
+const DEFAULT_SKIN = 'green';
+const DEFAULT_NAMES = { p1: 'Spelare 1', p2: 'Spelare 2' };
+const NAME_MAX_LEN = 20;
+const COUNTDOWN_MS = 3000;
 
 module.exports = {
   COLS, ROWS, GOAL_ROW, GOAL_COLS, RIVER_ROWS, SAFE_ROWS,
   TRAFFIC_ROWS, SPAWN, LIVES, GOALS_TO_WIN_ROUND,
-  ROUNDS_TO_WIN_MATCH, TICK_MS
+  ROUNDS_TO_WIN_MATCH, TICK_MS, SKINS, DEFAULT_SKIN,
+  DEFAULT_NAMES, NAME_MAX_LEN, COUNTDOWN_MS
 };

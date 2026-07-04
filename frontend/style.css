@@ -14,21 +14,67 @@ canvas {
   image-rendering: pixelated;
 }
 
-.overlay {
+.lobby {
   position: fixed;
   inset: 0;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  background: rgba(0, 0, 0, 0.75);
+  gap: 1rem;
+  background: rgba(0, 0, 0, 0.8);
   color: #fff;
   font-family: monospace;
-  font-size: 2rem;
-  gap: 1rem;
   z-index: 10;
 }
 
-.overlay.hidden { display: none; }
+.lobby h1 { font-size: 1.8rem; }
 
-.overlay p { font-size: 1rem; color: #aaa; }
+.lobby p { color: #aaa; }
+
+.lobby input {
+  font: inherit;
+  font-size: 1.2rem;
+  padding: 0.5rem 0.75rem;
+  background: #222;
+  color: #fff;
+  border: 1px solid #555;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.skins { display: flex; gap: 0.75rem; }
+
+.skin {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  cursor: pointer;
+}
+
+.skin.selected { border-color: #fff; }
+
+.skin[data-skin="green"]  { background: #00e64d; }
+.skin[data-skin="yellow"] { background: #ffe100; }
+.skin[data-skin="blue"]   { background: #4da6ff; }
+
+#lobby-ready {
+  font: inherit;
+  font-size: 1.3rem;
+  font-weight: bold;
+  padding: 0.6rem 2.5rem;
+  background: #2a8a2a;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+#lobby-ready:disabled {
+  background: #444;
+  color: #888;
+  cursor: default;
+}
+
+.hidden { display: none; }

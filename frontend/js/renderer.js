@@ -1,3 +1,11 @@
+// Skin-id → utseende. Nya skins = nya rader här (+ i backend/constants.js SKINS
+// och lobbypanelens knappar). Sprite-skins: se TODO.md.
+const SKINS = {
+  green:  '#00e64d',
+  yellow: '#ffe100',
+  blue:   '#4da6ff'
+};
+
 const ZONE_COLORS = {
   goal:    '#2a4a18',
   river:   '#1a3a6a',
@@ -24,35 +32,40 @@ export class Renderer {
   }
 
   draw(state) {
-    const { ctx, cell, cols, rows } = this;
+    const { ctx } = this;
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this._drawBoard();
-    if (state.phase === 'waiting' || !state.players.p1) {
-      this._drawOverlay('Väntar på motspelare…', '');
-      return;
-    }
-    this._drawObstacles(state.obstacles);
+    if (!state.players.p1) return; // före första state-broadcast
+    this._drawObstacles(state.obstaclesAt());
     this._drawPlayers(state);
+    // I waiting/lobby ligger HTML-lobbypanelen ovanpå
+    if (state.phase === 'waiting' || state.phase === 'lobby') return;
     this._drawHUD(state);
+    if (state.phase === 'countdown') {
+      const n = Math.max(1, Math.ceil(state.countdownRemaining() / 1000));
+      this._drawOverlay(String(n), 'Gör dig redo!');
+    }
     if (state.phase === 'round_over') {
       const w = state.lastEvent?.winner;
-      const you = state.you;
       this._drawOverlay(
-        w === you ? 'Du vann rundan! 🐸' : 'Motspelaren vann rundan',
+        w === state.you ? 'Du vann rundan! 🐸' : `${this._name(state, w)} vann rundan`,
         'Nästa runda startar…'
       );
     }
     if (state.phase === 'match_over') {
       const w = state.lastEvent?.winner;
-      const you = state.you;
       this._drawOverlay(
-        w === you ? 'Du vann matchen! 🏆' : 'Motspelaren vann matchen',
+        w === state.you ? 'Du vann matchen! 🏆' : `${this._name(state, w)} vann matchen`,
         `Resultat: ${state.lastEvent?.score?.join(' – ') ?? ''}`
       );
     }
     if (state.phase === 'disconnected') {
       this._drawOverlay('Motspelaren kopplade från', 'Ladda om sidan för ny match');
     }
+  }
+
+  _name(state, pid) {
+    return state.players[pid]?.name ?? 'Motspelaren';
   }
 
   _drawBoard() {
@@ -85,10 +98,9 @@ export class Renderer {
 
   _drawPlayers(state) {
     const { ctx, cell } = this;
-    const colors = { p1: '#00ff00', p2: '#ffff00' };
     for (const [pid, p] of Object.entries(state.players)) {
       if (!p) continue;
-      ctx.fillStyle = pid === state.you ? '#00ff88' : colors[pid];
+      ctx.fillStyle = SKINS[p.skin] ?? SKINS.green;
       ctx.beginPath();
       ctx.arc(
         p.x * cell + cell / 2,
@@ -96,6 +108,11 @@ export class Renderer {
         cell / 2 - 4, 0, Math.PI * 2
       );
       ctx.fill();
+      if (pid === state.you) { // vit ring markerar egen spelare
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+      }
       // Liten etikett
       ctx.fillStyle = '#000';
       ctx.font = `bold ${cell * 0.4}px monospace`;
@@ -120,7 +137,7 @@ export class Renderer {
     const pOther = state.players[other];
     if (pYou && pOther) {
       ctx.fillText(
-        `Runda ${state.round}  |  Du: ♥${pYou.lives}  Mål:${pYou.score}  |  Motst: ♥${pOther.lives}  Mål:${pOther.score}  |  Match: ${state.roundScores[you]}–${state.roundScores[other]}`,
+        `Runda ${state.round}  |  ${pYou.name ?? 'Du'}: ♥${pYou.lives} Mål:${pYou.score}  |  ${pOther.name ?? 'Motst'}: ♥${pOther.lives} Mål:${pOther.score}  |  Match: ${state.roundScores[you]}–${state.roundScores[other]}`,
         8, 16
       );
     }

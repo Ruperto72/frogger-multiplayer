@@ -7,7 +7,18 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div id="overlay" class="overlay hidden"></div>
+  <div id="lobby" class="lobby">
+    <h1>Frogger Multiplayer</h1>
+    <p id="lobby-status">Väntar på motspelare…</p>
+    <input id="lobby-name" maxlength="20" placeholder="Ditt namn" autocomplete="nickname">
+    <div class="skins" id="lobby-skins">
+      <button class="skin" data-skin="green" aria-label="Grön"></button>
+      <button class="skin" data-skin="yellow" aria-label="Gul"></button>
+      <button class="skin" data-skin="blue" aria-label="Blå"></button>
+    </div>
+    <button id="lobby-ready" disabled>Redo</button>
+    <p id="lobby-opponent"></p>
+  </div>
   <canvas id="game"></canvas>
   <script src="js/main.js" type="module"></script>
 </body>
