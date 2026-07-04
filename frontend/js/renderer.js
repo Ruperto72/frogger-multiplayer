@@ -1,0 +1,144 @@
+const ZONE_COLORS = {
+  goal:    '#2a4a18',
+  river:   '#1a3a6a',
+  safe:    '#3a5a28',
+  traffic: '#555555',
+  start:   '#4a3728'
+};
+
+function zoneColor(row) {
+  if (row === 0)                          return ZONE_COLORS.goal;
+  if (row >= 1 && row <= 5)              return ZONE_COLORS.river;
+  if (row === 6)                          return ZONE_COLORS.safe;
+  if (row >= 7 && row <= 12)             return ZONE_COLORS.traffic;
+  return ZONE_COLORS.start;
+}
+
+export class Renderer {
+  constructor(canvas, cell, cols, rows) {
+    this.canvas = canvas;
+    this.ctx    = canvas.getContext('2d');
+    this.cell   = cell;
+    this.cols   = cols;
+    this.rows   = rows;
+  }
+
+  draw(state) {
+    const { ctx, cell, cols, rows } = this;
+    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    this._drawBoard();
+    if (state.phase === 'waiting' || !state.players.p1) {
+      this._drawOverlay('Väntar på motspelare…', '');
+      return;
+    }
+    this._drawObstacles(state.obstacles);
+    this._drawPlayers(state);
+    this._drawHUD(state);
+    if (state.phase === 'round_over') {
+      const w = state.lastEvent?.winner;
+      const you = state.you;
+      this._drawOverlay(
+        w === you ? 'Du vann rundan! 🐸' : 'Motspelaren vann rundan',
+        'Nästa runda startar…'
+      );
+    }
+    if (state.phase === 'match_over') {
+      const w = state.lastEvent?.winner;
+      const you = state.you;
+      this._drawOverlay(
+        w === you ? 'Du vann matchen! 🏆' : 'Motspelaren vann matchen',
+        `Resultat: ${state.lastEvent?.score?.join(' – ') ?? ''}`
+      );
+    }
+    if (state.phase === 'disconnected') {
+      this._drawOverlay('Motspelaren kopplade från', 'Ladda om sidan för ny match');
+    }
+  }
+
+  _drawBoard() {
+    const { ctx, cell, cols, rows } = this;
+    for (let row = 0; row < rows; row++) {
+      ctx.fillStyle = zoneColor(row);
+      ctx.fillRect(0, row * cell, cols * cell, cell);
+    }
+    // Målplatser
+    ctx.fillStyle = '#4a8a28';
+    for (const gx of [1, 3, 5, 7, 9]) {
+      ctx.fillRect(gx * cell + 4, 4, cell - 8, cell - 8);
+    }
+  }
+
+  _drawObstacles(obstacles) {
+    const { ctx, cell } = this;
+    for (const obs of obstacles) {
+      ctx.fillStyle = obs.type === 'car' ? '#cc3333' : '#8b5e3c';
+      const px = ((obs.x % this.cols) + this.cols) % this.cols;
+      const x  = px * cell;
+      const y  = obs.lane * cell + 4;
+      const w  = obs.width * cell - 4;
+      const h  = cell - 8;
+      ctx.fillRect(x, y, w, h);
+      // Lindning: om hindret går utanför höger kant
+      if (x + w > this.cols * cell) {
+        ctx.fillRect(x - this.cols * cell, y, w, h);
+      }
+    }
+  }
+
+  _drawPlayers(state) {
+    const { ctx, cell } = this;
+    const colors = { p1: '#00ff00', p2: '#ffff00' };
+    for (const [pid, p] of Object.entries(state.players)) {
+      if (!p) continue;
+      ctx.fillStyle = pid === state.you ? '#00ff88' : colors[pid];
+      ctx.beginPath();
+      ctx.arc(
+        p.x * cell + cell / 2,
+        p.y * cell + cell / 2,
+        cell / 2 - 4, 0, Math.PI * 2
+      );
+      ctx.fill();
+      // Liten etikett
+      ctx.fillStyle = '#000';
+      ctx.font = `bold ${cell * 0.4}px monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(pid === state.you ? 'DU' : pid.toUpperCase(),
+        p.x * cell + cell / 2, p.y * cell + cell / 2);
+    }
+  }
+
+  _drawHUD(state) {
+    const { ctx, cols, cell } = this;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0, 0, cols * cell, 32);
+    ctx.fillStyle = '#fff';
+    ctx.font = '14px monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    const you   = state.you;
+    const other = you === 'p1' ? 'p2' : 'p1';
+    const pYou   = state.players[you];
+    const pOther = state.players[other];
+    if (pYou && pOther) {
+      ctx.fillText(
+        `Runda ${state.round}  |  Du: ♥${pYou.lives}  Mål:${pYou.score}  |  Motst: ♥${pOther.lives}  Mål:${pOther.score}  |  Match: ${state.roundScores[you]}–${state.roundScores[other]}`,
+        8, 16
+      );
+    }
+  }
+
+  _drawOverlay(title, subtitle) {
+    const { ctx, canvas } = this;
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 32px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(title, canvas.width / 2, canvas.height / 2 - 20);
+    ctx.fillStyle = '#aaa';
+    ctx.font = '18px monospace';
+    ctx.fillText(subtitle, canvas.width / 2, canvas.height / 2 + 20);
+  }
+}
