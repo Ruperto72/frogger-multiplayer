@@ -88,6 +88,7 @@ class Room {
   }
 
   _checkGoal(pid) {
+    if (this.state.phase !== 'playing') return;
     const p = this.state.players[pid];
     if (p.y !== GOAL_ROW) return;
     p.score++;
@@ -110,6 +111,7 @@ class Room {
   }
 
   _endRound(winnerId) {
+    if (this.state.phase !== 'playing') return;
     this.state.roundScores[winnerId]++;
     this.state.phase = 'round_over';
     this._broadcastEvent('round_over', { winner: winnerId });
@@ -146,6 +148,7 @@ class Room {
   }
 
   _onDisconnect() {
+    if (this.state.phase === 'match_over') return;
     clearInterval(this._tick);
     this.state.phase = 'match_over';
     this._broadcastEvent('opponent_disconnected', {});
