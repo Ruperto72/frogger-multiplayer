@@ -78,7 +78,7 @@ export class Renderer {
     }
     // Målplatser
     ctx.fillStyle = '#4a8a28';
-    for (const gx of [1, 3, 5, 7, 9]) {
+    for (const gx of [0, 3, 6, 9, 12]) {
       ctx.fillRect(gx * cell + 4, 4, cell - 8, cell - 8);
     }
   }

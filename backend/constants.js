@@ -1,7 +1,7 @@
 const COLS = 13;
 const ROWS = 15;
 const GOAL_ROW = 0;
-const GOAL_COLS = new Set([1, 3, 5, 7, 9]);
+const GOAL_COLS = new Set([0, 3, 6, 9, 12]);
 const RIVER_ROWS = new Set([1, 2, 3, 4, 5]);
 const SAFE_ROWS = new Set([6, 13, 14]);
 const TRAFFIC_ROWS = new Set([7, 8, 9, 10, 11, 12]);

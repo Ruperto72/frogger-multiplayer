@@ -97,7 +97,7 @@ test('spelare överlever i flod på stock', () => {
 
 test('spelare som når målraden får poäng och respawnar', () => {
   const { room } = makeRoom();
-  room.state.players.p1.x = 5;
+  room.state.players.p1.x = 6;
   room.state.players.p1.y = 1;
   room.state.obstacles = []; // tom flod — men vi går till rad 0 direkt
   room.handleMove('p1', 'up'); // hoppar till y=0 = mål

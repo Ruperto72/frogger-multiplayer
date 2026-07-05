@@ -13,7 +13,7 @@ Banlayouten är i dag hårdkodad på flera ställen: `backend/constants.js`
 module.exports = {
   classic: {
     cols: 13, rows: 15,
-    goalRow: 0, goalCols: [1, 3, 5, 7, 9],
+    goalRow: 0, goalCols: [0, 3, 6, 9, 12],
     spawn: { p1: { x: 5, y: 14 }, p2: { x: 7, y: 14 } },
     lanes: [
       { row: 1, zone: 'river',   type: 'log', speed: [0.03, 0.07], width: [2, 3], count: [2, 3] },
