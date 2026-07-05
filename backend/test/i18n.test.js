@@ -48,3 +48,9 @@ test('paritet: sv och en har exakt samma nycklar', async () => {
   const { LANGS } = await makeI18n();
   assert.deepEqual(Object.keys(LANGS.sv).sort(), Object.keys(LANGS.en).sort());
 });
+
+test('t: dollartecken i variabelvärden interpoleras bokstavligt', async () => {
+  const { t, setLang } = await makeI18n();
+  setLang('sv');
+  assert.equal(t('game.wonRoundOther', { name: '$& $$ $`' }), '$& $$ $` vann rundan');
+});

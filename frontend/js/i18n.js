@@ -139,7 +139,7 @@ export function getLang() {
 export function t(key, vars) {
   let s = LANGS[lang][key] ?? LANGS.sv[key] ?? key;
   if (vars) {
-    for (const [k, v] of Object.entries(vars)) s = s.replaceAll(`{${k}}`, v);
+    for (const [k, v] of Object.entries(vars)) s = s.replaceAll(`{${k}}`, () => String(v));
   }
   return s;
 }
