@@ -8,8 +8,9 @@ function mockWs() {
   return {
     messages,
     send: (m) => messages.push(JSON.parse(m)),
-    on: (event, fn) => { handlers[event] = fn; },
-    emit: (event, data) => handlers[event]?.(data),
+    on: (event, fn) => { (handlers[event] ??= []).push(fn); },
+    off: (event, fn) => { handlers[event] = (handlers[event] ?? []).filter(f => f !== fn); },
+    emit: (event, data) => { for (const fn of [...(handlers[event] ?? [])]) fn(data); },
     readyState: 1
   };
 }
@@ -282,4 +283,32 @@ test('disconnect ger motståndaren matchvinst som walkover', () => {
   ws1.emit('close');
   assert.equal(room.state.phase, 'match_over');
   assert.deepEqual(ends, [['p2', { walkover: true }]]);
+});
+
+test('addSpectator skickar match_start you=spectator och state', () => {
+  const { room } = makeRoom();
+  const spec = mockWs();
+  room.addSpectator(spec);
+  assert.deepEqual(spec.messages[0], { type: 'match_start', you: 'spectator' });
+  assert.equal(spec.messages[1].type, 'state');
+});
+
+test('åskådare får event-broadcasts', () => {
+  const { room } = makeRoom();
+  const spec = mockWs();
+  room.addSpectator(spec);
+  room._broadcastEvent('countdown', { duration: 3000 });
+  assert.ok(spec.messages.some(m => m.type === 'event' && m.event === 'countdown'));
+});
+
+test('destroy avregistrerar lyssnare: close efter destroy gör inget', () => {
+  const ends = [];
+  const ws1 = mockWs(), ws2 = mockWs();
+  const room = new Room(ws1, ws2, { onMatchEnd: (w) => ends.push(w) });
+  clearInterval(room._tick);
+  room.state.phase = 'playing';
+  room.destroy();
+  ws1.emit('close');
+  assert.equal(room.state.phase, 'playing'); // orört — hanteraren är borta
+  assert.deepEqual(ends, []);
 });

@@ -16,6 +16,7 @@ const DIRS = {
 class Room {
   constructor(ws1, ws2, opts = {}) {
     this.sockets = { p1: ws1, p2: ws2 };
+    this.spectators = [];
     this._winsNeeded = opts.winsNeeded ?? ROUNDS_TO_WIN_MATCH;
     this._onMatchEnd = opts.onMatchEnd ?? null;
     this.state = this._initialState();
@@ -27,6 +28,23 @@ class Room {
     this._send('p1', { type: 'match_start', you: 'p1' });
     this._send('p2', { type: 'match_start', you: 'p2' });
     this._broadcast();
+  }
+
+  addSpectator(ws) {
+    this.spectators.push(ws);
+    if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'match_start', you: 'spectator' }));
+    this._broadcast();
+  }
+
+  destroy() {
+    clearTimeout(this._roundTimer);
+    clearTimeout(this._startTimer);
+    clearInterval(this._tick);
+    for (const { ws, onMessage, onClose } of this._handlers) {
+      ws.off('message', onMessage);
+      ws.off('close', onClose);
+    }
+    this.spectators.length = 0;
   }
 
   _initialState() {
@@ -47,8 +65,9 @@ class Room {
   }
 
   _attachHandlers() {
+    this._handlers = [];
     for (const [pid, ws] of Object.entries(this.sockets)) {
-      ws.on('message', (data) => {
+      const onMessage = (data) => {
         try {
           const msg = JSON.parse(data);
           if (msg.type === 'move') {
@@ -59,8 +78,11 @@ class Room {
             this._handleReady(pid, msg);
           }
         } catch {}
-      });
-      ws.on('close', () => this._onDisconnect(pid));
+      };
+      const onClose = () => this._onDisconnect(pid);
+      ws.on('message', onMessage);
+      ws.on('close', onClose);
+      this._handlers.push({ ws, onMessage, onClose });
     }
   }
 
@@ -225,14 +247,14 @@ class Room {
       type: 'state', players, seed, tick, round, roundScores, phase,
       ack: this._seq
     });
-    for (const ws of Object.values(this.sockets)) {
+    for (const ws of [...Object.values(this.sockets), ...this.spectators]) {
       if (ws.readyState === 1) ws.send(msg);
     }
   }
 
   _broadcastEvent(event, data) {
     const msg = JSON.stringify({ type: 'event', event, ...data });
-    for (const ws of Object.values(this.sockets)) {
+    for (const ws of [...Object.values(this.sockets), ...this.spectators]) {
       if (ws.readyState === 1) ws.send(msg);
     }
   }
