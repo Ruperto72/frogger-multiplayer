@@ -1,0 +1,112 @@
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+
+export class TournamentUI {
+  constructor(net, state) {
+    this._net = net;
+    this._state = state;
+    this._sentReadyFor = null; // 'round:index' som Redo redan skickats för
+    this._renderedJson = null;
+
+    this._root    = document.getElementById('tournament');
+    this._codeEl  = document.getElementById('t-code');
+    this._players = document.getElementById('t-players');
+    this._bracket = document.getElementById('t-bracket');
+    this._start   = document.getElementById('t-start');
+    this._ready   = document.getElementById('t-ready');
+    this._status  = document.getElementById('t-status');
+
+    document.getElementById('t-copy').addEventListener('click', () => {
+      const code = this._state.tournament?.code ?? '';
+      navigator.clipboard?.writeText(`${location.origin}${location.pathname}?code=${code}`);
+    });
+    this._start.addEventListener('click', () => this._net.send({ type: 'start_tournament' }));
+    this._ready.addEventListener('click', () => {
+      const cur = this._state.tournament?.currentMatch;
+      if (cur) this._sentReadyFor = `${cur.round}:${cur.index}`;
+      this._net.send({
+        type: 'ready',
+        name: this._state.profile.name,
+        skin: this._state.profile.skin
+      });
+    });
+  }
+
+  // Anropas från rAF-loopen
+  update() {
+    const s = this._state;
+    const t = s.tournament;
+    const visible = s.mode === 'tournament' && !!t &&
+      (t.phase === 'gathering' || t.phase === 'between_matches' ||
+       t.phase === 'finished' || s.phase === 'lobby');
+    this._root.classList.toggle('hidden', !visible);
+    if (!visible) return;
+
+    // Bygg bara om DOM när innehållet ändrats
+    const json = JSON.stringify([t, s.phase, this._sentReadyFor]);
+    if (json === this._renderedJson) return;
+    this._renderedJson = json;
+
+    this._codeEl.textContent = t.code;
+    const me = t.participants.find(p => p.id === t.you);
+
+    if (t.phase === 'gathering') {
+      this._players.classList.remove('hidden');
+      this._bracket.classList.add('hidden');
+      this._ready.classList.add('hidden');
+      this._players.replaceChildren(...t.participants.map(p =>
+        el('p', null, `${p.name}${p.isHost ? ' (värd)' : ''}`)));
+      this._status.textContent = `${t.participants.length} av ${t.size} anslutna`;
+      this._start.classList.toggle('hidden', !me?.isHost || t.participants.length < 2);
+      return;
+    }
+
+    this._players.classList.add('hidden');
+    this._start.classList.add('hidden');
+    this._bracket.classList.remove('hidden');
+    this._renderBracket(t);
+
+    if (t.phase === 'finished') {
+      const champ = t.participants.find(p => p.id === t.bracket.at(-1)[0].winner);
+      this._status.textContent = `🏆 ${champ?.name ?? '?'} vann turneringen! Ladda om sidan för att spela igen.`;
+      this._ready.classList.add('hidden');
+      return;
+    }
+
+    const cur = t.currentMatch && t.bracket[t.currentMatch.round][t.currentMatch.index];
+    const inMatch = !!cur && (cur.p1 === t.you || cur.p2 === t.you);
+    const key = t.currentMatch && `${t.currentMatch.round}:${t.currentMatch.index}`;
+    const showReady = inMatch && s.phase === 'lobby' && this._sentReadyFor !== key;
+    this._ready.classList.toggle('hidden', !showReady);
+    this._status.textContent = inMatch
+      ? (showReady ? 'Din match står på tur — gör dig redo!' : 'Väntar på motståndaren…')
+      : 'Du är åskådare i nästa match.';
+  }
+
+  _renderBracket(t) {
+    const nameOf = (id) => id == null
+      ? '(frilott)'
+      : (t.participants.find(p => p.id === id)?.name ?? '?');
+    const cols = t.bracket.map((round, r) => {
+      const col = el('div', 'b-round');
+      round.forEach((m, i) => {
+        const isCurrent = t.currentMatch && t.currentMatch.round === r && t.currentMatch.index === i;
+        const box = el('div', 'b-match' + (isCurrent ? ' current' : ''));
+        for (const pid of [m.p1, m.p2]) {
+          box.appendChild(el('div',
+            'b-player' + (m.winner != null && pid === m.winner ? ' winner' : ''),
+            pid == null && r > 0 ? '…' : nameOf(pid)));
+        }
+        // Frilotter (p2 === null) har egen text — b-note bara för riktiga walkovers
+        if (m.walkover && m.p2 != null) box.appendChild(el('div', 'b-note', 'walkover'));
+        col.appendChild(box);
+      });
+      return col;
+    });
+    this._bracket.replaceChildren(...cols);
+  }
+}

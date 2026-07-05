@@ -5,6 +5,7 @@ import { GameState } from './game.js';
 import { Renderer } from './renderer.js';
 import { LobbyUI } from './lobby-ui.js';
 import { StartUI } from './start-ui.js';
+import { TournamentUI } from './tournament-ui.js';
 import { COLS, ROWS } from './sim.js';
 
 const CELL = 48;
@@ -20,10 +21,12 @@ const input    = new Input(net, state);
 new TouchControls(input);
 const lobbyUi  = new LobbyUI(net, state);
 const startUi = new StartUI(net, state);
+const tournamentUi = new TournamentUI(net, state);
 
 function loop() {
   startUi.update();
   lobbyUi.update();
+  tournamentUi.update();
   renderer.draw(state);
   requestAnimationFrame(loop);
 }

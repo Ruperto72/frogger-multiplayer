@@ -43,6 +43,15 @@
     <button id="lobby-ready" disabled>Redo</button>
     <p id="lobby-opponent"></p>
   </div>
+  <div id="tournament" class="lobby hidden">
+    <h1>Turnering</h1>
+    <p class="code-row">Kod: <strong id="t-code"></strong> <button id="t-copy">Kopiera länk</button></p>
+    <div id="t-players"></div>
+    <button id="t-start" class="primary hidden">Lotta &amp; starta</button>
+    <div id="t-bracket" class="hidden"></div>
+    <button id="t-ready" class="primary hidden">Redo</button>
+    <p id="t-status"></p>
+  </div>
   <canvas id="game"></canvas>
   <div id="touch-controls" class="hidden">
     <div class="tc-group tc-left">

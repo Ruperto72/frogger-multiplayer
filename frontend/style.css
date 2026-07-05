@@ -121,3 +121,45 @@ canvas {
 #start-code { width: 6.5rem; text-transform: uppercase; }
 
 .error { color: #ff6666; min-height: 1.2em; }
+
+.code-row strong { font-size: 1.5rem; letter-spacing: 0.2em; color: #ffe100; }
+
+#t-copy {
+  font: inherit;
+  margin-left: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  background: #333;
+  color: #fff;
+  border: 1px solid #555;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+#t-players p { color: #fff; }
+
+#t-bracket {
+  display: flex;
+  gap: 1rem;
+  max-width: 95vw;
+  overflow-x: auto;
+  padding: 0 1rem;
+}
+
+.b-round {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  gap: 0.75rem;
+}
+
+.b-match { border: 1px solid #555; border-radius: 4px; min-width: 9rem; }
+
+.b-match.current { border-color: #ffe100; }
+
+.b-player { padding: 0.3rem 0.6rem; border-bottom: 1px solid #333; color: #ccc; }
+
+.b-player:last-child { border-bottom: none; }
+
+.b-player.winner { color: #00e64d; font-weight: bold; }
+
+.b-note { padding: 0 0.6rem 0.3rem; font-size: 0.75rem; color: #888; }
