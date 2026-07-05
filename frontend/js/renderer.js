@@ -22,6 +22,8 @@ function zoneColor(row) {
   return ZONE_COLORS.start;
 }
 
+import { t } from './i18n.js';
+
 export class Renderer {
   constructor(canvas, cell, cols, rows) {
     this.canvas = canvas;
@@ -43,29 +45,29 @@ export class Renderer {
     this._drawHUD(state);
     if (state.phase === 'countdown') {
       const n = Math.max(1, Math.ceil(state.countdownRemaining() / 1000));
-      this._drawOverlay(String(n), 'Gör dig redo!');
+      this._drawOverlay(String(n), t('game.getReady'));
     }
     if (state.phase === 'round_over') {
       const w = state.lastEvent?.winner;
       this._drawOverlay(
-        w === state.you ? 'Du vann rundan! 🐸' : `${this._name(state, w)} vann rundan`,
-        'Nästa runda startar…'
+        w === state.you ? t('game.wonRoundYou') : t('game.wonRoundOther', { name: this._name(state, w) }),
+        t('game.nextRound')
       );
     }
     if (state.phase === 'match_over') {
       const w = state.lastEvent?.winner;
       this._drawOverlay(
-        w === state.you ? 'Du vann matchen! 🏆' : `${this._name(state, w)} vann matchen`,
-        `Resultat: ${state.lastEvent?.score?.join(' – ') ?? ''}`
+        w === state.you ? t('game.wonMatchYou') : t('game.wonMatchOther', { name: this._name(state, w) }),
+        t('game.result', { score: state.lastEvent?.score?.join(' – ') ?? '' })
       );
     }
     if (state.phase === 'disconnected') {
-      this._drawOverlay('Motspelaren kopplade från', 'Ladda om sidan för ny match');
+      this._drawOverlay(t('game.opponentLeft'), t('game.reload'));
     }
   }
 
   _name(state, pid) {
-    return state.players[pid]?.name ?? 'Motspelaren';
+    return state.players[pid]?.name ?? t('game.opponentFallback');
   }
 
   _drawBoard() {
@@ -118,7 +120,7 @@ export class Renderer {
       ctx.font = `bold ${cell * 0.4}px monospace`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(pid === state.you ? 'DU' : pid.toUpperCase(),
+      ctx.fillText(pid === state.you ? t('game.you') : pid.toUpperCase(),
         p.x * cell + cell / 2, p.y * cell + cell / 2);
       if (p.name) {
         ctx.fillStyle = '#fff';
@@ -141,7 +143,7 @@ export class Renderer {
       const a = state.players.p1, b = state.players.p2;
       if (a && b) {
         ctx.fillText(
-          `Åskådare  |  Runda ${state.round}  |  ${a.name}: ♥${a.lives} Mål:${a.score}  |  ${b.name}: ♥${b.lives} Mål:${b.score}  |  Match: ${state.roundScores.p1}–${state.roundScores.p2}`,
+          `${t('game.spectatorLabel')}  |  ${t('game.round')} ${state.round}  |  ${a.name}: ♥${a.lives} ${t('game.goals')}:${a.score}  |  ${b.name}: ♥${b.lives} ${t('game.goals')}:${b.score}  |  ${t('game.match')}: ${state.roundScores.p1}–${state.roundScores.p2}`,
           8, 16
         );
       }
@@ -153,7 +155,7 @@ export class Renderer {
     const pOther = state.players[other];
     if (pYou && pOther) {
       ctx.fillText(
-        `Runda ${state.round}  |  ${pYou.name ?? 'Du'}: ♥${pYou.lives} Mål:${pYou.score}  |  ${pOther.name ?? 'Motst'}: ♥${pOther.lives} Mål:${pOther.score}  |  Match: ${state.roundScores[you]}–${state.roundScores[other]}`,
+        `${t('game.round')} ${state.round}  |  ${pYou.name ?? t('game.youShort')}: ♥${pYou.lives} ${t('game.goals')}:${pYou.score}  |  ${pOther.name ?? t('game.oppShort')}: ♥${pOther.lives} ${t('game.goals')}:${pOther.score}  |  ${t('game.match')}: ${state.roundScores[you]}–${state.roundScores[other]}`,
         8, 16
       );
     }
