@@ -45,3 +45,42 @@ Frontend: öppna `frontend/index.html` direkt i webbläsaren — den ansluter au
 
 - **Frontend:** pushas till `master` → GitHub Actions ([deploy.yml](.github/workflows/deploy.yml)) publicerar `frontend/` till GitHub Pages.
 - **Backend:** Render enligt [backend/render.yaml](backend/render.yaml) (`rootDir: backend`, `node server.js`).
+
+## Sätta upp en egen instans
+
+Så här konfigurerar du GitHub och Render för att köra spelet på egna konton.
+
+### 1. GitHub — repo och Pages
+
+1. Forka (eller klona och pusha) repot till ditt GitHub-konto. Standardbranchen ska heta `master` — deploy-workflowen triggar på pushar dit.
+2. Aktivera Pages: **Settings → Pages → Build and deployment → Source: GitHub Actions**. Ingen branch/mapp ska väljas — workflowen [deploy.yml](.github/workflows/deploy.yml) finns redan i repot och publicerar `frontend/` vid varje push.
+3. I forkar är Actions ibland avstängda: kontrollera under repots **Actions**-flik att workflows är aktiverade.
+
+Frontenden hamnar på `https://<användarnamn>.github.io/<reponamn>/`.
+
+### 2. Render — backend
+
+1. Skapa ett konto på [render.com](https://render.com) och koppla det till ditt GitHub-konto.
+2. **New → Web Service**, välj repot och ange:
+   - **Root Directory:** `backend`
+   - **Runtime:** Node
+   - **Build Command:** `npm install`
+   - **Start Command:** `node server.js`
+   - **Instance Type:** Free
+   - Region: valfri (närmast spelarna, t.ex. Frankfurt)
+3. Tjänstens **namn** styr URL:en: `https://<namn>.onrender.com`. Ingen portkonfiguration behövs — servern lyssnar på Renders `PORT`-miljövariabel automatiskt.
+4. Auto-deploy vid push till `master` är på som standard — lämna det så, då följer backenden med varje push precis som frontenden.
+
+[backend/render.yaml](backend/render.yaml) dokumenterar samma inställningar och kan användas som Blueprint om den flyttas till repo-roten, men det enklaste är att skapa tjänsten manuellt enligt ovan.
+
+### 3. Peka frontenden mot din backend
+
+I [frontend/js/net.js](frontend/js/net.js) är produktions-URL:en hårdkodad
+(`wss://frogger-multiplayer.onrender.com`). Byt den till din Render-URL med
+`wss://`-prefix och pusha — klart.
+
+### Bra att veta
+
+- **Frontend och backend deployas av samma push** — det är viktigt, eftersom de måste tala samma protokollversion. Låt bådas auto-deploy vara på.
+- **Free tier sover** efter 15 min inaktivitet; första anslutningen därefter kan ta upp till en minut medan tjänsten vaknar.
+- Lokalt behövs ingen konfiguration alls — klienten ansluter automatiskt till `ws://localhost:3000` när sidan serveras från `localhost` (se [Utveckling](#utveckling)).
