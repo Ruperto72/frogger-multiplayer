@@ -163,3 +163,26 @@ canvas {
 .b-player.winner { color: #00e64d; font-weight: bold; }
 
 .b-note { padding: 0 0.6rem 0.3rem; font-size: 0.75rem; color: #888; }
+
+.lang-switch {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  display: flex;
+  gap: 0.25rem;
+}
+
+.lang-switch button {
+  font: inherit;
+  padding: 0.25rem 0.6rem;
+  background: #222;
+  color: #888;
+  border: 1px solid #555;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.lang-switch button.active {
+  color: #fff;
+  border-color: #fff;
+}

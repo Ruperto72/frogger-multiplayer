@@ -8,59 +8,63 @@
 </head>
 <body>
   <div id="start" class="lobby">
-    <h1>Frogger Multiplayer</h1>
-    <input id="start-name" maxlength="20" placeholder="Ditt namn" autocomplete="nickname">
-    <div class="skins" id="start-skins">
-      <button class="skin" data-skin="green" aria-label="Grön"></button>
-      <button class="skin" data-skin="yellow" aria-label="Gul"></button>
-      <button class="skin" data-skin="blue" aria-label="Blå"></button>
+    <div class="lang-switch">
+      <button id="lang-sv">SV</button>
+      <button id="lang-en">EN</button>
     </div>
-    <button id="start-quick" class="primary">Snabbmatch</button>
+    <h1>Frogger Multiplayer</h1>
+    <input id="start-name" maxlength="20" placeholder="Ditt namn" autocomplete="nickname" data-i18n-placeholder="start.namePlaceholder">
+    <div class="skins" id="start-skins">
+      <button class="skin" data-skin="green" aria-label="Grön" data-i18n-aria="skin.green"></button>
+      <button class="skin" data-skin="yellow" aria-label="Gul" data-i18n-aria="skin.yellow"></button>
+      <button class="skin" data-skin="blue" aria-label="Blå" data-i18n-aria="skin.blue"></button>
+    </div>
+    <button id="start-quick" class="primary" data-i18n="start.quick">Snabbmatch</button>
     <div class="start-row">
       <select id="start-size"></select>
       <select id="start-bestof">
-        <option value="1">Bäst av 1</option>
-        <option value="3" selected>Bäst av 3</option>
-        <option value="5">Bäst av 5</option>
+        <option value="1" data-i18n="start.bestof1">Bäst av 1</option>
+        <option value="3" selected data-i18n="start.bestof3">Bäst av 3</option>
+        <option value="5" data-i18n="start.bestof5">Bäst av 5</option>
       </select>
-      <button id="start-create" class="primary">Skapa turnering</button>
+      <button id="start-create" class="primary" data-i18n="start.create">Skapa turnering</button>
     </div>
     <div class="start-row">
-      <input id="start-code" maxlength="4" placeholder="KOD">
-      <button id="start-join" class="primary">Gå med</button>
+      <input id="start-code" maxlength="4" placeholder="KOD" data-i18n-placeholder="start.codePlaceholder">
+      <button id="start-join" class="primary" data-i18n="start.join">Gå med</button>
     </div>
     <p id="start-error" class="error"></p>
   </div>
   <div id="lobby" class="lobby">
     <h1>Frogger Multiplayer</h1>
-    <p id="lobby-status">Väntar på motspelare…</p>
-    <input id="lobby-name" maxlength="20" placeholder="Ditt namn" autocomplete="nickname">
+    <p id="lobby-status" data-i18n="lobby.waiting">Väntar på motspelare…</p>
+    <input id="lobby-name" maxlength="20" placeholder="Ditt namn" autocomplete="nickname" data-i18n-placeholder="start.namePlaceholder">
     <div class="skins" id="lobby-skins">
-      <button class="skin" data-skin="green" aria-label="Grön"></button>
-      <button class="skin" data-skin="yellow" aria-label="Gul"></button>
-      <button class="skin" data-skin="blue" aria-label="Blå"></button>
+      <button class="skin" data-skin="green" aria-label="Grön" data-i18n-aria="skin.green"></button>
+      <button class="skin" data-skin="yellow" aria-label="Gul" data-i18n-aria="skin.yellow"></button>
+      <button class="skin" data-skin="blue" aria-label="Blå" data-i18n-aria="skin.blue"></button>
     </div>
-    <button id="lobby-ready" disabled>Redo</button>
+    <button id="lobby-ready" disabled data-i18n="lobby.readyBtn">Redo</button>
     <p id="lobby-opponent"></p>
   </div>
   <div id="tournament" class="lobby hidden">
-    <h1>Turnering</h1>
-    <p class="code-row">Kod: <strong id="t-code"></strong> <button id="t-copy">Kopiera länk</button></p>
+    <h1 data-i18n="t.title">Turnering</h1>
+    <p class="code-row"><span data-i18n="t.codeLabel">Kod:</span> <strong id="t-code"></strong> <button id="t-copy" data-i18n="t.copy">Kopiera länk</button></p>
     <div id="t-players"></div>
-    <button id="t-start" class="primary hidden">Lotta &amp; starta</button>
+    <button id="t-start" class="primary hidden" data-i18n="t.start">Lotta &amp; starta</button>
     <div id="t-bracket" class="hidden"></div>
-    <button id="t-ready" class="primary hidden">Redo</button>
+    <button id="t-ready" class="primary hidden" data-i18n="lobby.readyBtn">Redo</button>
     <p id="t-status"></p>
   </div>
   <canvas id="game"></canvas>
   <div id="touch-controls" class="hidden">
     <div class="tc-group tc-left">
-      <button data-dir="left" aria-label="Vänster">◀</button>
-      <button data-dir="right" aria-label="Höger">▶</button>
+      <button data-dir="left" aria-label="Vänster" data-i18n-aria="touch.left">◀</button>
+      <button data-dir="right" aria-label="Höger" data-i18n-aria="touch.right">▶</button>
     </div>
     <div class="tc-group tc-right">
-      <button data-dir="up" aria-label="Fram">▲</button>
-      <button data-dir="down" aria-label="Bak">▼</button>
+      <button data-dir="up" aria-label="Fram" data-i18n-aria="touch.up">▲</button>
+      <button data-dir="down" aria-label="Bak" data-i18n-aria="touch.down">▼</button>
     </div>
   </div>
   <script src="js/main.js" type="module"></script>

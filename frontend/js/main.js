@@ -1,3 +1,4 @@
+import { applyStatic } from './i18n.js';
 import { Net } from './net.js';
 import { Input } from './input.js';
 import { TouchControls } from './touch.js';
@@ -22,6 +23,8 @@ new TouchControls(input);
 const lobbyUi  = new LobbyUI(net, state);
 const startUi = new StartUI(net, state);
 const tournamentUi = new TournamentUI(net, state);
+
+applyStatic();
 
 function loop() {
   startUi.update();

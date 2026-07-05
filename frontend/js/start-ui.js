@@ -1,11 +1,4 @@
-const ERROR_TEXTS = {
-  unknown_code: 'Ingen turnering med den koden.',
-  tournament_full: 'Turneringen är full.',
-  name_taken: 'Namnet är upptaget — välj ett annat.',
-  already_started: 'Turneringen har redan startat.',
-  tournament_cancelled: 'Värden lämnade — turneringen avbröts.',
-  connection_lost: 'Anslutningen bröts. Välj läge för att börja om.'
-};
+import { t, setLang, getLang } from './i18n.js';
 
 export class StartUI {
   constructor(net, state) {
@@ -21,13 +14,7 @@ export class StartUI {
     this._error  = document.getElementById('start-error');
     this._skinBtns = [...document.querySelectorAll('#start-skins .skin')];
 
-    for (let n = 2; n <= 16; n++) {
-      const opt = document.createElement('option');
-      opt.value = n;
-      opt.textContent = `${n} spelare`;
-      if (n === 8) opt.selected = true;
-      this._size.appendChild(opt);
-    }
+    this._fillSizeOptions();
 
     for (const btn of this._skinBtns) {
       btn.addEventListener('click', () => {
@@ -67,6 +54,37 @@ export class StartUI {
         skin: this._skin
       });
     });
+
+    this._langBtns = {
+      sv: document.getElementById('lang-sv'),
+      en: document.getElementById('lang-en')
+    };
+    for (const [l, btn] of Object.entries(this._langBtns)) {
+      btn.addEventListener('click', () => {
+        setLang(l);
+        this._onLangChange();
+      });
+    }
+    this._onLangChange();
+  }
+
+  _onLangChange() {
+    for (const [l, btn] of Object.entries(this._langBtns)) {
+      btn.classList.toggle('active', l === getLang());
+    }
+    this._fillSizeOptions();
+  }
+
+  _fillSizeOptions() {
+    const current = this._size.value || '8';
+    this._size.replaceChildren();
+    for (let n = 2; n <= 16; n++) {
+      const opt = document.createElement('option');
+      opt.value = n;
+      opt.textContent = t('start.players', { n });
+      if (String(n) === current) opt.selected = true;
+      this._size.appendChild(opt);
+    }
   }
 
   _saveProfile() {
@@ -79,7 +97,7 @@ export class StartUI {
     const visible = this._state.mode === null;
     this._root.classList.toggle('hidden', !visible);
     if (!visible) return;
-    const text = ERROR_TEXTS[this._state.lastError] ?? '';
+    const text = this._state.lastError ? t(`error.${this._state.lastError}`) : '';
     if (this._error.textContent !== text) this._error.textContent = text;
   }
 }
