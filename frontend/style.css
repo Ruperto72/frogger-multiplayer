@@ -86,7 +86,7 @@ canvas {
 .skin[data-skin="yellow"] { background: #ffe100; }
 .skin[data-skin="blue"]   { background: #4da6ff; }
 
-#lobby-ready {
+#lobby-ready, .primary {
   font: inherit;
   font-size: 1.3rem;
   font-weight: bold;
@@ -98,10 +98,26 @@ canvas {
   cursor: pointer;
 }
 
-#lobby-ready:disabled {
+#lobby-ready:disabled, .primary:disabled {
   background: #444;
   color: #888;
   cursor: default;
 }
 
 .hidden { display: none; }
+
+.start-row { display: flex; gap: 0.5rem; align-items: center; }
+
+.lobby select {
+  font: inherit;
+  font-size: 1rem;
+  padding: 0.5rem;
+  background: #222;
+  color: #fff;
+  border: 1px solid #555;
+  border-radius: 4px;
+}
+
+#start-code { width: 6.5rem; text-transform: uppercase; }
+
+.error { color: #ff6666; min-height: 1.2em; }

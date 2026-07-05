@@ -3,6 +3,7 @@ export class Net {
     this.state = state;
     this._ws = null;
     this._reconnectTimer = null;
+    this._wasOpen = false;
     this._connect();
   }
 
@@ -15,6 +16,7 @@ export class Net {
     this._ws = new WebSocket(url);
 
     this._ws.addEventListener('open', () => {
+      this._wasOpen = true;
       console.log('Ansluten till server');
     });
 
@@ -24,6 +26,11 @@ export class Net {
     });
 
     this._ws.addEventListener('close', () => {
+      if (this._wasOpen) {
+        this._wasOpen = false;
+        this.state.resetSession();
+        this.state.lastError = 'connection_lost';
+      }
       console.log('Frånkopplad — försöker igen om 3s');
       this._reconnectTimer = setTimeout(() => this._connect(), 3000);
     });

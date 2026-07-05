@@ -34,7 +34,7 @@ export class LobbyUI {
   // Anropas från rAF-loopen
   update() {
     const s = this._state;
-    const visible = s.phase === 'waiting' || s.phase === 'lobby';
+    const visible = s.mode === 'quick' && (s.phase === 'waiting' || s.phase === 'lobby');
     this._root.classList.toggle('hidden', !visible);
     if (!visible) return;
 

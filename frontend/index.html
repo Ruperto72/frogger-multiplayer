@@ -7,6 +7,30 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <div id="start" class="lobby">
+    <h1>Frogger Multiplayer</h1>
+    <input id="start-name" maxlength="20" placeholder="Ditt namn" autocomplete="nickname">
+    <div class="skins" id="start-skins">
+      <button class="skin" data-skin="green" aria-label="Grön"></button>
+      <button class="skin" data-skin="yellow" aria-label="Gul"></button>
+      <button class="skin" data-skin="blue" aria-label="Blå"></button>
+    </div>
+    <button id="start-quick" class="primary">Snabbmatch</button>
+    <div class="start-row">
+      <select id="start-size"></select>
+      <select id="start-bestof">
+        <option value="1">Bäst av 1</option>
+        <option value="3" selected>Bäst av 3</option>
+        <option value="5">Bäst av 5</option>
+      </select>
+      <button id="start-create" class="primary">Skapa turnering</button>
+    </div>
+    <div class="start-row">
+      <input id="start-code" maxlength="4" placeholder="KOD">
+      <button id="start-join" class="primary">Gå med</button>
+    </div>
+    <p id="start-error" class="error"></p>
+  </div>
   <div id="lobby" class="lobby">
     <h1>Frogger Multiplayer</h1>
     <p id="lobby-status">Väntar på motspelare…</p>
