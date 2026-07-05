@@ -248,3 +248,38 @@ test('seq ackas även när draget avvisas av rate-limit', () => {
   room._onTick();
   assert.equal(lastState(ws1).ack.p1, 2);
 });
+
+test('winsNeeded=1: en rundvinst avslutar matchen', () => {
+  const ends = [];
+  const ws1 = mockWs(), ws2 = mockWs();
+  const room = new Room(ws1, ws2, { winsNeeded: 1, onMatchEnd: (w, info) => ends.push([w, info]) });
+  clearInterval(room._tick);
+  room.state.phase = 'playing';
+  room._endRound('p1');
+  assert.equal(room.state.phase, 'match_over');
+  assert.deepEqual(ends, [['p1', { walkover: false }]]);
+});
+
+test('standard är oförändrat: 3 rundvinster krävs', () => {
+  const { room } = makeRoom();
+  room._endRound('p1');
+  assert.equal(room.state.phase, 'round_over');
+  room.state.phase = 'playing';
+  room._endRound('p1');
+  assert.equal(room.state.phase, 'round_over');
+  room.state.phase = 'playing';
+  room._endRound('p1');
+  assert.equal(room.state.phase, 'match_over');
+  clearTimeout(room._roundTimer);
+});
+
+test('disconnect ger motståndaren matchvinst som walkover', () => {
+  const ends = [];
+  const ws1 = mockWs(), ws2 = mockWs();
+  const room = new Room(ws1, ws2, { onMatchEnd: (w, info) => ends.push([w, info]) });
+  clearInterval(room._tick);
+  room.state.phase = 'playing';
+  ws1.emit('close');
+  assert.equal(room.state.phase, 'match_over');
+  assert.deepEqual(ends, [['p2', { walkover: true }]]);
+});

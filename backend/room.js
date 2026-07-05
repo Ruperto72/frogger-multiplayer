@@ -14,8 +14,10 @@ const DIRS = {
 };
 
 class Room {
-  constructor(ws1, ws2) {
+  constructor(ws1, ws2, opts = {}) {
     this.sockets = { p1: ws1, p2: ws2 };
+    this._winsNeeded = opts.winsNeeded ?? ROUNDS_TO_WIN_MATCH;
+    this._onMatchEnd = opts.onMatchEnd ?? null;
     this.state = this._initialState();
     this._roundTimer = null;
     this._lastMove = { p1: 0, p2: 0 };
@@ -58,7 +60,7 @@ class Room {
           }
         } catch {}
       });
-      ws.on('close', () => this._onDisconnect());
+      ws.on('close', () => this._onDisconnect(pid));
     }
   }
 
@@ -150,7 +152,7 @@ class Room {
     if (winnerId) this.state.roundScores[winnerId]++;
     this.state.phase = 'round_over';
     this._broadcastEvent('round_over', { winner: winnerId });
-    if (winnerId && this.state.roundScores[winnerId] >= ROUNDS_TO_WIN_MATCH) {
+    if (winnerId && this.state.roundScores[winnerId] >= this._winsNeeded) {
       this._endMatch(winnerId);
     } else {
       this._roundTimer = setTimeout(() => this._startNewRound(), 3000);
@@ -165,6 +167,7 @@ class Room {
       score: [this.state.roundScores.p1, this.state.roundScores.p2]
     });
     clearInterval(this._tick);
+    this._onMatchEnd?.(winnerId, { walkover: false });
   }
 
   _startNewRound() {
@@ -205,13 +208,14 @@ class Room {
     this._broadcast();
   }
 
-  _onDisconnect() {
+  _onDisconnect(pid) {
     if (this.state.phase === 'match_over') return;
     clearTimeout(this._roundTimer);
     clearTimeout(this._startTimer);
     clearInterval(this._tick);
     this.state.phase = 'match_over';
     this._broadcastEvent('opponent_disconnected', {});
+    this._onMatchEnd?.(pid === 'p1' ? 'p2' : 'p1', { walkover: true });
   }
 
   _broadcast() {
