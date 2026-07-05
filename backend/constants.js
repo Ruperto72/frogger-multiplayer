@@ -12,7 +12,7 @@ const ROUNDS_TO_WIN_MATCH = 3;
 const TICK_MS = 100;
 const SKINS = ['green', 'yellow', 'blue'];
 const DEFAULT_SKIN = 'green';
-const DEFAULT_NAMES = { p1: 'Spelare 1', p2: 'Spelare 2' };
+const DEFAULT_NAMES = { p1: 'Player 1', p2: 'Player 2' };
 const NAME_MAX_LEN = 20;
 const COUNTDOWN_MS = 3000;
 

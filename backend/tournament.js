@@ -27,7 +27,7 @@ class Tournament {
   join(ws, name, skin, isHost = false) {
     if (this.phase !== 'gathering') return { error: 'already_started' };
     if (this.participants.length >= this.size) return { error: 'tournament_full' };
-    name = String(name ?? '').trim().slice(0, NAME_MAX_LEN) || `Spelare ${this._nextId}`;
+    name = String(name ?? '').trim().slice(0, NAME_MAX_LEN) || `Player ${this._nextId}`;
     if (this.participants.some(p => p.name.toLowerCase() === name.toLowerCase())) {
       return { error: 'name_taken' };
     }
