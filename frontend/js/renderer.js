@@ -1,3 +1,5 @@
+import { t } from './i18n.js';
+
 // Skin-id → utseende. Nya skins = nya rader här (+ i backend/constants.js SKINS
 // och lobbypanelens knappar). Sprite-skins: se TODO.md.
 const SKINS = {
@@ -21,8 +23,6 @@ function zoneColor(row) {
   if (row >= 7 && row <= 12)             return ZONE_COLORS.traffic;
   return ZONE_COLORS.start;
 }
-
-import { t } from './i18n.js';
 
 export class Renderer {
   constructor(canvas, cell, cols, rows) {
