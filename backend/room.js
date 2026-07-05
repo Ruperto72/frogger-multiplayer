@@ -19,6 +19,7 @@ class Room {
     this.spectators = [];
     this._winsNeeded = opts.winsNeeded ?? ROUNDS_TO_WIN_MATCH;
     this._onMatchEnd = opts.onMatchEnd ?? null;
+    this._destroyed = false;
     this.state = this._initialState();
     this._roundTimer = null;
     this._lastMove = { p1: 0, p2: 0 };
@@ -37,6 +38,7 @@ class Room {
   }
 
   destroy() {
+    this._destroyed = true;
     clearTimeout(this._roundTimer);
     clearTimeout(this._startTimer);
     clearInterval(this._tick);
@@ -241,6 +243,7 @@ class Room {
   }
 
   _broadcast() {
+    if (this._destroyed) return;
     // Hindren skickas inte — klienten simulerar dem deterministiskt från seed+tick
     const { players, seed, tick, round, roundScores, phase } = this.state;
     const msg = JSON.stringify({
@@ -253,6 +256,7 @@ class Room {
   }
 
   _broadcastEvent(event, data) {
+    if (this._destroyed) return;
     const msg = JSON.stringify({ type: 'event', event, ...data });
     for (const ws of [...Object.values(this.sockets), ...this.spectators]) {
       if (ws.readyState === 1) ws.send(msg);

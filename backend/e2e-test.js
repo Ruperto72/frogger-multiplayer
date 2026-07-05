@@ -44,19 +44,6 @@ function waitMsg(ws, predicate, timeoutMs = 3000) {
   });
 }
 
-function allMessages(ws, timeoutMs = 500) {
-  return new Promise(resolve => {
-    const msgs = [];
-    ws.on('message', function handler(data) {
-      msgs.push(JSON.parse(data));
-    });
-    setTimeout(() => {
-      ws.off('message');
-      resolve(msgs);
-    }, timeoutMs);
-  });
-}
-
 async function scenario1_quickMatch() {
   console.log('\n--- Scenario 1: Quick-match regression ---');
   const a = connect();

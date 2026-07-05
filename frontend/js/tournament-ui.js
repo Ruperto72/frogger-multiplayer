@@ -26,8 +26,9 @@ export class TournamentUI {
     });
     this._start.addEventListener('click', () => this._net.send({ type: 'start_tournament' }));
     this._ready.addEventListener('click', () => {
-      const cur = this._state.tournament?.currentMatch;
-      if (cur) this._sentReadyFor = `${cur.round}:${cur.index}`;
+      const t = this._state.tournament;
+      const cur = t?.currentMatch;
+      if (cur) this._sentReadyFor = `${t.code}:${cur.round}:${cur.index}`;
       this._net.send({
         type: 'ready',
         name: this._state.profile.name,
@@ -79,7 +80,7 @@ export class TournamentUI {
 
     const cur = t.currentMatch && t.bracket[t.currentMatch.round][t.currentMatch.index];
     const inMatch = !!cur && (cur.p1 === t.you || cur.p2 === t.you);
-    const key = t.currentMatch && `${t.currentMatch.round}:${t.currentMatch.index}`;
+    const key = t.currentMatch && `${t.code}:${t.currentMatch.round}:${t.currentMatch.index}`;
     const showReady = inMatch && s.phase === 'lobby' && this._sentReadyFor !== key;
     this._ready.classList.toggle('hidden', !showReady);
     this._status.textContent = inMatch

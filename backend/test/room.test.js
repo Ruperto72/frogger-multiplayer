@@ -312,3 +312,16 @@ test('destroy avregistrerar lyssnare: close efter destroy gör inget', () => {
   assert.equal(room.state.phase, 'playing'); // orört — hanteraren är borta
   assert.deepEqual(ends, []);
 });
+
+test('destroy: _broadcast och _broadcastEvent skickar ingenting till socketarna', () => {
+  const ws1 = mockWs(), ws2 = mockWs();
+  const room = new Room(ws1, ws2);
+  clearInterval(room._tick);
+  room.destroy();
+  const countBefore1 = ws1.messages.length;
+  const countBefore2 = ws2.messages.length;
+  room._broadcast();
+  room._broadcastEvent('round_over', { winner: 'p1' });
+  assert.equal(ws1.messages.length, countBefore1);
+  assert.equal(ws2.messages.length, countBefore2);
+});
