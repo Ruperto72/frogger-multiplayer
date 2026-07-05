@@ -120,6 +120,12 @@ export class Renderer {
       ctx.textBaseline = 'middle';
       ctx.fillText(pid === state.you ? 'DU' : pid.toUpperCase(),
         p.x * cell + cell / 2, p.y * cell + cell / 2);
+      if (p.name) {
+        ctx.fillStyle = '#fff';
+        ctx.font = `${cell * 0.28}px monospace`;
+        // Clampa så namnet inte hamnar utanför canvasen på målraden
+        ctx.fillText(p.name, p.x * cell + cell / 2, Math.max(10, p.y * cell - 8));
+      }
     }
   }
 
@@ -131,6 +137,16 @@ export class Renderer {
     ctx.font = '14px monospace';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
+    if (state.you === 'spectator') {
+      const a = state.players.p1, b = state.players.p2;
+      if (a && b) {
+        ctx.fillText(
+          `Åskådare  |  Runda ${state.round}  |  ${a.name}: ♥${a.lives} Mål:${a.score}  |  ${b.name}: ♥${b.lives} Mål:${b.score}  |  Match: ${state.roundScores.p1}–${state.roundScores.p2}`,
+          8, 16
+        );
+      }
+      return;
+    }
     const you   = state.you;
     const other = you === 'p1' ? 'p2' : 'p1';
     const pYou   = state.players[you];
