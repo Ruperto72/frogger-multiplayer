@@ -40,6 +40,7 @@ export class GameState {
     this.seed        = null;
     this._base       = [];
     this._serverTick = 0;
+    this._tickAt     = 0;
     this._seq        = 0;
   }
 
