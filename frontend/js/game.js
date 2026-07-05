@@ -9,7 +9,11 @@ const DIRS = {
 
 export class GameState {
   constructor() {
-    this.phase       = 'waiting';
+    this.mode        = null;   // null | 'quick' | 'tournament'
+    this.profile     = { name: '', skin: 'green' };
+    this.tournament  = null;   // senaste tournament_state
+    this.lastError   = null;
+    this.phase       = 'idle';
     this.you         = null;
     this.players     = { p1: null, p2: null };
     this.round       = 1;
@@ -22,8 +26,26 @@ export class GameState {
     this._seq        = 0;    // senast skickade drag-seq
   }
 
+  // Tillbaka till startskärmen (avbruten turnering / tappad anslutning).
+  // profile och lastError behålls medvetet.
+  resetSession() {
+    this.mode        = null;
+    this.tournament  = null;
+    this.phase       = 'idle';
+    this.you         = null;
+    this.players     = { p1: null, p2: null };
+    this.round       = 1;
+    this.roundScores = { p1: 0, p2: 0 };
+    this.lastEvent   = null;
+    this.seed        = null;
+    this._base       = [];
+    this._serverTick = 0;
+    this._seq        = 0;
+  }
+
   applyMessage(msg, now = performance.now()) {
     if (msg.type === 'waiting') {
+      this.mode  = 'quick';
       this.phase = 'waiting';
     } else if (msg.type === 'match_start') {
       this.you  = msg.you;
@@ -48,11 +70,21 @@ export class GameState {
       this.round       = msg.round;
       this.roundScores = msg.roundScores ?? this.roundScores;
       this.phase       = msg.phase;
+    } else if (msg.type === 'tournament_created') {
+      this.mode = 'tournament';
+    } else if (msg.type === 'tournament_state') {
+      this.mode       = 'tournament';
+      this.tournament = msg;
+    } else if (msg.type === 'error') {
+      this.lastError = msg.reason;
+      if (msg.reason === 'tournament_cancelled') this.resetSession();
     } else if (msg.type === 'event') {
       this.lastEvent = msg;
       if (msg.event === 'round_over')  this.phase = 'round_over';
       if (msg.event === 'match_over')  this.phase = 'match_over';
-      if (msg.event === 'opponent_disconnected') this.phase = 'disconnected';
+      if (msg.event === 'opponent_disconnected' && this.mode !== 'tournament') {
+        this.phase = 'disconnected';
+      }
       if (msg.event === 'countdown') {
         this._countdownAt = now;
         this._countdownMs = msg.duration ?? 3000;

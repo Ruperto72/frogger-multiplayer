@@ -128,3 +128,47 @@ test('predictMove returnerar null när matchen inte pågår', async () => {
   gs.applyMessage(stateMsg({ phase: 'round_over' }), 1000);
   assert.equal(gs.predictMove('up'), null);
 });
+
+test('waiting sätter mode quick, tournament_state sätter mode tournament', async () => {
+  const { GameState } = await import('../../frontend/js/game.js');
+  const gs = new GameState();
+  assert.equal(gs.mode, null);
+  gs.applyMessage({ type: 'waiting' }, 0);
+  assert.equal(gs.mode, 'quick');
+  const gs2 = new GameState();
+  gs2.applyMessage({ type: 'tournament_state', code: 'ABCD', phase: 'gathering' }, 0);
+  assert.equal(gs2.mode, 'tournament');
+  assert.equal(gs2.tournament.code, 'ABCD');
+});
+
+test('error sparas i lastError; tournament_cancelled nollställer sessionen', async () => {
+  const { GameState } = await import('../../frontend/js/game.js');
+  const gs = new GameState();
+  gs.applyMessage({ type: 'tournament_state', code: 'ABCD', phase: 'gathering' }, 0);
+  gs.applyMessage({ type: 'error', reason: 'tournament_cancelled' }, 0);
+  assert.equal(gs.lastError, 'tournament_cancelled');
+  assert.equal(gs.mode, null);
+  assert.equal(gs.tournament, null);
+});
+
+test('opponent_disconnected sätter inte disconnected-fas i turneringsläge', async () => {
+  const { GameState } = await import('../../frontend/js/game.js');
+  const gs = new GameState();
+  gs.applyMessage({ type: 'tournament_state', code: 'ABCD', phase: 'match' }, 0);
+  gs.applyMessage({ type: 'match_start', you: 'spectator' }, 0);
+  gs.applyMessage({ type: 'event', event: 'opponent_disconnected' }, 0);
+  assert.notEqual(gs.phase, 'disconnected');
+});
+
+test('spectator kan inte prediktera drag', async () => {
+  const { GameState } = await import('../../frontend/js/game.js');
+  const gs = new GameState();
+  gs.applyMessage({ type: 'match_start', you: 'spectator' }, 0);
+  gs.applyMessage({
+    type: 'state',
+    players: { p1: { x: 5, y: 14 }, p2: { x: 7, y: 14 } },
+    seed: 42, tick: 0, round: 1, roundScores: { p1: 0, p2: 0 },
+    phase: 'playing', ack: {}
+  }, 0);
+  assert.equal(gs.predictMove('up'), null);
+});
