@@ -1,3 +1,5 @@
+import { t as tr, getLang } from './i18n.js';
+
 function el(tag, cls, text) {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
@@ -48,7 +50,7 @@ export class TournamentUI {
     if (!visible) return;
 
     // Bygg bara om DOM när innehållet ändrats
-    const json = JSON.stringify([t, s.phase, this._sentReadyFor]);
+    const json = JSON.stringify([t, s.phase, this._sentReadyFor, getLang()]);
     if (json === this._renderedJson) return;
     this._renderedJson = json;
 
@@ -60,8 +62,8 @@ export class TournamentUI {
       this._bracket.classList.add('hidden');
       this._ready.classList.add('hidden');
       this._players.replaceChildren(...t.participants.map(p =>
-        el('p', null, `${p.name}${p.isHost ? ' (värd)' : ''}`)));
-      this._status.textContent = `${t.participants.length} av ${t.size} anslutna`;
+        el('p', null, `${p.name}${p.isHost ? tr('t.host') : ''}`)));
+      this._status.textContent = tr('t.joined', { count: t.participants.length, size: t.size });
       this._start.classList.toggle('hidden', !me?.isHost || t.participants.length < 2);
       return;
     }
@@ -73,7 +75,7 @@ export class TournamentUI {
 
     if (t.phase === 'finished') {
       const champ = t.participants.find(p => p.id === t.bracket.at(-1)[0].winner);
-      this._status.textContent = `🏆 ${champ?.name ?? '?'} vann turneringen! Ladda om sidan för att spela igen.`;
+      this._status.textContent = tr('t.champion', { name: champ?.name ?? '?' });
       this._ready.classList.add('hidden');
       return;
     }
@@ -84,13 +86,13 @@ export class TournamentUI {
     const showReady = inMatch && s.phase === 'lobby' && this._sentReadyFor !== key;
     this._ready.classList.toggle('hidden', !showReady);
     this._status.textContent = inMatch
-      ? (showReady ? 'Din match står på tur — gör dig redo!' : 'Väntar på motståndaren…')
-      : 'Du är åskådare i nästa match.';
+      ? (showReady ? tr('t.yourMatch') : tr('t.waitOpponent'))
+      : tr('t.spectator');
   }
 
   _renderBracket(t) {
     const nameOf = (id) => id == null
-      ? '(frilott)'
+      ? tr('t.bye')
       : (t.participants.find(p => p.id === id)?.name ?? '?');
     const cols = t.bracket.map((round, r) => {
       const col = el('div', 'b-round');
@@ -103,7 +105,7 @@ export class TournamentUI {
             pid == null && r > 0 ? '…' : nameOf(pid)));
         }
         // Frilotter (p2 === null) har egen text — b-note bara för riktiga walkovers
-        if (m.walkover && m.p2 != null) box.appendChild(el('div', 'b-note', 'walkover'));
+        if (m.walkover && m.p2 != null) box.appendChild(el('div', 'b-note', tr('t.walkover')));
         col.appendChild(box);
       });
       return col;

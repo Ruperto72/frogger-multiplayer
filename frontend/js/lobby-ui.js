@@ -1,3 +1,5 @@
+import { t } from './i18n.js';
+
 function setText(el, text) {
   if (el.textContent !== text) el.textContent = text;
 }
@@ -40,15 +42,13 @@ export class LobbyUI {
 
     if (s.phase === 'waiting') {
       this._sent = false; // ny match — lås upp formuläret
-      setText(this._status, 'Väntar på motspelare…');
+      setText(this._status, t('lobby.waiting'));
       setText(this._opponent, '');
     } else {
       const other = s.you === 'p1' ? 'p2' : 'p1';
       const op = s.players[other];
-      setText(this._status, this._sent
-        ? 'Väntar på att motståndaren blir redo…'
-        : 'Motspelare hittad — gör dig redo!');
-      setText(this._opponent, op ? `${op.name}: ${op.ready ? 'redo ✓' : 'inte redo'}` : '');
+      setText(this._status, this._sent ? t('lobby.waitReady') : t('lobby.found'));
+      setText(this._opponent, op ? `${op.name}: ${op.ready ? t('lobby.ready') : t('lobby.notReady')}` : '');
     }
 
     this._name.disabled  = this._sent;
