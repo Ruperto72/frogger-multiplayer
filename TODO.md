@@ -85,7 +85,10 @@ canvas. Kvar att göra:
 - Hold-to-repeat på knapparna (nu ger en tap ett drag)
 - Testa på riktiga enheter (iOS/Android) — knappstorlek och placering
   kan behöva justeras
-- Fullskärm/PWA-manifest för hemskärmsinstallation utan webbläsar-chrome
+- PWA-manifest finns (`frontend/manifest.json`, display: fullscreen, ingen
+  service worker — medvetet, onlinespel behöver ingen offline-cache). Kvar:
+  ikoner (192×192 + 512×512 PNG i manifestet + `apple-touch-icon`) — utan dem
+  triggas inte Chromes installprompt; görs ihop med Frog vs Toad-grafiken
 
 ## Övrigt
 

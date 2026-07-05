@@ -1,0 +1,12 @@
+{
+  "name": "Frog vs Toad",
+  "short_name": "Frog vs Toad",
+  "description": "Realtids-Frogger för två spelare — med turneringsläge.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#111111",
+  "theme_color": "#111111",
+  "icons": []
+}
