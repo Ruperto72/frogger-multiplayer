@@ -47,15 +47,10 @@ module.exports = {
 - **Rundrotation** — matcher är bäst av 5; låt varje runda köra nästa
   bana i en lista. Ingen UI behövs, båda spelarna får identiska villkor
 
-## Namnbyte: Frog vs Toad
+## Frog vs Toad — grafik
 
-Spelet ska heta **"Frog vs Toad"** — konceptet är en groda (p1) och en padda
-(p2) som möter varandra på spelplanen.
+Texterna är bytta (titel, h1, README, HTTP-svar). Kvar:
 
-- Namnet syns i dag i `frontend/index.html` (`<title>` + två `<h1>`),
-  `README.md` samt HTTP-svaret i `backend/server.js` (`'Frogger Multiplayer'`)
-- i18n: rubrikerna är i dag språkneutrala egennamn utan `data-i18n` —
-  "Frog vs Toad" kan bytas rakt av på samma sätt
 - Infrastrukturnamn (GitHub-repot `frogger-multiplayer`, Render-tjänsten
   `frogger-multiplayer.onrender.com`, URL:en i `frontend/js/net.js`) kan
   behållas eller bytas separat — byts Render-namnet måste net.js uppdateras

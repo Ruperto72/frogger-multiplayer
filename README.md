@@ -1,4 +1,4 @@
-# Frogger Multiplayer
+# Frog vs Toad
 
 Realtids-Frogger för två spelare, byggd med vanilla JavaScript och WebSockets. Två spelare matchas mot varandra och tävlar om att först nå målraden — samtidigt som de kan knuffa varandra ut i trafiken.
 

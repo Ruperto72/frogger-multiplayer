@@ -9,7 +9,7 @@ const HEARTBEAT_MS = 10000;
 
 const server = http.createServer((_req, res) => {
   res.writeHead(200);
-  res.end('Frogger Multiplayer');
+  res.end('Frog vs Toad');
 });
 
 const wss = new WebSocketServer({ server });
