@@ -55,10 +55,14 @@ Texterna är bytta (titel, h1, README, HTTP-svar). Kvar:
   `frogger-multiplayer.onrender.com`, URL:en i `frontend/js/net.js`) kan
   behållas eller bytas separat — byts Render-namnet måste net.js uppdateras
   i samma deploy
-- Grafik (hör ihop med Skins-sektionen nedan): p1 ritas som groda och p2 som
-  padda när sprite-skins görs — två olika basdjur i stället för bara olika
-  färger. Standardnamnen `Player 1/2` i `backend/constants.js` kan då bli
-  "Frog"/"Toad"
+- Grafik (hör ihop med Skins-sektionen nedan): **rollen styr djuret** —
+  p1 ritas alltid som groda, p2 alltid som padda (garanterar exakt en av
+  varje per match; ingen ny state, renderern vet redan rollerna). Färgvalet
+  i lobbyn (grön/gul/blå) behålls som färgvariant av djuret: en spritesheet
+  per djur som färgtonas, eller 2×3 färdiga sprites. Obs: i turneringar kan
+  samma person byta djur mellan matcher (p1 i en, p2 i nästa) — accepterat;
+  namnet ovanför djuret är identitetsbäraren. Standardnamnen `Player 1/2`
+  i `backend/constants.js` kan då bli "Frog"/"Toad"
 
 ## Skins
 
