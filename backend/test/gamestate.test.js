@@ -87,6 +87,45 @@ test('server-state med ack ≥ seq tar serverns position', async () => {
   assert.equal(gs.players.p1.y, 14); // serverns position gäller
 });
 
+test('renderX glider med stocken mellan serverticks', async () => {
+  const gs = await makeGs();
+  gs.applyMessage(stateMsg({
+    players: { p1: { x: 5, y: 2 }, p2: { x: 7, y: 14 } }
+  }), 1000);
+  // Stock täcker cell 4,5,6 — spelaren på cell 5 (k=1 från vänstercellen)
+  gs._base = [{ lane: 2, x: 4.0, width: 3, type: 'log', speed: 0.05, dir: 1 }];
+  assert.ok(Math.abs(gs.renderX('p1', 1000) - 5.0) < 1e-9);
+  assert.ok(Math.abs(gs.renderX('p1', 1050) - 5.025) < 1e-9); // en halv tick senare
+});
+
+test('renderX lindar mjukt runt högerkanten', async () => {
+  const gs = await makeGs();
+  gs.applyMessage(stateMsg({
+    players: { p1: { x: 0, y: 1 }, p2: { x: 7, y: 14 } }
+  }), 1000);
+  // Stock på x=12.5 täcker cell 12 och 0 — spelaren på cell 0 (k=1)
+  gs._base = [{ lane: 1, x: 12.5, width: 2, type: 'log', speed: 0.5, dir: 1 }];
+  assert.ok(Math.abs(gs.renderX('p1', 1000) - 0.5) < 1e-9); // (12.5 + 1) mod 13
+});
+
+test('renderX är heltalscellen utanför floden', async () => {
+  const gs = await makeGs();
+  gs.applyMessage(stateMsg({
+    players: { p1: { x: 5, y: 8 }, p2: { x: 7, y: 14 } }
+  }), 1000);
+  gs._base = [{ lane: 8, x: 4.5, width: 2, type: 'car', speed: 0.05, dir: 1 }];
+  assert.equal(gs.renderX('p1', 1050), 5);
+});
+
+test('renderX är heltalscellen i floden utan täckande stock', async () => {
+  const gs = await makeGs();
+  gs.applyMessage(stateMsg({
+    players: { p1: { x: 5, y: 2 }, p2: { x: 7, y: 14 } }
+  }), 1000);
+  gs._base = [{ lane: 2, x: 8.0, width: 2, type: 'log', speed: 0.05, dir: 1 }];
+  assert.equal(gs.renderX('p1', 1050), 5);
+});
+
 test('match_start sätter inte fas — fasen styrs av state', async () => {
   const { GameState } = await import('../../frontend/js/game.js');
   const gs = new GameState();

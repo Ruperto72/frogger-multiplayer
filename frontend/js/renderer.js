@@ -102,10 +102,11 @@ export class Renderer {
     const { ctx, cell } = this;
     for (const [pid, p] of Object.entries(state.players)) {
       if (!p) continue;
+      const rx = state.renderX(pid); // flytande x när spelaren åker stock
       ctx.fillStyle = SKINS[p.skin] ?? SKINS.green;
       ctx.beginPath();
       ctx.arc(
-        p.x * cell + cell / 2,
+        rx * cell + cell / 2,
         p.y * cell + cell / 2,
         cell / 2 - 4, 0, Math.PI * 2
       );
@@ -121,12 +122,12 @@ export class Renderer {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(pid === state.you ? t('game.you') : pid.toUpperCase(),
-        p.x * cell + cell / 2, p.y * cell + cell / 2);
+        rx * cell + cell / 2, p.y * cell + cell / 2);
       if (p.name) {
         ctx.fillStyle = '#fff';
         ctx.font = `${cell * 0.28}px monospace`;
         // Clampa så namnet inte hamnar utanför canvasen på målraden
-        ctx.fillText(p.name, p.x * cell + cell / 2, Math.max(10, p.y * cell - 8));
+        ctx.fillText(p.name, rx * cell + cell / 2, Math.max(10, p.y * cell - 8));
       }
     }
   }

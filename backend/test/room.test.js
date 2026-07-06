@@ -95,6 +95,50 @@ test('spelare överlever i flod på stock', () => {
   assert.equal(room.state.players.p1.y, 1);
 });
 
+test('spelare på stock följer med stockens rörelse', () => {
+  const { room } = makeRoom();
+  room.state.players.p1.x = 5;
+  room.state.players.p1.y = 2;
+  // Stock täcker cell 4,5,6; spelaren står på cell 5 (k=1 från vänstercellen)
+  room.state.obstacles = [{ lane: 2, x: 4.0, width: 3, type: 'log', speed: 1, dir: 1 }];
+  room._onTick(); // stocken flyttar till x=5.0 → täcker 5,6,7
+  assert.equal(room.state.players.p1.x, 6);
+  assert.equal(room.state.players.p1.lives, 3);
+});
+
+test('spelare på stock överlever när stocken glider flera celler', () => {
+  const { room } = makeRoom();
+  room.state.players.p1.x = 5;
+  room.state.players.p1.y = 3;
+  room.state.obstacles = [{ lane: 3, x: 4.0, width: 3, type: 'log', speed: 1, dir: -1 }];
+  room._onTick();
+  room._onTick();
+  room._onTick(); // stocken på x=1.0 → täcker 1,2,3
+  assert.equal(room.state.players.p1.x, 2);
+  assert.equal(room.state.players.p1.lives, 3);
+});
+
+test('spelare på stock lindas runt kanten med stocken', () => {
+  const { room } = makeRoom();
+  room.state.players.p1.x = 12;
+  room.state.players.p1.y = 1;
+  // Stock täcker cell 11,12; spelaren på cell 12 (k=1)
+  room.state.obstacles = [{ lane: 1, x: 11.0, width: 2, type: 'log', speed: 1, dir: 1 }];
+  room._onTick(); // stocken på x=12.0 → täcker 12,0
+  assert.equal(room.state.players.p1.x, 0);
+  assert.equal(room.state.players.p1.lives, 3);
+});
+
+test('spelare i flod utan stock dör fortfarande vid tick', () => {
+  const { room } = makeRoom();
+  room.state.players.p1.x = 5;
+  room.state.players.p1.y = 2;
+  room.state.obstacles = [];
+  room._onTick();
+  assert.equal(room.state.players.p1.lives, 2);
+  assert.equal(room.state.players.p1.y, 14); // respawn
+});
+
 test('spelare som når målraden får poäng och respawnar', () => {
   const { room } = makeRoom();
   room.state.players.p1.x = 6;

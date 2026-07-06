@@ -1,10 +1,10 @@
 const {
   COLS, ROWS, GOAL_ROW, GOAL_COLS, SPAWN, LIVES, GOALS_TO_WIN_ROUND,
   ROUNDS_TO_WIN_MATCH, TICK_MS, SKINS, DEFAULT_SKIN, DEFAULT_NAMES,
-  NAME_MAX_LEN, COUNTDOWN_MS
+  NAME_MAX_LEN, COUNTDOWN_MS, RIVER_ROWS
 } = require('./constants');
 const { generateLanes, tickObstacles } = require('./gameloop');
-const { isHazardous } = require('./collision');
+const { isHazardous, obstacleCoversCell, obstacleLeftCell } = require('./collision');
 
 const DIRS = {
   up:    { dx:  0, dy: -1 },
@@ -210,7 +210,24 @@ class Room {
   _onTick() {
     if (this.state.phase !== 'playing') return;
     this.state.tick++;
+
+    // Spelare på en stock åker med: notera stocken och cellförskjutningen
+    // från dess vänstercell innan hindren flyttas, och följ täckningen efteråt
+    const rides = {};
+    for (const pid of ['p1', 'p2']) {
+      const p = this.state.players[pid];
+      if (!RIVER_ROWS.has(p.y)) continue;
+      const log = this.state.obstacles.find(
+        o => o.lane === p.y && o.type === 'log' && obstacleCoversCell(o, p.x)
+      );
+      if (log) rides[pid] = { log, k: (p.x - obstacleLeftCell(log) + COLS) % COLS };
+    }
+
     tickObstacles(this.state.obstacles);
+
+    for (const [pid, { log, k }] of Object.entries(rides)) {
+      this.state.players[pid].x = (obstacleLeftCell(log) + k) % COLS;
+    }
 
     const hazardous = ['p1', 'p2'].filter(pid => {
       const p = this.state.players[pid];

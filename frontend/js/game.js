@@ -107,6 +107,27 @@ export class GameState {
     return this._base.map(o => ({ ...o, x: obstacleXAt(o, t) }));
   }
 
+  // Render-x för en spelare: på en stock glider spelaren med stockens
+  // analytiska position (serverns cellkvantiserade åkning i room.js är
+  // vänstercell + k — samma k här ger kontinuerlig rörelse utan hopp).
+  renderX(pid, now = performance.now()) {
+    const p = this.players[pid];
+    if (!p) return null;
+    if (this.phase !== 'playing' || p.y < 1 || p.y > 5) return p.x;
+    const wrap = (x) => ((x % COLS) + COLS) % COLS;
+    for (const o of this._base) {
+      if (o.lane !== p.y || o.type !== 'log') continue;
+      // Vänstercellen vid serverticken där p.x sattes
+      const left = Math.floor(wrap(obstacleXAt(o, this._serverTick)));
+      for (let k = 0; k < o.width; k++) {
+        if ((left + k) % COLS !== p.x) continue;
+        const t = this._serverTick + (now - this._tickAt) / TICK_MS;
+        return (wrap(obstacleXAt(o, t)) + k) % COLS;
+      }
+    }
+    return p.x;
+  }
+
   // Optimistisk lokal flytt; servern korrigerar via ack i state-broadcasts.
   predictMove(direction) {
     const d = DIRS[direction];

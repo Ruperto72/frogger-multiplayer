@@ -1,7 +1,11 @@
 const { COLS, RIVER_ROWS, TRAFFIC_ROWS } = require('./constants');
 
+function obstacleLeftCell(obs) {
+  return Math.floor(((obs.x % COLS) + COLS) % COLS);
+}
+
 function obstacleCoversCell(obs, cellX) {
-  const left = Math.floor(((obs.x % COLS) + COLS) % COLS);
+  const left = obstacleLeftCell(obs);
   for (let i = 0; i < obs.width; i++) {
     if ((left + i) % COLS === cellX) return true;
   }
@@ -26,4 +30,4 @@ function isHazardous(obstacles, x, y) {
   return false;
 }
 
-module.exports = { obstacleCoversCell, isSafeInRiver, hitByCar, isHazardous };
+module.exports = { obstacleLeftCell, obstacleCoversCell, isSafeInRiver, hitByCar, isHazardous };
