@@ -1,12 +1,5 @@
 import { t } from './i18n.js';
-
-// Skin-id → utseende. Nya skins = nya rader här (+ i backend/constants.js SKINS
-// och lobbypanelens knappar). Sprite-skins: se TODO.md.
-const SKINS = {
-  green:  '#00e64d',
-  yellow: '#ffe100',
-  blue:   '#4da6ff'
-};
+import { drawSprite } from './sprites.js';
 
 const ZONE_COLORS = {
   goal:    '#2a4a18',
@@ -103,17 +96,20 @@ export class Renderer {
     for (const [pid, p] of Object.entries(state.players)) {
       if (!p) continue;
       const rx = state.renderX(pid); // flytande x när spelaren åker stock
-      ctx.fillStyle = SKINS[p.skin] ?? SKINS.green;
-      ctx.beginPath();
-      ctx.arc(
-        rx * cell + cell / 2,
-        p.y * cell + cell / 2,
-        cell / 2 - 4, 0, Math.PI * 2
-      );
-      ctx.fill();
+      const animal = pid === 'p1' ? 'frog' : 'toad';
+      drawSprite(ctx, {
+        animal,
+        direction: state.dirOf(pid),
+        skin: p.skin,
+        cx: rx * cell + cell / 2,
+        cy: p.y * cell + cell / 2,
+        cellSize: cell
+      });
       if (pid === state.you) { // vit ring markerar egen spelare
         ctx.strokeStyle = '#fff';
         ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(rx * cell + cell / 2, p.y * cell + cell / 2, cell / 2 - 4, 0, Math.PI * 2);
         ctx.stroke();
       }
       // Liten etikett
