@@ -179,8 +179,8 @@ function lastState(ws) {
 test('rum startar i lobby-fas med defaultnamn och ready=false', () => {
   const { room } = makeLobby();
   assert.equal(room.state.phase, 'lobby');
-  assert.equal(room.state.players.p1.name, 'Player 1');
-  assert.equal(room.state.players.p2.name, 'Player 2');
+  assert.equal(room.state.players.p1.name, 'Frog');
+  assert.equal(room.state.players.p2.name, 'Toad');
   assert.equal(room.state.players.p1.ready, false);
   assert.equal(room.state.players.p2.ready, false);
 });
@@ -209,7 +209,7 @@ test('namn trimmas och begränsas till 20 tecken', () => {
 test('tomt namn ger defaultnamn', () => {
   const { room, ws1 } = makeLobby();
   sendReady(ws1, { name: '   ' });
-  assert.equal(room.state.players.p1.name, 'Player 1');
+  assert.equal(room.state.players.p1.name, 'Frog');
 });
 
 test('ogiltig skin faller tillbaka på green', () => {
@@ -243,7 +243,7 @@ test('fas blir playing 3 sekunder efter countdown', (t) => {
 test('ready ignoreras under pågående spel', () => {
   const { room, ws1 } = makeRoom();
   sendReady(ws1, { name: 'Fuskare' });
-  assert.equal(room.state.players.p1.name, 'Player 1');
+  assert.equal(room.state.players.p1.name, 'Frog');
 });
 
 test('namn och skin bevaras vid ny runda', () => {
