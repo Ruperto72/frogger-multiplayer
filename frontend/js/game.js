@@ -24,6 +24,7 @@ export class GameState {
     this._serverTick = 0;
     this._tickAt     = 0;    // lokal tidsstämpel för senaste servertick
     this._seq        = 0;    // senast skickade drag-seq
+    this._lastDir    = { p1: 'up', p2: 'up' };
   }
 
   // Tillbaka till startskärmen (avbruten turnering / tappad anslutning).
@@ -42,6 +43,7 @@ export class GameState {
     this._serverTick = 0;
     this._tickAt     = 0;
     this._seq        = 0;
+    this._lastDir    = { p1: 'up', p2: 'up' };
   }
 
   applyMessage(msg, now = performance.now()) {
@@ -62,6 +64,19 @@ export class GameState {
       // Behåll predikterad position tills servern ackat vårt senaste drag
       const acked = (msg.ack?.[this.you] ?? 0) >= this._seq;
       const mine  = !acked && this.you ? this.players[this.you] : null;
+
+      for (const pid of ['p1', 'p2']) {
+        const before = this.players[pid];
+        const after  = msg.players[pid];
+        if (!before || !after) continue;
+        const dx = after.x - before.x;
+        const dy = after.y - before.y;
+        if (dx > 0) this._lastDir[pid] = 'right';
+        else if (dx < 0) this._lastDir[pid] = 'left';
+        else if (dy > 0) this._lastDir[pid] = 'down';
+        else if (dy < 0) this._lastDir[pid] = 'up';
+      }
+
       this.players = msg.players;
       if (mine && this.players[this.you]) {
         this.players[this.you].x = mine.x;
@@ -134,6 +149,7 @@ export class GameState {
     const p = this.you && this.players[this.you];
     if (!d || !p || this.phase !== 'playing') return null;
     this._seq++;
+    this._lastDir[this.you] = direction;
     const nx = p.x + d.dx;
     const ny = p.y + d.dy;
     if (nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS) {
@@ -141,5 +157,9 @@ export class GameState {
       p.y = ny;
     }
     return this._seq;
+  }
+
+  dirOf(pid) {
+    return this._lastDir[pid] ?? 'up';
   }
 }

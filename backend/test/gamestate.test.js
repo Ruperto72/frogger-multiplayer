@@ -211,3 +211,52 @@ test('spectator kan inte prediktera drag', async () => {
   }, 0);
   assert.equal(gs.predictMove('up'), null);
 });
+
+test('dirOf returnerar "up" innan någon rörelse skett', async () => {
+  const gs = await makeGs();
+  gs.applyMessage(stateMsg(), 1000);
+  assert.equal(gs.dirOf('p1'), 'up');
+  assert.equal(gs.dirOf('p2'), 'up');
+});
+
+test('predictMove sätter riktning direkt för egen spelare', async () => {
+  const gs = await makeGs();
+  gs.applyMessage(stateMsg(), 1000);
+  gs.predictMove('left');
+  assert.equal(gs.dirOf('p1'), 'left');
+  assert.equal(gs.dirOf('p2'), 'up'); // motståndaren opåverkad
+});
+
+test('applyMessage härleder motståndarens riktning ur positionsändring', async () => {
+  const gs = await makeGs();
+  gs.applyMessage(stateMsg(), 1000);
+  gs.applyMessage(stateMsg({
+    tick: 1,
+    players: { p1: { x: 5, y: 14 }, p2: { x: 8, y: 14 } } // p2 flyttade x+1
+  }), 1100);
+  assert.equal(gs.dirOf('p2'), 'right');
+});
+
+test('applyMessage behåller senaste riktning när spelaren står still', async () => {
+  const gs = await makeGs();
+  gs.applyMessage(stateMsg(), 1000);
+  gs.applyMessage(stateMsg({
+    tick: 1,
+    players: { p1: { x: 5, y: 14 }, p2: { x: 8, y: 14 } }
+  }), 1100);
+  assert.equal(gs.dirOf('p2'), 'right');
+  gs.applyMessage(stateMsg({
+    tick: 2,
+    players: { p1: { x: 5, y: 14 }, p2: { x: 8, y: 14 } } // ingen rörelse
+  }), 1200);
+  assert.equal(gs.dirOf('p2'), 'right'); // oförändrad
+});
+
+test('resetSession återställer riktningar till "up"', async () => {
+  const gs = await makeGs();
+  gs.applyMessage(stateMsg(), 1000);
+  gs.predictMove('down');
+  assert.equal(gs.dirOf('p1'), 'down');
+  gs.resetSession();
+  assert.equal(gs.dirOf('p1'), 'up');
+});
