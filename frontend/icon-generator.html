@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <title>Ikongenerator (dev-verktyg, ej del av appen)</title>
+  <style>
+    body { background: #222; color: #eee; font-family: monospace; text-align: center; padding: 24px; }
+    canvas { image-rendering: pixelated; background: #111111; border-radius: 12px; margin: 16px; }
+    button { font-size: 16px; padding: 8px 16px; margin: 8px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>Frog vs Toad — ikongenerator</h1>
+  <p>Dev-verktyg för att generera PWA-appikoner. Ladda ner båda och lägg i <code>frontend/icons/</code>.</p>
+  <div>
+    <canvas id="icon512" width="512" height="512"></canvas>
+  </div>
+  <button id="dl512">Ladda ner 512×512</button>
+  <button id="dl192">Ladda ner 192×192</button>
+
+  <script type="module">
+    import { getGrid, getPalette } from './js/sprites.js';
+
+    function renderIcon(size) {
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#111111';
+      ctx.fillRect(0, 0, size, size);
+
+      const grid = getGrid('frog', 'up');
+      const palette = getPalette('green', 'frog');
+      const margin = size * 0.1;
+      const cellSize = size - margin * 2;
+      const px = cellSize / grid.length;
+      for (let row = 0; row < grid.length; row++) {
+        for (let col = 0; col < grid[row].length; col++) {
+          const v = grid[row][col];
+          if (v === 0) continue;
+          ctx.fillStyle = palette[v];
+          ctx.fillRect(margin + col * px, margin + row * px, px, px);
+        }
+      }
+      return canvas;
+    }
+
+    function download(canvas, filename) {
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/png');
+      a.download = filename;
+      a.click();
+    }
+
+    const preview = document.getElementById('icon512');
+    const previewCtx = preview.getContext('2d');
+    previewCtx.drawImage(renderIcon(512), 0, 0);
+
+    document.getElementById('dl512').addEventListener('click', () => {
+      download(renderIcon(512), 'icon-512.png');
+    });
+    document.getElementById('dl192').addEventListener('click', () => {
+      download(renderIcon(192), 'icon-192.png');
+    });
+  </script>
+</body>
+</html>
