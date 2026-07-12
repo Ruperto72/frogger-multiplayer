@@ -66,6 +66,7 @@ export class GameState {
       const mine  = !acked && this.you ? this.players[this.you] : null;
 
       for (const pid of ['p1', 'p2']) {
+        if (pid === this.you) continue;
         const before = this.players[pid];
         const after  = msg.players[pid];
         if (!before || !after) continue;
