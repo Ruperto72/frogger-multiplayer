@@ -9,6 +9,9 @@ export class Net {
 
   _connect() {
     clearTimeout(this._reconnectTimer);
+    if (this._ws) {
+      this._ws.close();
+    }
     const url = location.hostname === 'localhost'
       ? 'ws://localhost:3000'
       : 'wss://frogger-multiplayer.onrender.com';

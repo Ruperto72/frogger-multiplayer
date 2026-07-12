@@ -250,12 +250,13 @@ class Room {
   }
 
   _onDisconnect(pid) {
-    if (this.state.phase === 'match_over') return;
     clearTimeout(this._roundTimer);
     clearTimeout(this._startTimer);
     clearInterval(this._tick);
-    this.state.phase = 'match_over';
-    this._broadcastEvent('opponent_disconnected', {});
+    if (this.state.phase !== 'match_over') {
+      this.state.phase = 'match_over';
+      this._broadcastEvent('opponent_disconnected', {});
+    }
     this._onMatchEnd?.(pid === 'p1' ? 'p2' : 'p1', { walkover: true });
   }
 

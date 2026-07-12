@@ -22,6 +22,7 @@ class Tournament {
     this._graceTimer = null;
     this._onRelease = onRelease;
     this._released = false;
+    this._handlers = [];
   }
 
   join(ws, name, skin, isHost = false) {
@@ -40,13 +41,16 @@ class Tournament {
       isHost
     };
     this.participants.push(p);
-    ws.on('message', (data) => {
+    const onMessage = (data) => {
       try {
         const msg = JSON.parse(data);
         if (msg.type === 'start_tournament' && p.isHost) this.start();
       } catch {}
-    });
-    ws.on('close', () => this._onLeave(p));
+    };
+    const onClose = () => this._onLeave(p);
+    ws.on('message', onMessage);
+    ws.on('close', onClose);
+    this._handlers.push({ ws, onMessage, onClose });
     this._broadcastState();
     return { participant: p };
   }
@@ -134,6 +138,11 @@ class Tournament {
     clearTimeout(this._graceTimer);
     this.room?.destroy();
     this.room = null;
+    for (const { ws, onMessage, onClose } of this._handlers) {
+      ws.off('message', onMessage);
+      ws.off('close', onClose);
+    }
+    this._handlers.length = 0;
     this._onRelease?.(this);
   }
 

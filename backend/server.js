@@ -8,7 +8,11 @@ const PORT = process.env.PORT || 3000;
 const HEARTBEAT_MS = 10000;
 
 const server = http.createServer((_req, res) => {
-  res.writeHead(200);
+  res.writeHead(200, {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type'
+  });
   res.end('Frog vs Toad');
 });
 
@@ -28,7 +32,11 @@ wss.on('connection', (ws) => {
   ws.on('message', (data) => {
     if (routed) return;
     let msg;
-    try { msg = JSON.parse(data); } catch { return; }
+    try { msg = JSON.parse(data); } catch {
+      ws.send(JSON.stringify({ type: 'error', reason: 'invalid_message' }));
+      ws.close();
+      return;
+    }
     if (msg.type === 'quick_match') {
       routed = true;
       lobby.join(ws);
