@@ -49,32 +49,28 @@ module.exports = {
 
 ## Frog vs Toad — grafik
 
-Texterna är bytta (titel, h1, README, HTTP-svar). Kvar:
+Texterna är bytta (titel, h1, README, HTTP-svar). Grafiken är klar: rollen
+styr djuret (p1 = groda, p2 = padda, se `frontend/js/sprites.js`), retro
+pixel-art i fyra riktningar för grodan, färgtonad per skin. Standardnamnen
+i `backend/constants.js` är "Frog"/"Toad". Kvar:
 
 - Infrastrukturnamn (GitHub-repot `frogger-multiplayer`, Render-tjänsten
   `frogger-multiplayer.onrender.com`, URL:en i `frontend/js/net.js`) kan
   behållas eller bytas separat — byts Render-namnet måste net.js uppdateras
   i samma deploy
-- Grafik (hör ihop med Skins-sektionen nedan): **rollen styr djuret** —
-  p1 ritas alltid som groda, p2 alltid som padda (garanterar exakt en av
-  varje per match; ingen ny state, renderern vet redan rollerna). Färgvalet
-  i lobbyn (grön/gul/blå) behålls som färgvariant av djuret: en spritesheet
-  per djur som färgtonas, eller 2×3 färdiga sprites. Obs: i turneringar kan
-  samma person byta djur mellan matcher (p1 i en, p2 i nästa) — accepterat;
-  namnet ovanför djuret är identitetsbäraren. Standardnamnen `Player 1/2`
-  i `backend/constants.js` kan då bli "Frog"/"Toad"
 
 ## Skins
 
-Grunden finns: `skin` väljs i lobbyn, skickas i ready-meddelandet,
-broadcastas i state och renderas via `SKINS`-tabellen i
-`frontend/js/renderer.js` (id → färg). Kvar att göra:
+`skin` väljs i lobbyn, skickas i ready-meddelandet, broadcastas i state och
+renderas via `getPalette(skin, animal)` i `frontend/js/sprites.js` (pixel-art,
+färgtonad per djur — paddans "gul" är senapsgul/oliv, inte klargul). Kvar
+att göra:
 
-- Riktiga sprite-skins — spritesheet + `drawImage` i stället för färgade
-  cirklar; `SKINS`-tabellen byter värdetyp från färg till sprite-referens
-- Fler skins = ny post i `renderer.js` `SKINS` + `backend/constants.js`
-  `SKINS` + knapp i lobbypanelen (`index.html`)
-- Ev. riktningsberoende sprites (grodan roterar med senaste draget)
+- Fler skins = ny post i `SKIN_PALETTES` i `frontend/js/sprites.js` +
+  `backend/constants.js` `SKINS` + knapp i lobbypanelen (`index.html`)
+- Hoppanimation (squash-and-stretch vid landning) — se
+  docs/superpowers/specs/2026-07-12-retro-pixel-sprites-design.md, avgränsat bort
+- Riktningsspecifika padd-grids (paddan delar just nu samma grid oavsett riktning)
 
 ## Mobil
 
@@ -86,9 +82,11 @@ canvas. Kvar att göra:
 - Testa på riktiga enheter (iOS/Android) — knappstorlek och placering
   kan behöva justeras
 - PWA-manifest finns (`frontend/manifest.json`, display: fullscreen, ingen
-  service worker — medvetet, onlinespel behöver ingen offline-cache). Kvar:
-  ikoner (192×192 + 512×512 PNG i manifestet + `apple-touch-icon`) — utan dem
-  triggas inte Chromes installprompt; görs ihop med Frog vs Toad-grafiken
+  service worker — medvetet, onlinespel behöver ingen offline-cache).
+  Ikon-wiring klar (`manifest.json`, `apple-touch-icon` i `index.html`,
+  `frontend/icon-generator.html`). Kvar: öppna `icon-generator.html` i en
+  webbläsare, ladda ner 192×192 + 512×512 PNG till `frontend/icons/` och
+  committa — utan filerna triggas inte Chromes installprompt
 
 ## Övrigt
 
