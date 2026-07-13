@@ -134,7 +134,7 @@ export class AudioManager {
     this._bassGain.connect(this._musicGain);
 
     this._rhythmGain = this._ctx.createGain();
-    this._rhythmGain.gain.value = 0.4;
+    this._rhythmGain.gain.value = 1.0;
     this._rhythmGain.connect(this._musicGain);
 
     this._sfxGain = this._ctx.createGain();
