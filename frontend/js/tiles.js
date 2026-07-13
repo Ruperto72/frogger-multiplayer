@@ -120,3 +120,67 @@ export function drawLog(ctx, { x, y, cellSize, width }) {
     originX += cellSize;
   }
 }
+
+// ---- Väg (rad 7–12) ----
+// Asfalt med fast (icke-slumpad) brustextur. 1=asfalt 2=mörkare fläck.
+const ROAD_TILE = [
+  [1,1,1,2,1,1,1,1,1,2,1,1],
+  [1,1,1,1,1,1,2,1,1,1,1,1],
+  [1,2,1,1,1,1,1,1,2,1,1,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,1,2,1,1,1,1,2,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1],
+  [2,1,1,1,1,2,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1,1,2,1],
+  [1,1,1,2,1,1,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,2,1,1,1],
+  [1,2,1,1,1,1,1,1,1,1,1,2],
+  [1,1,1,1,1,2,1,1,1,1,1,1],
+];
+const ROAD_PALETTE = { 1: '#555555', 2: '#454545' };
+
+// ---- Vägren (rad 6) ----
+// Gräs med grusig kant mot vägen (nedre kanten). 1=gräs 2=mörkare gräsfläck 5=grus.
+const VERGE_TILE = [
+  [1,1,2,1,1,1,1,2,1,1,1,1],
+  [1,1,1,1,2,1,1,1,1,1,2,1],
+  [1,2,1,1,1,1,1,1,2,1,1,1],
+  [1,1,1,1,1,2,1,1,1,1,1,1],
+  [1,1,1,2,1,1,1,1,2,1,1,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,1,2,1,1,1,1,1,1,2,1,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1],
+  [5,5,5,5,5,5,5,5,5,5,5,5],
+  [5,1,5,1,5,1,5,1,5,1,5,1],
+];
+const VERGE_PALETTE = { 1: '#3a5a28', 2: '#2c4a1c', 5: '#a8a58c' };
+
+// ---- Vatten (rad 1–5) ----
+// Blå yta med fast vågmönster. 1=vatten 2=mörkare våg 5=ljus vågkam.
+const WATER_TILE = [
+  [1,1,1,1,1,1,1,1,1,1,1,1],
+  [5,5,1,1,5,5,1,1,5,5,1,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,2,2,1,1,1,2,2,1,1,1,2],
+  [1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,1,5,5,1,1,5,5,1,1,5,5],
+  [1,1,1,1,1,1,1,1,1,1,1,1],
+  [2,1,1,1,2,2,1,1,1,2,2,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1],
+  [5,5,1,1,5,5,1,1,5,5,1,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,2,2,1,1,1,2,2,1,1,1,2],
+];
+const WATER_PALETTE = { 1: '#1a3a6a', 2: '#12294d', 5: '#3f6fae' };
+
+export function drawRoadTile(ctx, x, y, cellSize) {
+  drawGrid(ctx, ROAD_TILE, ROAD_PALETTE, x, y, cellSize / 12);
+}
+export function drawVergeTile(ctx, x, y, cellSize) {
+  drawGrid(ctx, VERGE_TILE, VERGE_PALETTE, x, y, cellSize / 12);
+}
+export function drawWaterTile(ctx, x, y, cellSize) {
+  drawGrid(ctx, WATER_TILE, WATER_PALETTE, x, y, cellSize / 12);
+}
