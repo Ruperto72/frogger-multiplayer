@@ -56,7 +56,8 @@ export const LANGS = {
     'touch.left': 'Vänster',
     'touch.right': 'Höger',
     'touch.up': 'Fram',
-    'touch.down': 'Bak'
+    'touch.down': 'Bak',
+    'sound.toggle': 'Ljud av/på'
   },
   en: {
     'start.namePlaceholder': 'Your name',
@@ -112,7 +113,8 @@ export const LANGS = {
     'touch.left': 'Left',
     'touch.right': 'Right',
     'touch.up': 'Up',
-    'touch.down': 'Down'
+    'touch.down': 'Down',
+    'sound.toggle': 'Toggle sound'
   }
 };
 

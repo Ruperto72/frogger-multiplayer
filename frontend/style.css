@@ -47,6 +47,22 @@ canvas {
 .tc-left  { left: 1rem; }
 .tc-right { right: 1rem; flex-direction: column; }
 
+#sound-toggle {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 20;
+  width: 2.25rem;
+  height: 2.25rem;
+  font-size: 1.1rem;
+  line-height: 1;
+  background: #222;
+  color: #ccc;
+  border: 1px solid #555;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
 #touch-controls button {
   width: 4rem;
   height: 4rem;

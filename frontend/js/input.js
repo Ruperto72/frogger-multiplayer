@@ -10,9 +10,10 @@ export const KEY_MAP = {
 };
 
 export class Input {
-  constructor(net, state) {
+  constructor(net, state, audio) {
     this._net = net;
     this._state = state;
+    this._audio = audio;
     this._last = 0;
     window.addEventListener('keydown', (e) => {
       const dir = KEY_MAP[e.code];
@@ -27,6 +28,9 @@ export class Input {
     if (now - this._last < 50) return; // matcha serverns rate-limit
     this._last = now;
     const seq = this._state.predictMove(dir);
-    if (seq !== null) this._net.send({ type: 'move', direction: dir, seq });
+    if (seq !== null) {
+      this._net.send({ type: 'move', direction: dir, seq });
+      this._audio?.playHop();
+    }
   }
 }
