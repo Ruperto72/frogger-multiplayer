@@ -120,7 +120,7 @@ export class GameState {
     const t = this.phase === 'playing'
       ? this._serverTick + (now - this._tickAt) / TICK_MS
       : this._serverTick;
-    return this._base.map(o => ({ ...o, x: obstacleXAt(o, t) }));
+    return this._base.map((o, i) => ({ ...o, x: obstacleXAt(o, t), _idx: i }));
   }
 
   // Render-x för en spelare: på en stock glider spelaren med stockens
