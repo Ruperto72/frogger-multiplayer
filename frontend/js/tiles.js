@@ -74,3 +74,49 @@ export function drawCar(ctx, { x, y, cellSize, width, dir, colorIndex }) {
   const palette = { 1: CAR_BODY_COLORS[name], 3: CAR_WINDOW, 4: CAR_WHEEL, 5: CAR_HEADLIGHT };
   drawGrid(ctx, grid, palette, x, y, cellSize / 12);
 }
+
+// ---- Stockar ----
+// Mittsegment (12x12) med årsringar. 1=trä 2=årsring/kant 5=barkhögdager.
+const LOG_MIDDLE = [
+  [5,5,5,5,5,5,5,5,5,5,5,5],
+  [1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,2,1,1,1,2,1,1,1,2,1,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,1,2,1,1,1,2,1,1,1,2,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,2,1,1,1,2,1,1,1,2,1,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,1,2,1,1,1,2,1,1,1,2,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1],
+  [2,2,2,2,2,2,2,2,2,2,2,2],
+];
+
+// Avrundad ändcap, vänster (12x12).
+const LOG_CAP_LEFT = [
+  [0,0,5,5,5,5,5,5,5,5,5,5],
+  [0,1,1,1,1,1,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1],
+  [0,1,1,1,1,1,1,1,1,1,1,1],
+  [0,0,2,2,2,2,2,2,2,2,2,2],
+];
+const LOG_CAP_RIGHT = mirrorRows(LOG_CAP_LEFT);
+
+const LOG_PALETTE = { 1: '#8b5e3c', 2: '#5a3a22', 5: '#c99a63' };
+
+export function drawLog(ctx, { x, y, cellSize, width }) {
+  const segments = width >= 3 ? [LOG_CAP_LEFT, LOG_MIDDLE, LOG_CAP_RIGHT] : [LOG_CAP_LEFT, LOG_CAP_RIGHT];
+  const px = cellSize / 12;
+  let originX = x;
+  for (const seg of segments) {
+    drawGrid(ctx, seg, LOG_PALETTE, originX, y, px);
+    originX += cellSize;
+  }
+}
