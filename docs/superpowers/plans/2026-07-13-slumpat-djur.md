@@ -45,8 +45,24 @@ frontend, `node --test` för backend-testsviten.
 **Files:**
 - Modify: `backend/constants.js`
 - Modify: `backend/room.js`
+- Modify: `backend/tournament.js` (upptäckt under implementation: importerar
+  `SKINS`/`DEFAULT_SKIN` och tar `skin` som positionsargument i `join()` —
+  måste tas bort i samma svep, annars kraschar hela turneringsflödet när
+  konstanterna försvinner)
+- Modify: `backend/manager.js` (anropar `tournament.join(ws, name, skin,
+  isHost)` — måste följa tournament.js:s nya signatur `join(ws, name,
+  isHost)`, annars hamnar `isHost` på fel argumentposition och
+  värdflaggan går sönder tyst)
+- Modify: `backend/test/manager.test.js` (städning: tar bort overksamt
+  `skin`-fält ur options-objekten, inte blockerande men stale annars)
+- Modify: `backend/e2e-test.js` (städning: fristående manuellt skript,
+  körs inte av `node --test`, men skickar `skin` i meddelanden som
+  numera ignoreras tyst — tas bort för konsekvens)
 - Test: `backend/test/room.test.js`
 - Test: `backend/test/constants.test.js`
+- Test: `backend/test/tournament.test.js` (tre `.join()`-anrop skickar
+  `'green'` som tredje positionsargument — måste tas bort, annars blir
+  det av misstag `isHost` efter signaturändringen)
 
 **Interfaces:**
 - Produces: `Room.state.players[pid].animal` (`'frog'|'toad'|null`),
@@ -445,17 +461,176 @@ Run: `cd backend && node --test test/room.test.js`
 Expected: PASS — alla tester i filen gröna, inklusive de tre nya
 slumpningstesterna.
 
-- [ ] **Step 9: Kör hela backend-sviten**
+- [ ] **Step 9: Ta bort skin ur tournament.js**
+
+I `backend/tournament.js`, ersätt:
+
+```js
+const Room = require('./room');
+const { SKINS, DEFAULT_SKIN, NAME_MAX_LEN } = require('./constants');
+```
+
+med:
+
+```js
+const Room = require('./room');
+const { NAME_MAX_LEN } = require('./constants');
+```
+
+Ersätt kommentaren:
+
+```js
+    this.participants = [];   // { id, ws, name, skin, connected, isHost }
+```
+
+med:
+
+```js
+    this.participants = [];   // { id, ws, name, connected, isHost }
+```
+
+Ersätt:
+
+```js
+  join(ws, name, skin, isHost = false) {
+    if (this.phase !== 'gathering') return { error: 'already_started' };
+    if (this.participants.length >= this.size) return { error: 'tournament_full' };
+    name = String(name ?? '').trim().slice(0, NAME_MAX_LEN) || `Player ${this._nextId}`;
+    if (this.participants.some(p => p.name.toLowerCase() === name.toLowerCase())) {
+      return { error: 'name_taken' };
+    }
+    const p = {
+      id: this._nextId++,
+      ws,
+      name,
+      skin: SKINS.includes(skin) ? skin : DEFAULT_SKIN,
+      connected: true,
+      isHost
+    };
+```
+
+med:
+
+```js
+  join(ws, name, isHost = false) {
+    if (this.phase !== 'gathering') return { error: 'already_started' };
+    if (this.participants.length >= this.size) return { error: 'tournament_full' };
+    name = String(name ?? '').trim().slice(0, NAME_MAX_LEN) || `Player ${this._nextId}`;
+    if (this.participants.some(p => p.name.toLowerCase() === name.toLowerCase())) {
+      return { error: 'name_taken' };
+    }
+    const p = {
+      id: this._nextId++,
+      ws,
+      name,
+      connected: true,
+      isHost
+    };
+```
+
+Ersätt:
+
+```js
+      participants: this.participants.map(({ id, name, skin, connected, isHost }) =>
+        ({ id, name, skin, connected, isHost })),
+```
+
+med:
+
+```js
+      participants: this.participants.map(({ id, name, connected, isHost }) =>
+        ({ id, name, connected, isHost })),
+```
+
+- [ ] **Step 10: Uppdatera manager.js till tournament.js:s nya signatur**
+
+I `backend/manager.js`, ersätt:
+
+```js
+    t.join(ws, msg.name, msg.skin, true); // kan inte misslyckas i tom turnering
+```
+
+med:
+
+```js
+    t.join(ws, msg.name, true); // kan inte misslyckas i tom turnering
+```
+
+Ersätt:
+
+```js
+    const res = t.join(ws, msg.name, msg.skin);
+```
+
+med:
+
+```js
+    const res = t.join(ws, msg.name);
+```
+
+- [ ] **Step 11: Uppdatera tournament.test.js:s tre join-anrop**
+
+I `backend/test/tournament.test.js`, de tre anropen som skickar `'green'`
+som tredje positionsargument (skulle annars bli feltolkat som `isHost`
+efter signaturändringen):
+
+Ersätt:
+
+```js
+    const res = t.join(ws, `Spelare${i + 1}`, 'green', i === 0);
+```
+
+med:
+
+```js
+    const res = t.join(ws, `Spelare${i + 1}`, i === 0);
+```
+
+Ersätt:
+
+```js
+  const res = t.join(mockWs(), 'Sen', 'green');
+```
+
+med:
+
+```js
+  const res = t.join(mockWs(), 'Sen');
+```
+
+Ersätt:
+
+```js
+  const res = t.join(mockWs(), 'sPeLaRe1', 'green');
+```
+
+med:
+
+```js
+  const res = t.join(mockWs(), 'sPeLaRe1');
+```
+
+- [ ] **Step 12: Städa manager.test.js och e2e-test.js (icke-blockerande men
+  stale annars)**
+
+I `backend/test/manager.test.js`, ta bort `skin: 'green'`/`skin: 'blue'`
+ur samtliga options-objekt som skickas till `mgr.create()`/`mgr.join()`
+(t.ex. `{ size: 4, bestOf: 3, name: 'Värd', skin: 'green' }` →
+`{ size: 4, bestOf: 3, name: 'Värd' }`).
+
+I `backend/e2e-test.js`, ta bort `skin: '...'`-fältet ur samtliga
+`send(...)`-anrop för `type: 'ready'`, `type: 'create_tournament'` och
+`type: 'join_tournament'`.
+
+- [ ] **Step 13: Kör hela backend-sviten**
 
 Run: `cd backend && node --test test/*.test.js`
-Expected: PASS — inga regressioner i andra testfiler (constants.test.js
-och room.test.js är de enda som refererar `SKINS`/`DEFAULT_SKIN`/
-`DEFAULT_NAMES`/`skin`).
+Expected: PASS — inga regressioner i någon testfil.
 
-- [ ] **Step 10: Commit**
+- [ ] **Step 14: Commit**
 
 ```bash
-git add backend/constants.js backend/room.js backend/test/room.test.js backend/test/constants.test.js
+git add backend/constants.js backend/room.js backend/tournament.js backend/manager.js backend/e2e-test.js backend/test/room.test.js backend/test/constants.test.js backend/test/tournament.test.js backend/test/manager.test.js
 git commit -m "feat: slumpa groda/padda vid matchstart, ta bort skin-fältet i backend"
 ```
 
