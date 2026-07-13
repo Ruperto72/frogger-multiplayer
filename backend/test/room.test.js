@@ -30,7 +30,7 @@ function makeRoom() {
 }
 
 function sendReady(ws, over = {}) {
-  ws.emit('message', JSON.stringify({ type: 'ready', name: 'Testare', skin: 'green', ...over }));
+  ws.emit('message', JSON.stringify({ type: 'ready', name: 'Testare', ...over }));
 }
 
 test('spelare startar på spawn-position', () => {
@@ -176,11 +176,13 @@ function lastState(ws) {
   return ws.messages.filter(m => m.type === 'state').at(-1);
 }
 
-test('rum startar i lobby-fas med defaultnamn och ready=false', () => {
+test('rum startar i lobby-fas med tomt namn, inget djur och ready=false', () => {
   const { room } = makeLobby();
   assert.equal(room.state.phase, 'lobby');
-  assert.equal(room.state.players.p1.name, 'Frog');
-  assert.equal(room.state.players.p2.name, 'Toad');
+  assert.equal(room.state.players.p1.name, '');
+  assert.equal(room.state.players.p2.name, '');
+  assert.equal(room.state.players.p1.animal, null);
+  assert.equal(room.state.players.p2.animal, null);
   assert.equal(room.state.players.p1.ready, false);
   assert.equal(room.state.players.p2.ready, false);
 });
@@ -191,11 +193,11 @@ test('move ignoreras i lobby-fas', () => {
   assert.equal(room.state.players.p1.y, 14);
 });
 
-test('ready sätter namn, skin och ready-flagga', () => {
+test('ready sätter namn och ready-flagga (djur tilldelas inte förrän båda är redo)', () => {
   const { room, ws1 } = makeLobby();
-  sendReady(ws1, { name: 'Robert', skin: 'blue' });
+  sendReady(ws1, { name: 'Robert' });
   assert.equal(room.state.players.p1.name, 'Robert');
-  assert.equal(room.state.players.p1.skin, 'blue');
+  assert.equal(room.state.players.p1.animal, null);
   assert.equal(room.state.players.p1.ready, true);
   assert.equal(lastState(ws1).players.p1.ready, true); // broadcastas
 });
@@ -206,16 +208,13 @@ test('namn trimmas och begränsas till 20 tecken', () => {
   assert.equal(room.state.players.p1.name, 'a'.repeat(20));
 });
 
-test('tomt namn ger defaultnamn', () => {
-  const { room, ws1 } = makeLobby();
+test('tomt namn faller tillbaka på tilldelat djurs namn när båda är redo', (t) => {
+  t.mock.method(Math, 'random', () => 0.1); // ger p1=frog, p2=toad (se nästa test)
+  const { room, ws1, ws2 } = makeLobby();
   sendReady(ws1, { name: '   ' });
+  sendReady(ws2, { name: '' });
   assert.equal(room.state.players.p1.name, 'Frog');
-});
-
-test('ogiltig skin faller tillbaka på green', () => {
-  const { room, ws1 } = makeLobby();
-  sendReady(ws1, { skin: 'rainbow' });
-  assert.equal(room.state.players.p1.skin, 'green');
+  assert.equal(room.state.players.p2.name, 'Toad');
 });
 
 test('båda redo ger countdown-event och fas countdown', () => {
@@ -226,6 +225,34 @@ test('båda redo ger countdown-event och fas countdown', () => {
   assert.equal(room.state.phase, 'countdown');
   const ev = ws1.messages.find(m => m.type === 'event' && m.event === 'countdown');
   assert.equal(ev.duration, 3000);
+});
+
+test('slumpning: Math.random < 0.5 ger p1=frog, p2=toad', (t) => {
+  t.mock.method(Math, 'random', () => 0.1);
+  const { room, ws1, ws2 } = makeLobby();
+  sendReady(ws1);
+  sendReady(ws2);
+  assert.equal(room.state.players.p1.animal, 'frog');
+  assert.equal(room.state.players.p2.animal, 'toad');
+});
+
+test('slumpning: Math.random >= 0.5 ger p1=toad, p2=frog', (t) => {
+  t.mock.method(Math, 'random', () => 0.9);
+  const { room, ws1, ws2 } = makeLobby();
+  sendReady(ws1);
+  sendReady(ws2);
+  assert.equal(room.state.players.p1.animal, 'toad');
+  assert.equal(room.state.players.p2.animal, 'frog');
+});
+
+test('djuren är alltid olika — aldrig två grodor eller två paddor', (t) => {
+  for (const r of [0, 0.25, 0.49, 0.5, 0.75, 0.99]) {
+    t.mock.method(Math, 'random', () => r);
+    const { room, ws1, ws2 } = makeLobby();
+    sendReady(ws1);
+    sendReady(ws2);
+    assert.notEqual(room.state.players.p1.animal, room.state.players.p2.animal);
+  }
 });
 
 test('fas blir playing 3 sekunder efter countdown', (t) => {
@@ -243,18 +270,20 @@ test('fas blir playing 3 sekunder efter countdown', (t) => {
 test('ready ignoreras under pågående spel', () => {
   const { room, ws1 } = makeRoom();
   sendReady(ws1, { name: 'Fuskare' });
-  assert.equal(room.state.players.p1.name, 'Frog');
+  assert.equal(room.state.players.p1.name, '');
 });
 
-test('namn och skin bevaras vid ny runda', () => {
+test('namn och djur bevaras vid ny runda', (t) => {
+  t.mock.method(Math, 'random', () => 0.1); // p1=frog, p2=toad
   const { room, ws1, ws2 } = makeLobby();
-  sendReady(ws1, { name: 'Anna', skin: 'yellow' });
-  sendReady(ws2, { name: 'Bertil', skin: 'blue' });
+  sendReady(ws1, { name: 'Anna' });
+  sendReady(ws2, { name: 'Bertil' });
   room.state.phase = 'playing';
   room._startNewRound();
   assert.equal(room.state.players.p1.name, 'Anna');
-  assert.equal(room.state.players.p1.skin, 'yellow');
+  assert.equal(room.state.players.p1.animal, 'frog');
   assert.equal(room.state.players.p2.name, 'Bertil');
+  assert.equal(room.state.players.p2.animal, 'toad');
 });
 
 test('state-broadcast innehåller seed och tick men inte obstacles', () => {

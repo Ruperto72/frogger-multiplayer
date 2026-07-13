@@ -21,7 +21,7 @@ test('SPAWN positions are in start zone', () => {
   assert.equal(C.SPAWN.p2.y, 14);
 });
 
-test('DEFAULT_NAMES är Frog/Toad', () => {
-  assert.equal(C.DEFAULT_NAMES.p1, 'Frog');
-  assert.equal(C.DEFAULT_NAMES.p2, 'Toad');
+test('DEFAULT_ANIMAL_NAMES är Frog/Toad', () => {
+  assert.equal(C.DEFAULT_ANIMAL_NAMES.frog, 'Frog');
+  assert.equal(C.DEFAULT_ANIMAL_NAMES.toad, 'Toad');
 });

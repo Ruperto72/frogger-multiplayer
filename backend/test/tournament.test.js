@@ -27,7 +27,7 @@ function joinAll(t, n) {
   const sockets = [];
   for (let i = 0; i < n; i++) {
     const ws = mockWs();
-    const res = t.join(ws, `Spelare${i + 1}`, 'green', i === 0);
+    const res = t.join(ws, `Spelare${i + 1}`, i === 0);
     assert.ok(res.participant, `join ${i} skulle lyckas`);
     sockets.push(ws);
   }
@@ -48,14 +48,14 @@ test('join broadcastar tournament_state med rätt you per socket', () => {
 test('full turnering avvisar fler deltagare', () => {
   const { t } = makeTournament({ size: 2 });
   joinAll(t, 2);
-  const res = t.join(mockWs(), 'Sen', 'green');
+  const res = t.join(mockWs(), 'Sen');
   assert.equal(res.error, 'tournament_full');
 });
 
 test('upptaget namn avvisas skiftlägesokänsligt', () => {
   const { t } = makeTournament();
   joinAll(t, 1);
-  const res = t.join(mockWs(), 'sPeLaRe1', 'green');
+  const res = t.join(mockWs(), 'sPeLaRe1');
   assert.equal(res.error, 'name_taken');
 });
 

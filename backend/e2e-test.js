@@ -69,8 +69,8 @@ async function scenario1_quickMatch() {
   assert(['p1','p2'].includes(startB.you), `B är p1 eller p2 (got: ${startB.you})`);
   assert(startA.you !== startB.you, 'A och B har olika roller');
 
-  send(a, { type: 'ready', name: 'Alice', skin: 'green' });
-  send(b, { type: 'ready', name: 'Bob', skin: 'red' });
+  send(a, { type: 'ready', name: 'Alice' });
+  send(b, { type: 'ready', name: 'Bob' });
 
   const [evA, evB] = await Promise.all([
     waitMsg(a, m => m.type === 'event' && m.event === 'countdown'),
@@ -95,14 +95,14 @@ async function scenario2_byeTournament() {
     new Promise(r => p3.on('open', r)),
   ]);
 
-  send(host, { type: 'create_tournament', size: 4, bestOf: 1, name: 'Host', skin: 'green' });
+  send(host, { type: 'create_tournament', size: 4, bestOf: 1, name: 'Host' });
   const created = await waitMsg(host, m => m.type === 'tournament_created');
   assert(created.type === 'tournament_created', 'host får tournament_created');
   const code = created.code;
   assert(typeof code === 'string' && code.length === 4, `kod är 4 tecken: ${code}`);
 
-  send(p2, { type: 'join_tournament', code, name: 'Player2', skin: 'red' });
-  send(p3, { type: 'join_tournament', code, name: 'Player3', skin: 'blue' });
+  send(p2, { type: 'join_tournament', code, name: 'Player2' });
+  send(p3, { type: 'join_tournament', code, name: 'Player3' });
   await waitMsg(p3, m => m.type === 'tournament_state');
 
   send(host, { type: 'start_tournament' });
@@ -138,11 +138,11 @@ async function scenario3_walkoverInMatch() {
     new Promise(r => p2.on('open', r)),
   ]);
 
-  send(host, { type: 'create_tournament', size: 2, bestOf: 1, name: 'Alpha', skin: 'green' });
+  send(host, { type: 'create_tournament', size: 2, bestOf: 1, name: 'Alpha' });
   const created = await waitMsg(host, m => m.type === 'tournament_created');
   const code = created.code;
 
-  send(p2, { type: 'join_tournament', code, name: 'Beta', skin: 'red' });
+  send(p2, { type: 'join_tournament', code, name: 'Beta' });
   await waitMsg(p2, m => m.type === 'tournament_state');
 
   send(host, { type: 'start_tournament' });
@@ -151,8 +151,8 @@ async function scenario3_walkoverInMatch() {
     waitMsg(p2,   m => m.type === 'match_start'),
   ]);
 
-  send(host, { type: 'ready', name: 'Alpha', skin: 'green' });
-  send(p2,   { type: 'ready', name: 'Beta',  skin: 'red'   });
+  send(host, { type: 'ready', name: 'Alpha' });
+  send(p2,   { type: 'ready', name: 'Beta'  });
 
   await Promise.all([
     waitMsg(host, m => m.type === 'event' && m.event === 'countdown'),
@@ -182,7 +182,7 @@ async function scenario4_unknownCode() {
   console.log('\n--- Scenario 4: Okänd turneringskod ---');
   const c = connect();
   await new Promise(r => c.on('open', r));
-  send(c, { type: 'join_tournament', code: 'XXXX', name: 'Nobody', skin: 'green' });
+  send(c, { type: 'join_tournament', code: 'XXXX', name: 'Nobody' });
   const err = await waitMsg(c, m => m.type === 'error');
   assert(err.type === 'error', 'får error-meddelande');
   assert(err.reason === 'unknown_code', `reason är unknown_code (got: ${err.reason})`);

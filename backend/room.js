@@ -1,6 +1,6 @@
 const {
   COLS, ROWS, GOAL_ROW, GOAL_COLS, SPAWN, LIVES, GOALS_TO_WIN_ROUND,
-  ROUNDS_TO_WIN_MATCH, TICK_MS, SKINS, DEFAULT_SKIN, DEFAULT_NAMES,
+  ROUNDS_TO_WIN_MATCH, TICK_MS, DEFAULT_ANIMAL_NAMES,
   NAME_MAX_LEN, COUNTDOWN_MS, RIVER_ROWS
 } = require('./constants');
 const { generateLanes, tickObstacles } = require('./gameloop');
@@ -53,7 +53,7 @@ class Room {
     const seed = Date.now() >>> 0;
     const newPlayer = (pid) => ({
       ...SPAWN[pid], lives: LIVES, score: 0,
-      name: DEFAULT_NAMES[pid], skin: DEFAULT_SKIN, ready: false
+      name: '', animal: null, ready: false
     });
     return {
       players: { p1: newPlayer('p1'), p2: newPlayer('p2') },
@@ -90,10 +90,10 @@ class Room {
 
   _handleReady(pid, msg) {
     const p = this.state.players[pid];
-    p.name = String(msg.name ?? '').trim().slice(0, NAME_MAX_LEN) || DEFAULT_NAMES[pid];
-    p.skin = SKINS.includes(msg.skin) ? msg.skin : DEFAULT_SKIN;
+    p.name = String(msg.name ?? '').trim().slice(0, NAME_MAX_LEN);
     p.ready = true;
     if (this.state.players.p1.ready && this.state.players.p2.ready) {
+      this._assignAnimals();
       this.state.phase = 'countdown';
       this._broadcastEvent('countdown', { duration: COUNTDOWN_MS });
       this._startTimer = setTimeout(() => {
@@ -102,6 +102,15 @@ class Room {
       }, COUNTDOWN_MS);
     }
     this._broadcast();
+  }
+
+  _assignAnimals() {
+    const animals = Math.random() < 0.5 ? ['frog', 'toad'] : ['toad', 'frog'];
+    ['p1', 'p2'].forEach((pid, i) => {
+      const p = this.state.players[pid];
+      p.animal = animals[i];
+      if (!p.name) p.name = DEFAULT_ANIMAL_NAMES[p.animal];
+    });
   }
 
   handleMove(pid, direction) {
@@ -200,8 +209,8 @@ class Room {
     this.state.tick = 0;
     this.state.obstacles = generateLanes(this.state.seed);
     for (const pid of ['p1', 'p2']) {
-      const { name, skin, ready } = this.state.players[pid];
-      this.state.players[pid] = { ...SPAWN[pid], lives: LIVES, score: 0, name, skin, ready };
+      const { name, animal, ready } = this.state.players[pid];
+      this.state.players[pid] = { ...SPAWN[pid], lives: LIVES, score: 0, name, animal, ready };
     }
     this.state.phase = 'playing';
     this._broadcast();

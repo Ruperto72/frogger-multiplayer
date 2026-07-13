@@ -13,7 +13,7 @@ class TournamentManager {
       (tt) => this._release(tt));
     this.tournaments.set(code, t);
     if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'tournament_created', code }));
-    t.join(ws, msg.name, msg.skin, true); // kan inte misslyckas i tom turnering
+    t.join(ws, msg.name, true); // kan inte misslyckas i tom turnering
     return t;
   }
 
@@ -24,7 +24,7 @@ class TournamentManager {
       if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'error', reason: 'unknown_code' }));
       return null;
     }
-    const res = t.join(ws, msg.name, msg.skin);
+    const res = t.join(ws, msg.name);
     if (res.error) {
       if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'error', reason: res.error }));
       return null;

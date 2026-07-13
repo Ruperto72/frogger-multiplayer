@@ -1,5 +1,5 @@
 const Room = require('./room');
-const { SKINS, DEFAULT_SKIN, NAME_MAX_LEN } = require('./constants');
+const { NAME_MAX_LEN } = require('./constants');
 const { generateBracket, findNextMatch, reportWinner } = require('./bracket');
 
 const WALKOVER_GRACE_MS = 30000;
@@ -12,7 +12,7 @@ class Tournament {
     this.size = Math.max(2, Math.min(16, size | 0));
     this.bestOf = [1, 3, 5].includes(bestOf) ? bestOf : 3;
     this.phase = 'gathering'; // gathering | between_matches | match | finished
-    this.participants = [];   // { id, ws, name, skin, connected, isHost }
+    this.participants = [];   // { id, ws, name, connected, isHost }
     this.bracket = null;
     this.currentMatch = null; // { round, index } | null
     this.room = null;
@@ -25,7 +25,7 @@ class Tournament {
     this._handlers = [];
   }
 
-  join(ws, name, skin, isHost = false) {
+  join(ws, name, isHost = false) {
     if (this.phase !== 'gathering') return { error: 'already_started' };
     if (this.participants.length >= this.size) return { error: 'tournament_full' };
     name = String(name ?? '').trim().slice(0, NAME_MAX_LEN) || `Player ${this._nextId}`;
@@ -36,7 +36,6 @@ class Tournament {
       id: this._nextId++,
       ws,
       name,
-      skin: SKINS.includes(skin) ? skin : DEFAULT_SKIN,
       connected: true,
       isHost
     };
@@ -154,8 +153,8 @@ class Tournament {
       phase: this.phase,
       bestOf: this.bestOf,
       size: this.size,
-      participants: this.participants.map(({ id, name, skin, connected, isHost }) =>
-        ({ id, name, skin, connected, isHost })),
+      participants: this.participants.map(({ id, name, connected, isHost }) =>
+        ({ id, name, connected, isHost })),
       bracket: this.bracket,
       currentMatch: this.currentMatch
     };
