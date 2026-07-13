@@ -247,3 +247,43 @@ canvas {
   border-color: var(--arcade-cyan);
   text-shadow: 0 0 4px var(--arcade-cyan-glow);
 }
+
+.lobby::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.35) 0 1px, transparent 1px 3px),
+    radial-gradient(circle at 50% 30%, rgba(255, 179, 71, 0.35) 0%, rgba(255, 47, 176, 0.28) 45%, transparent 65%);
+}
+
+.lobby::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 50%;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.5;
+  background-image:
+    repeating-linear-gradient(90deg, var(--arcade-cyan-glow) 0 2px, transparent 2px 48px),
+    repeating-linear-gradient(0deg, var(--arcade-cyan-glow) 0 2px, transparent 2px 32px);
+  transform: perspective(220px) rotateX(65deg);
+  transform-origin: bottom;
+  animation: arcade-grid-scroll 3s linear infinite;
+}
+
+@keyframes arcade-grid-scroll {
+  from { background-position: 0 0, 0 0; }
+  to   { background-position: 0 0, 0 32px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lobby::after {
+    animation: none;
+  }
+}
