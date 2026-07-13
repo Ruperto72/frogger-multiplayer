@@ -84,7 +84,8 @@ Ett fixed lager bakom alla `.lobby`-overlays:
   ev. bakgrunds-`div`), ny fontfil under `frontend/fonts/`
 - Ingen ändring i `lobby-ui.js`, `start-ui.js`, `tournament-ui.js`,
   `game.js`, `renderer.js`, sprites eller backend
-- `CACHE_NAME` i service workern bumpas innan push (statiska filer ändras)
+- Projektet har ingen registrerad service worker (bara `manifest.json` för
+  installerbarhet) — ingen cache-bump behövs
 
 ## Verifiering
 
