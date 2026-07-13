@@ -49,25 +49,17 @@ module.exports = {
 
 ## Frog vs Toad — grafik
 
-Texterna är bytta (titel, h1, README, HTTP-svar). Grafiken är klar: rollen
-styr djuret (p1 = groda, p2 = padda, se `frontend/js/sprites.js`), retro
-pixel-art i fyra riktningar för grodan, färgtonad per skin. Standardnamnen
-i `backend/constants.js` är "Frog"/"Toad". Kvar:
+Texterna är bytta (titel, h1, README, HTTP-svar). Grafiken är klar: vilken
+spelare som blir groda/padda slumpas av servern när båda blivit redo (se
+`Room._assignAnimals()` i `backend/room.js`) och behålls genom matchens
+rundor, retro pixel-art i fyra riktningar för grodan. Standardnamnen i
+`backend/constants.js` (`DEFAULT_ANIMAL_NAMES`) matchar det tilldelade
+djuret ("Frog"/"Toad"). Kvar:
 
 - Infrastrukturnamn (GitHub-repot `frogger-multiplayer`, Render-tjänsten
   `frogger-multiplayer.onrender.com`, URL:en i `frontend/js/net.js`) kan
   behållas eller bytas separat — byts Render-namnet måste net.js uppdateras
   i samma deploy
-
-## Skins
-
-`skin` väljs i lobbyn, skickas i ready-meddelandet, broadcastas i state och
-renderas via `getPalette(skin, animal)` i `frontend/js/sprites.js` (pixel-art,
-färgtonad per djur — paddans "gul" är senapsgul/oliv, inte klargul). Kvar
-att göra:
-
-- Fler skins = ny post i `SKIN_PALETTES` i `frontend/js/sprites.js` +
-  `backend/constants.js` `SKINS` + knapp i lobbypanelen (`index.html`)
 - Hoppanimation (squash-and-stretch vid landning) — se
   docs/superpowers/specs/2026-07-12-retro-pixel-sprites-design.md, avgränsat bort
 - Riktningsspecifika padd-grids (paddan delar just nu samma grid oavsett riktning)
