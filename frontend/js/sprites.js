@@ -75,19 +75,9 @@ const GRIDS = {
 const EYE_WHITE = '#f4f4e6';
 const PUPIL = '#111';
 
-const SKIN_PALETTES = {
-  green: {
-    frog: { 1: '#25b34a', 2: '#0f5c22', 5: '#9fd987' },
-    toad: { 1: '#5c7a3c', 2: '#31431f', 5: '#9db97e' },
-  },
-  yellow: {
-    frog: { 1: '#e0c22a', 2: '#8a6f10', 5: '#f2e39a' },
-    toad: { 1: '#a8791f', 2: '#5c4110', 5: '#d1ac5c' }, // senapsgul, ej klargul
-  },
-  blue: {
-    frog: { 1: '#2a8de0', 2: '#0f4f8a', 5: '#9ad0f2' },
-    toad: { 1: '#4c6f8a', 2: '#22384a', 5: '#9db8c9' },
-  },
+const ANIMAL_PALETTES = {
+  frog: { 1: '#25b34a', 2: '#0f5c22', 5: '#9fd987' },
+  toad: { 1: '#5c7a3c', 2: '#31431f', 5: '#9db97e' },
 };
 
 export function getGrid(animal, direction) {
@@ -95,15 +85,14 @@ export function getGrid(animal, direction) {
   return byAnimal[direction] ?? byAnimal.up;
 }
 
-export function getPalette(skin, animal) {
-  const bySkin = SKIN_PALETTES[skin] ?? SKIN_PALETTES.green;
-  const base = bySkin[animal] ?? bySkin.frog;
+export function getPalette(animal) {
+  const base = ANIMAL_PALETTES[animal] ?? ANIMAL_PALETTES.frog;
   return { 1: base[1], 2: base[2], 3: EYE_WHITE, 4: PUPIL, 5: base[5] };
 }
 
-export function drawSprite(ctx, { animal, direction, skin, cx, cy, cellSize }) {
+export function drawSprite(ctx, { animal, direction, cx, cy, cellSize }) {
   const grid = getGrid(animal, direction);
-  const palette = getPalette(skin, animal);
+  const palette = getPalette(animal);
   const px = cellSize / grid.length;
   const originX = cx - cellSize / 2;
   const originY = cy - cellSize / 2;

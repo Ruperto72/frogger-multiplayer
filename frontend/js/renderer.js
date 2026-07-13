@@ -96,11 +96,9 @@ export class Renderer {
     for (const [pid, p] of Object.entries(state.players)) {
       if (!p) continue;
       const rx = state.renderX(pid); // flytande x när spelaren åker stock
-      const animal = pid === 'p1' ? 'frog' : 'toad';
       drawSprite(ctx, {
-        animal,
+        animal: p.animal,
         direction: state.dirOf(pid),
-        skin: p.skin,
         cx: rx * cell + cell / 2,
         cy: p.y * cell + cell / 2,
         cellSize: cell

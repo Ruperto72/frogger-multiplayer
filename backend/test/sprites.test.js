@@ -37,36 +37,33 @@ test('getGrid grodans upp-grid har rätt dimensioner och ögon', async () => {
   assert.equal(up[1][3], 4); // vänster pupill
 });
 
-test('getPalette grön groda har klargrön kropp', async () => {
+test('getPalette groda har klargrön kropp', async () => {
   const { getPalette } = await loadSprites();
-  const p = getPalette('green', 'frog');
+  const p = getPalette('frog');
   assert.equal(p[1], '#25b34a');
   assert.equal(p[5], '#9fd987');
 });
 
-test('getPalette gul padda är senapsgul/oliv, inte klargul som grodan', async () => {
+test('getPalette padda och groda har olika kroppsfärg', async () => {
   const { getPalette } = await loadSprites();
-  const toadYellow = getPalette('yellow', 'toad');
-  const frogYellow = getPalette('yellow', 'frog');
-  assert.equal(toadYellow[1], '#a8791f');
-  assert.equal(frogYellow[1], '#e0c22a');
-  assert.notEqual(toadYellow[1], frogYellow[1]);
+  const frog = getPalette('frog');
+  const toad = getPalette('toad');
+  assert.equal(frog[1], '#25b34a');
+  assert.equal(toad[1], '#5c7a3c');
+  assert.notEqual(frog[1], toad[1]);
 });
 
-test('getPalette okänt skin faller tillbaka på green', async () => {
+test('getPalette okänt djur faller tillbaka på frog', async () => {
   const { getPalette } = await loadSprites();
-  assert.deepEqual(getPalette('rainbow', 'frog'), getPalette('green', 'frog'));
-  assert.deepEqual(getPalette('rainbow', 'toad'), getPalette('green', 'toad'));
+  assert.deepEqual(getPalette('rainbow'), getPalette('frog'));
 });
 
-test('getPalette har fast ögonvitt/pupill oavsett skin och djur', async () => {
+test('getPalette har fast ögonvitt/pupill oavsett djur', async () => {
   const { getPalette } = await loadSprites();
-  for (const skin of ['green', 'yellow', 'blue']) {
-    for (const animal of ['frog', 'toad']) {
-      const p = getPalette(skin, animal);
-      assert.equal(p[3], '#f4f4e6');
-      assert.equal(p[4], '#111');
-    }
+  for (const animal of ['frog', 'toad']) {
+    const p = getPalette(animal);
+    assert.equal(p[3], '#f4f4e6');
+    assert.equal(p[4], '#111');
   }
 });
 
@@ -77,7 +74,7 @@ test('drawSprite ritar en fillRect per icke-transparent pixel', async () => {
     set fillStyle(v) { calls.push({ style: v, rects: [] }); },
     fillRect(x, y, w, h) { calls.at(-1).rects.push([x, y, w, h]); }
   };
-  drawSprite(ctx, { animal: 'frog', direction: 'up', skin: 'green', cx: 24, cy: 24, cellSize: 48 });
+  drawSprite(ctx, { animal: 'frog', direction: 'up', cx: 24, cy: 24, cellSize: 48 });
   const totalRects = calls.reduce((n, c) => n + c.rects.length, 0);
   assert.ok(totalRects > 0);
   // Alla rektanglar är 4×4 (48/12) och inom cellens 0..48-ruta relativt cx-24/cy-24
