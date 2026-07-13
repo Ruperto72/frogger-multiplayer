@@ -52,7 +52,7 @@ function mirrorRows(grid) {
 
 const FROG_RIGHT = mirrorRows(FROG_LEFT);
 
-const TOAD = [
+const TOAD_UP = [
   [0,1,1,0,0,0,0,0,0,1,1,0],
   [1,1,3,4,1,1,1,1,4,3,1,1],
   [1,1,1,2,1,1,1,1,2,1,1,1],
@@ -67,9 +67,28 @@ const TOAD = [
   [1,1,0,1,1,1,1,1,1,0,1,1],
 ];
 
+const TOAD_DOWN = [...TOAD_UP].reverse();
+
+const TOAD_LEFT = [
+  [0,0,1,1,0,0,0,0,0,0,0,0],
+  [0,1,4,3,1,1,0,0,0,0,0,0],
+  [1,1,1,1,1,1,1,1,0,0,0,0],
+  [1,1,1,1,1,1,1,1,1,0,0,0],
+  [1,1,1,1,1,1,1,1,1,0,0,0],
+  [0,1,1,1,1,1,1,1,1,1,0,0],
+  [0,1,1,5,5,5,5,1,1,2,0,0],
+  [0,1,5,5,2,2,5,5,1,1,0,0],
+  [0,1,5,5,5,5,5,5,2,1,0,0],
+  [0,0,1,5,5,5,5,1,1,1,0,0],
+  [0,0,1,1,1,1,0,0,1,1,0,0],
+  [0,0,1,1,1,1,0,0,1,1,0,0],
+];
+
+const TOAD_RIGHT = mirrorRows(TOAD_LEFT);
+
 const GRIDS = {
   frog: { up: FROG_UP, down: FROG_DOWN, left: FROG_LEFT, right: FROG_RIGHT },
-  toad: { up: TOAD, down: TOAD, left: TOAD, right: TOAD },
+  toad: { up: TOAD_UP, down: TOAD_DOWN, left: TOAD_LEFT, right: TOAD_RIGHT },
 };
 
 const EYE_WHITE = '#f4f4e6';

@@ -20,12 +20,19 @@ test('getGrid frog-right är horisontell spegling av frog-left', async () => {
   assert.deepEqual(right, mirrored);
 });
 
-test('getGrid padda är samma grid oavsett riktning', async () => {
+test('getGrid padda-right är horisontell spegling av padda-left', async () => {
+  const { getGrid } = await loadSprites();
+  const left = getGrid('toad', 'left');
+  const right = getGrid('toad', 'right');
+  const mirrored = left.map(row => [...row].reverse());
+  assert.deepEqual(right, mirrored);
+});
+
+test('getGrid padda-down är vertikalt vänd padda-up', async () => {
   const { getGrid } = await loadSprites();
   const up = getGrid('toad', 'up');
-  assert.deepEqual(getGrid('toad', 'down'), up);
-  assert.deepEqual(getGrid('toad', 'left'), up);
-  assert.deepEqual(getGrid('toad', 'right'), up);
+  const down = getGrid('toad', 'down');
+  assert.deepEqual(down, [...up].reverse());
 });
 
 test('getGrid grodans upp-grid har rätt dimensioner och ögon', async () => {
