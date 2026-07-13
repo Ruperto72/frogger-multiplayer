@@ -12,6 +12,12 @@ export class StartUI {
     this._bestof = document.getElementById('start-bestof');
     this._error  = document.getElementById('start-error');
 
+    const savedName = typeof localStorage !== 'undefined' ? localStorage.getItem('name') : null;
+    if (savedName) {
+      this._name.value = savedName;
+      this._state.profile = { name: savedName };
+    }
+
     this._fillSizeOptions();
 
     this._code.value = new URLSearchParams(location.search).get('code') ?? '';
@@ -75,8 +81,10 @@ export class StartUI {
   }
 
   _saveProfile() {
-    this._state.profile = { name: this._name.value.trim() };
+    const name = this._name.value.trim();
+    this._state.profile = { name };
     this._state.lastError = null;
+    if (typeof localStorage !== 'undefined') localStorage.setItem('name', name);
   }
 
   // Anropas från rAF-loopen
