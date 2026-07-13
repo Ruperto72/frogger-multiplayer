@@ -114,17 +114,21 @@ export class Renderer {
   }
 
   _drawObstacles(obstacles) {
-    const { ctx, cell } = this;
+    const { ctx, cell, cols } = this;
     for (const obs of obstacles) {
-      ctx.fillStyle = obs.type === 'car' ? '#cc3333' : '#8b5e3c';
-      const px = ((obs.x % this.cols) + this.cols) % this.cols;
+      const px = ((obs.x % cols) + cols) % cols;
       const x  = px * cell;
-      const y  = obs.lane * cell + 4;
-      const w  = obs.width * cell - 4;
-      const h  = cell - 8;
-      ctx.fillRect(x, y, w, h);
-      const overflow = x + w - this.cols * cell;
-      if (overflow > 0) ctx.fillRect(0, y, overflow, h);
+      const y  = obs.lane * cell;
+      const draw = (drawX) => {
+        if (obs.type === 'car') {
+          drawCar(ctx, { x: drawX, y, cellSize: cell, width: obs.width, dir: obs.dir, colorIndex: obs._idx });
+        } else {
+          drawLog(ctx, { x: drawX, y, cellSize: cell, width: obs.width });
+        }
+      };
+      draw(x);
+      const overflow = x + obs.width * cell - cols * cell;
+      if (overflow > 0) draw(x - cols * cell); // rita en kopia som lindar till vänsterkanten
     }
   }
 
