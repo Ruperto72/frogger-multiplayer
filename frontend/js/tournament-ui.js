@@ -33,8 +33,7 @@ export class TournamentUI {
       if (cur) this._sentReadyFor = `${t.code}:${cur.round}:${cur.index}`;
       this._net.send({
         type: 'ready',
-        name: this._state.profile.name,
-        skin: this._state.profile.skin
+        name: this._state.profile.name
       });
     });
   }

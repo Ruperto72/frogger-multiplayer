@@ -4,7 +4,6 @@ export class StartUI {
   constructor(net, state) {
     this._net   = net;
     this._state = state;
-    this._skin  = 'green';
 
     this._root   = document.getElementById('start');
     this._name   = document.getElementById('start-name');
@@ -12,25 +11,15 @@ export class StartUI {
     this._size   = document.getElementById('start-size');
     this._bestof = document.getElementById('start-bestof');
     this._error  = document.getElementById('start-error');
-    this._skinBtns = [...document.querySelectorAll('#start-skins .skin')];
 
     this._fillSizeOptions();
-
-    for (const btn of this._skinBtns) {
-      btn.addEventListener('click', () => {
-        this._skin = btn.dataset.skin;
-        for (const b of this._skinBtns) b.classList.toggle('selected', b === btn);
-      });
-    }
-    this._skinBtns[0].classList.add('selected');
 
     this._code.value = new URLSearchParams(location.search).get('code') ?? '';
 
     document.getElementById('start-quick').addEventListener('click', () => {
       this._saveProfile();
-      // Förifyll snabbmatchens lobbypanel med samma namn/skin
+      // Förifyll snabbmatchens lobbypanel med samma namn
       document.getElementById('lobby-name').value = this._state.profile.name;
-      document.querySelector(`#lobby-skins .skin[data-skin="${this._skin}"]`)?.click();
       this._net.send({ type: 'quick_match' });
     });
 
@@ -40,8 +29,7 @@ export class StartUI {
         type: 'create_tournament',
         size: Number(this._size.value),
         bestOf: Number(this._bestof.value),
-        name: this._state.profile.name,
-        skin: this._skin
+        name: this._state.profile.name
       });
     });
 
@@ -50,8 +38,7 @@ export class StartUI {
       this._net.send({
         type: 'join_tournament',
         code: this._code.value.trim().toUpperCase(),
-        name: this._state.profile.name,
-        skin: this._skin
+        name: this._state.profile.name
       });
     });
 
@@ -88,7 +75,7 @@ export class StartUI {
   }
 
   _saveProfile() {
-    this._state.profile = { name: this._name.value.trim(), skin: this._skin };
+    this._state.profile = { name: this._name.value.trim() };
     this._state.lastError = null;
   }
 

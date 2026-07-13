@@ -10,7 +10,7 @@ const DIRS = {
 export class GameState {
   constructor() {
     this.mode        = null;   // null | 'quick' | 'tournament'
-    this.profile     = { name: '', skin: 'green' };
+    this.profile     = { name: '' };
     this.tournament  = null;   // senaste tournament_state
     this.lastError   = null;
     this.phase       = 'idle';

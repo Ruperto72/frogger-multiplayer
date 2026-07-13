@@ -9,27 +9,16 @@ export class LobbyUI {
     this._net   = net;
     this._state = state;
     this._sent  = false;
-    this._skin  = 'green';
 
     this._root     = document.getElementById('lobby');
     this._status   = document.getElementById('lobby-status');
     this._opponent = document.getElementById('lobby-opponent');
     this._name     = document.getElementById('lobby-name');
     this._ready    = document.getElementById('lobby-ready');
-    this._skinBtns = [...this._root.querySelectorAll('.skin')];
-
-    for (const btn of this._skinBtns) {
-      btn.addEventListener('click', () => {
-        if (this._sent) return;
-        this._skin = btn.dataset.skin;
-        for (const b of this._skinBtns) b.classList.toggle('selected', b === btn);
-      });
-    }
-    this._skinBtns[0].classList.add('selected');
 
     this._ready.addEventListener('click', () => {
       this._sent = true;
-      this._net.send({ type: 'ready', name: this._name.value, skin: this._skin });
+      this._net.send({ type: 'ready', name: this._name.value });
     });
   }
 
