@@ -21,9 +21,10 @@ byggprocess, inga assets att hosta).
 
 ### Ny modul: `frontend/js/audio.js`
 
-`AudioManager`-klassen äger en enda `AudioContext` samt tre gain-noder
-(`_master` → destination, `_musicGain` och `_sfxGain` som separata volymreglage
-under mastern).
+`AudioManager`-klassen äger en enda `AudioContext` samt en gain-trädstruktur:
+`_master` (destination) ← `_musicGain` ← fyra röstspecifika gain-noder
+(`_leadGain`, `_harmonyGain`, `_bassGain`, `_rhythmGain`), plus `_sfxGain`
+för hoppljudet direkt under mastern.
 
 - **`unlock()`** — måste anropas från en användargest (webbläsarkrav för
   ljuduppspelning). Skapar `AudioContext` lazy och återupptar den om den är
@@ -31,29 +32,62 @@ under mastern).
 - **`playHop()`** — kort fyrkantsvågs-svep 180→560 Hz över 70 ms med en
   snabb attack/decay-envelope (exponentiella ramper för att undvika klick).
   Triggas per drag, se nedan.
-- **`startMusic()` / `stopMusic()`** — startar/stoppar en loopande
-  bakgrundsmelodi.
+- **`startMusic()` / `stopMusic()`** — startar/stoppar bakgrundsmusiken
+  (fyra samtidiga röster, se nedan).
 - **`setMuted(bool)` / `isMuted()`** — styr `_master`-gainen (0/1).
 
-### Melodin: "Froggy Hop"
+### Fyra samtidiga röster ("Froggy Hop")
 
-8 takter i G-dur, komponerade tillsammans med användaren (finslipade som
-ABC-notation och förhandslyssnade via ett externt notuppspelningsverktyg innan
-de skrevs om till frekvens/notvärde-par). Ligger hårdkodad som `MELODY`-arrayen
-i `audio.js`: par av `{ f: <Hz>, d: <längd i åttondelar> }`, med `f: 0` som
-paus. Strukturen är fråga/svar — takt 1–4 klättrar och vilar på en halvkadens
-("groda som väntar"), takt 5–8 upprepar motivet en oktav upp och landar på
-grundtonen.
+Efter en uppföljande önskan om fylligare arrangemang (basgång, stämma, rytm)
+byggdes musiken om från en enda melodilinje till fyra röster som spelas
+samtidigt — samma indelning som NES ljudchip (två fyrkantskanaler, en
+triangel-bas, en bruskanal):
+
+- **`LEAD`** — melodin, 8 takter i G-dur, komponerad tillsammans med
+  användaren (finslipad som ABC-notation och förhandslyssnad via ett externt
+  notuppspelningsverktyg innan den skrevs om till frekvens/notvärde-par).
+  Fyrkantsvåg. Struktur: fråga/svar — takt 1–4 klättrar och vilar på en
+  halvkadens ("groda som väntar"), takt 5–8 upprepar motivet en oktav upp och
+  landar på grundtonen.
+- **`HARMONY`** — parallell diatonisk ters under `LEAD` (skalsteg -2:
+  G→E, A→F#, B→G, D→B, E→C, F#→D), not för not i samma rytm. Fyrkantsvåg,
+  lägre gain (0.5 mot lead-röstens 0.9) så den läggs sig under melodin.
+- **`BASS`** — "oom-pah" (grundton/kvint) i triangelvåg som följer
+  ackordföljden G–G–D–G, upprepad två gånger (takt 3/7 är D, resten G).
+  Ackordvalet härleddes ur vilka toner som faktiskt förekommer i
+  `LEAD`/`HARMONY` (bara G-dur- och D-dur-toner — inget C förekommer i
+  melodin, så ingen C-ackord används som basnot; det E/C som skymtar i
+  stämman i takt 2/6 blir istället en genomgångston ovanpå G-basen, vilket
+  låter som ett tillfälligt infärgat ackord snarare än en dissonans).
+- **`RHYTHM`** — genererad programmatiskt (`for`-loop, inte hårdkodad array):
+  kick på slag 1, hi-hat på slag 2–4, jämnt genom alla 8 takter.
+
+Alla fyra arrayer summerar till exakt 64 åttondelar (8 takter × 8 åttondelar)
+— verifierat med ett litet Node-skript vid implementation — så rösterna
+loopar perfekt synkroniserat utan att glida isär.
 
 ### Lookahead-scheduler
 
-Melodin spelas inte genom att bara kedja `setTimeout` på notlängden — det
+Musiken spelas inte genom att bara kedja `setTimeout` på notlängden — det
 driftar över tid pga JS-timerns onoggrannhet. Istället används samma mönster
 som webbaserade trackers ("A Tale of Two Clocks"): en `setTimeout`-loop med
 kort intervall (25 ms) som varje gång schemalägger alla noter vars starttid
 ligger inom en 100 ms-lookahead, med exakt `AudioContext.currentTime`-baserad
-timing per oscillator. Det gör loopen drift- och klickfri oavsett huvudtrådens
-belastning.
+timing per oscillator. `_scheduler()` itererar över en lista av fyra
+"röst"-objekt (`{ notes, index, nextAt, gain, osc, kind }`), var och en med
+egen position i sin notarray men samma klocka — det gör loopen drift- och
+klickfri oavsett huvudtrådens belastning, och håller alla röster i fas.
+
+### Percussion-syntes
+
+Ingen ljudfil även för rytmen:
+
+- **Kick** (`_scheduleKick`) — sinusvåg som glider 150→50 Hz över 90 ms med
+  snabb attack/decay, samma teknik som `playHop()`.
+- **Hi-hat** (`_scheduleHihat`) — en enda återanvänd brusbuffert
+  (`_ensureNoiseBuffer()`, 100 ms vitt brus skapad lazy vid första anropet)
+  spelas genom ett highpass-filter (6 kHz) med kort envelope (~35 ms) för
+  varje slag, istället för att skapa ny brusdata varje gång.
 
 ### Uppkoppling mot spelet
 
@@ -86,13 +120,16 @@ Verifierat manuellt och via headless Chromium (Playwright):
    korrekt vid upprepade klick.
 3. En simulerad tangenttryckning (`ArrowUp`) triggar både `unlock()` och
    `playHop()` utan undantag.
-4. Musiken kördes igenom en hel loop (~13 s vid 150 bpm) utan
-   schemaläggningsfel vid wrap-around till takt 1.
+4. Musiken kördes igenom två hela loopar (~26 s vid 150 bpm, alla fyra röster
+   samtidigt) utan schemaläggningsfel vid wrap-around till takt 1.
 
 ## Explicit utanför scope
 
 - Inga fler ljudeffekter (död/krock, mål, rundvinst/matchvinst) — bara
   hoppljud + bakgrundsmelodi, enligt uttrycklig avgränsning från användaren.
-- Ingen separat volymreglage-UI utöver av/på — bara en mute-knapp.
+- Ingen separat volymreglage-UI per röst — bara en gemensam mute-knapp.
+  Balansen mellan lead/stämma/bas/rytm är fasta gain-värden i koden.
 - Ingen fade-in/fade-out mellan faser (lobby/spel/game over) — musiken
   loopar kontinuerligt från första interaktionen.
+- Ingen ackordföljd bortom G–D (I–V) — höll arrangemanget enkelt och
+  garanterat dissonansfritt mot den befintliga melodin/stämman.
