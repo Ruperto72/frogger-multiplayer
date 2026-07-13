@@ -1,5 +1,6 @@
 import { t } from './i18n.js';
 import { drawSprite } from './sprites.js';
+import { drawCar, drawLog, drawRoadTile, drawVergeTile, drawWaterTile } from './tiles.js';
 
 const ZONE_COLORS = {
   goal:    '#2a4a18',
@@ -63,17 +64,53 @@ export class Renderer {
     return state.players[pid]?.name ?? t('game.opponentFallback');
   }
 
-  _drawBoard() {
-    const { ctx, cell, cols, rows } = this;
+  _buildBoardCache() {
+    const { cell, cols, rows } = this;
+    const cache = document.createElement('canvas');
+    cache.width  = cols * cell;
+    cache.height = rows * cell;
+    const cctx = cache.getContext('2d');
+
     for (let row = 0; row < rows; row++) {
-      ctx.fillStyle = zoneColor(row);
-      ctx.fillRect(0, row * cell, cols * cell, cell);
+      for (let col = 0; col < cols; col++) {
+        const x = col * cell, y = row * cell;
+        if (row === 0 || row === 13 || row === 14) {
+          cctx.fillStyle = zoneColor(row);
+          cctx.fillRect(x, y, cell, cell);
+        } else if (row >= 1 && row <= 5) {
+          drawWaterTile(cctx, x, y, cell);
+        } else if (row === 6) {
+          drawVergeTile(cctx, x, y, cell);
+        } else {
+          drawRoadTile(cctx, x, y, cell);
+        }
+      }
     }
+
+    // Körfältslinjer mellan varje trafikrad (rad 7–12)
+    cctx.strokeStyle = 'rgba(255,255,255,0.8)';
+    cctx.lineWidth = 2;
+    cctx.setLineDash([cell * 0.25, cell * 0.2]);
+    for (let row = 8; row <= 12; row++) {
+      const y = row * cell;
+      cctx.beginPath();
+      cctx.moveTo(0, y);
+      cctx.lineTo(cols * cell, y);
+      cctx.stroke();
+    }
+
     // Målplatser
-    ctx.fillStyle = '#4a8a28';
+    cctx.fillStyle = '#4a8a28';
     for (const gx of [0, 3, 6, 9, 12]) {
-      ctx.fillRect(gx * cell + 4, 4, cell - 8, cell - 8);
+      cctx.fillRect(gx * cell + 4, 4, cell - 8, cell - 8);
     }
+
+    this._boardCache = cache;
+  }
+
+  _drawBoard() {
+    if (!this._boardCache) this._buildBoardCache();
+    this.ctx.drawImage(this._boardCache, 0, 0);
   }
 
   _drawObstacles(obstacles) {
