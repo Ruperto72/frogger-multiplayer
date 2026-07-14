@@ -4,7 +4,7 @@
 // hålls i fas utan drift eller klick jämfört med att kedja setTimeout
 // på notlängden. Hopp-blippet (playHop) triggas per drag, se input.js.
 
-const TEMPO_BPM   = 150;
+export const TEMPO_BPM = 150;
 const EIGHTH_SEC  = 60 / TEMPO_BPM / 2;
 const LOOKAHEAD_MS   = 25;   // hur ofta schemaläggaren vaknar
 const SCHEDULE_AHEAD = 0.1;  // hur långt fram (sek) den lägger noter i kön
@@ -19,38 +19,41 @@ const REST = 0;
 
 // "Froggy Hop" — 8 takter, finslipade i ABC-notation och förhandslyssnade
 // innan de skrevs om till frekvens/notvärde-par här. d = längd i åttondelar.
-// `bend` glider tonhöjden mot målfrekvensen under notens sista hälft (en
-// snabb "scoop" in i nästa fras); `vib` lägger på vibrato — bara använt på
-// enstaka, utvalda noter (leaps och hållna toner) så det känns som kryddor,
-// inte ett genomgående effektlager.
-const LEAD = [
-  // Takt 1
+// Valfria effektflaggor per not (se _scheduleTone): `bend` glider tonhöjden
+// mot målfrekvensen under notens sista hälft; `vib` = vibrato (tonhöjds-LFO);
+// `trem` = tremolo (volym-LFO); `duty` = pulsbredd 0–1 för fyrkantsröster
+// (0.5 = vanlig "square"); `arp` = lista med halvtonsoffset som notens
+// grundton snabbt växlar med (chip-ackord). Bara använt på enstaka, utvalda
+// noter så det känns som kryddor, inte ett genomgående effektlager.
+export const LEAD = [
+  // Takt 1 — tremolo på den hållna avslutningstonen
   { f: G4,  d: 1 }, { f: B4,  d: 1 }, { f: D5,  d: 1 }, { f: B4,  d: 1 },
-  { f: G4,  d: 1 }, { f: B4,  d: 1 }, { f: D5,  d: 2 },
-  // Takt 2 — scoop upp i höjdpunkten (D5→G5)
-  { f: G4,  d: 1 }, { f: B4,  d: 1 }, { f: D5,  d: 1, bend: G5 }, { f: G5,  d: 1 },
+  { f: G4,  d: 1 }, { f: B4,  d: 1 }, { f: D5,  d: 2, trem: true },
+  // Takt 2 — scoop upp i höjdpunkten (D5→G5), tunnare puls på toppnoten
+  { f: G4,  d: 1 }, { f: B4,  d: 1 }, { f: D5,  d: 1, bend: G5 }, { f: G5,  d: 1, duty: 0.25 },
   { f: E5,  d: 1 }, { f: D5,  d: 1 }, { f: B4,  d: 2 },
   // Takt 3 — vibrato på den avslutande, hållna tonen
   { f: Fs5, d: 1 }, { f: E5,  d: 1 }, { f: D5,  d: 1 }, { f: B4,  d: 1 },
   { f: A4,  d: 1 }, { f: G4,  d: 1 }, { f: Fs4, d: 2, vib: true },
   // Takt 4 — halvkadens, groda som väntar — vibrato på båda väntetonerna
   { f: D4,   d: 2, vib: true }, { f: REST, d: 2 }, { f: B4,  d: 2, vib: true }, { f: REST, d: 2 },
-  // Takt 5
+  // Takt 5 — tremolo på den hållna avslutningstonen, speglar takt 1
   { f: D5,  d: 1 }, { f: Fs5, d: 1 }, { f: A5,  d: 1 }, { f: Fs5, d: 1 },
-  { f: D5,  d: 1 }, { f: Fs5, d: 1 }, { f: A5,  d: 2 },
-  // Takt 6 — scoop upp mot styckets högsta ton (A5→B5)
-  { f: D5,  d: 1 }, { f: Fs5, d: 1 }, { f: A5,  d: 1, bend: B5 }, { f: B5,  d: 1 },
+  { f: D5,  d: 1 }, { f: Fs5, d: 1 }, { f: A5,  d: 2, trem: true },
+  // Takt 6 — scoop upp mot styckets högsta ton (A5→B5), tunnare puls på toppen
+  { f: D5,  d: 1 }, { f: Fs5, d: 1 }, { f: A5,  d: 1, bend: B5 }, { f: B5,  d: 1, duty: 0.25 },
   { f: G5,  d: 1 }, { f: Fs5, d: 1 }, { f: D5,  d: 2 },
   // Takt 7 — vibrato in i den sista takten
   { f: A5,  d: 1 }, { f: G5,  d: 1 }, { f: Fs5, d: 1 }, { f: D5,  d: 1 },
   { f: B4,  d: 1 }, { f: A4,  d: 1 }, { f: G4,  d: 2, vib: true },
-  // Takt 8 — final, sista tonen glider upp mot kvinten inför loopens omtag
-  { f: G4,   d: 2 }, { f: REST, d: 2 }, { f: D4,  d: 2 }, { f: G4,  d: 2, bend: D5 }
+  // Takt 8 — final: kort chip-ackord (D-durtreklang) leder in i sista tonen,
+  // som glider upp mot kvinten inför loopens omtag
+  { f: G4,   d: 2 }, { f: REST, d: 2 }, { f: D4,  d: 2, arp: [4, 7] }, { f: G4,  d: 2, bend: D5 }
 ];
 
 // Stämma — parallell diatonisk ters under LEAD (G→E, A→F#, B→G, D→B, E→C,
 // F#→D), samma rytm som LEAD not för not.
-const HARMONY = [
+export const HARMONY = [
   { f: E4,  d: 1 }, { f: G4,  d: 1 }, { f: B4,  d: 1 }, { f: G4,  d: 1 },
   { f: E4,  d: 1 }, { f: G4,  d: 1 }, { f: B4,  d: 2 },
 
@@ -78,7 +81,7 @@ const HARMONY = [
 // två gånger. Ackordvalet matchar tonerna i LEAD/HARMONY (ingen C-ackord
 // behövs — E/C som dyker upp i stämman blir naturliga genomgångstoner
 // ovanpå G-basen istället, se designspecen).
-const BASS = [
+export const BASS = [
   { f: G3, d: 2 }, { f: D4, d: 2 }, { f: G3, d: 2 }, { f: D4, d: 2 }, // takt 1 (G)
   { f: G3, d: 2 }, { f: D4, d: 2 }, { f: G3, d: 2 }, { f: D4, d: 2 }, // takt 2 (G)
   { f: D3, d: 2 }, { f: A3, d: 2 }, { f: D3, d: 2 }, { f: A3, d: 2 }, // takt 3 (D)
@@ -90,7 +93,7 @@ const BASS = [
 ];
 
 // Rytm — kick på ettan, hi-hat på slag 2–4, jämnt genom alla 8 takter.
-const RHYTHM = [];
+export const RHYTHM = [];
 for (let bar = 0; bar < 8; bar++) {
   for (let beat = 0; beat < 4; beat++) {
     RHYTHM.push({ type: beat === 0 ? 'kick' : 'hihat', d: 2 });
@@ -108,6 +111,7 @@ export class AudioManager {
     this._rhythmGain   = null;
     this._sfxGain      = null;
     this._noiseBuffer  = null;
+    this._pulseWaves   = null;
     this._muted        = false;
     this._musicOn      = false;
     this._voices       = [];
@@ -265,30 +269,83 @@ export class AudioManager {
   _scheduleTone(note, startAt, durationSec, destGain, oscType) {
     const osc  = this._ctx.createOscillator();
     const gain = this._ctx.createGain();
-    osc.type = oscType;
-    osc.frequency.setValueAtTime(note.f, startAt);
-    if (note.bend) {
-      const bendAt = startAt + durationSec * 0.5;
-      osc.frequency.setValueAtTime(note.f, bendAt);
-      osc.frequency.linearRampToValueAtTime(note.bend, startAt + durationSec);
+
+    if (oscType === 'square' && note.duty) {
+      osc.setPeriodicWave(this._pulseWave(note.duty));
+    } else {
+      osc.type = oscType;
     }
-    if (note.vib) {
-      const lfo     = this._ctx.createOscillator();
-      const lfoGain = this._ctx.createGain();
-      lfo.frequency.value = 5.5;              // klassisk chiptune-vibratohastighet
-      lfoGain.gain.value  = note.f * 0.02;     // subtil djup, ~2% av tonhöjden
-      lfo.connect(lfoGain).connect(osc.frequency);
-      lfo.start(startAt);
-      lfo.stop(startAt + durationSec);
+
+    if (note.arp && note.arp.length) {
+      // Chip-ackord: växla snabbt mellan grundtonen och halvtonsoffsetten i
+      // arp istället för en stilla ton — bend/vib hoppas över för enkelhets
+      // skull när arpeggio är aktivt.
+      this._scheduleArpeggio(osc, note, startAt, durationSec);
+    } else {
+      osc.frequency.setValueAtTime(note.f, startAt);
+      if (note.bend) {
+        const bendAt = startAt + durationSec * 0.5;
+        osc.frequency.setValueAtTime(note.f, bendAt);
+        osc.frequency.linearRampToValueAtTime(note.bend, startAt + durationSec);
+      }
+      if (note.vib) {
+        const lfo     = this._ctx.createOscillator();
+        const lfoGain = this._ctx.createGain();
+        lfo.frequency.value = 5.5;              // klassisk chiptune-vibratohastighet
+        lfoGain.gain.value  = note.f * 0.02;     // subtil djup, ~2% av tonhöjden
+        lfo.connect(lfoGain).connect(osc.frequency);
+        lfo.start(startAt);
+        lfo.stop(startAt + durationSec);
+      }
     }
+
     const releaseAt = startAt + durationSec * 0.85;
     gain.gain.setValueAtTime(0.0001, startAt);
     gain.gain.exponentialRampToValueAtTime(1, startAt + 0.015);
     gain.gain.setValueAtTime(1, releaseAt);
     gain.gain.exponentialRampToValueAtTime(0.0001, startAt + durationSec);
+
+    if (note.trem) {
+      const lfo     = this._ctx.createOscillator();
+      const lfoGain = this._ctx.createGain();
+      lfo.frequency.value = 18;   // snabbare än vibrato — rytmisk volympulsering
+      lfoGain.gain.value  = 0.35; // moduleringsdjup, adderas till envelopets gain
+      lfo.connect(lfoGain).connect(gain.gain);
+      lfo.start(startAt);
+      lfo.stop(startAt + durationSec);
+    }
+
     osc.connect(gain).connect(destGain);
     osc.start(startAt);
     osc.stop(startAt + durationSec);
+  }
+
+  _scheduleArpeggio(osc, note, startAt, durationSec) {
+    const freqs = [note.f, ...note.arp.map(semi => note.f * Math.pow(2, semi / 12))];
+    const stepSec = 0.03; // ~33 Hz — klassisk NES-hastighet för brutna ackord
+    let t = startAt, i = 0;
+    while (t < startAt + durationSec) {
+      osc.frequency.setValueAtTime(freqs[i % freqs.length], t);
+      t += stepSec;
+      i++;
+    }
+  }
+
+  // Bygger (och cachar) en periodisk fyrkantsvåg med given pulsbredd
+  // (0–1, 0.5 = vanlig 50/50-square) via dess Fourier-koefficienter —
+  // Web Audios inbyggda 'square'-typ har alltid fast 50% duty cycle.
+  _pulseWave(duty) {
+    this._pulseWaves ??= new Map();
+    if (this._pulseWaves.has(duty)) return this._pulseWaves.get(duty);
+    const harmonics = 32;
+    const real = new Float32Array(harmonics + 1);
+    const imag = new Float32Array(harmonics + 1);
+    for (let n = 1; n <= harmonics; n++) {
+      imag[n] = (2 / (n * Math.PI)) * Math.sin(n * Math.PI * duty);
+    }
+    const wave = this._ctx.createPeriodicWave(real, imag);
+    this._pulseWaves.set(duty, wave);
+    return wave;
   }
 
   // Syntetisk "kick" — sjunkande sinuston, ingen brusbuffert behövs.
