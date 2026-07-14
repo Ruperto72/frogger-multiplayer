@@ -8,7 +8,8 @@ const DIRS = {
 };
 
 export class GameState {
-  constructor() {
+  constructor(audio) {
+    this._audio      = audio;
     this.mode        = null;   // null | 'quick' | 'tournament'
     this.profile     = { name: '' };
     this.tournament  = null;   // senaste tournament_state
@@ -66,10 +67,15 @@ export class GameState {
       const mine  = !acked && this.you ? this.players[this.you] : null;
 
       for (const pid of ['p1', 'p2']) {
-        if (pid === this.you) continue;
         const before = this.players[pid];
         const after  = msg.players[pid];
         if (!before || !after) continue;
+        // Servern drar bara liv vid riktig död (bilkrock/drunkning) — inte
+        // vid knuff (se _applyBump i room.js), så det är en pålitlig signal.
+        if (after.lives < before.lives) this._audio?.playCroak();
+        // score ökar bara i _checkGoal när spelaren landar på en mål-cell.
+        if (after.score > before.score) this._audio?.playGoal();
+        if (pid === this.you) continue;
         const dx = after.x - before.x;
         const dy = after.y - before.y;
         if (dx > 0) this._lastDir[pid] = 'right';
