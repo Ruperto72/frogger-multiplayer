@@ -4,7 +4,7 @@
 // hålls i fas utan drift eller klick jämfört med att kedja setTimeout
 // på notlängden. Hopp-blippet (playHop) triggas per drag, se input.js.
 
-const TEMPO_BPM   = 150;
+export const TEMPO_BPM = 150;
 const EIGHTH_SEC  = 60 / TEMPO_BPM / 2;
 const LOOKAHEAD_MS   = 25;   // hur ofta schemaläggaren vaknar
 const SCHEDULE_AHEAD = 0.1;  // hur långt fram (sek) den lägger noter i kön
@@ -23,7 +23,7 @@ const REST = 0;
 // snabb "scoop" in i nästa fras); `vib` lägger på vibrato — bara använt på
 // enstaka, utvalda noter (leaps och hållna toner) så det känns som kryddor,
 // inte ett genomgående effektlager.
-const LEAD = [
+export const LEAD = [
   // Takt 1
   { f: G4,  d: 1 }, { f: B4,  d: 1 }, { f: D5,  d: 1 }, { f: B4,  d: 1 },
   { f: G4,  d: 1 }, { f: B4,  d: 1 }, { f: D5,  d: 2 },
@@ -50,7 +50,7 @@ const LEAD = [
 
 // Stämma — parallell diatonisk ters under LEAD (G→E, A→F#, B→G, D→B, E→C,
 // F#→D), samma rytm som LEAD not för not.
-const HARMONY = [
+export const HARMONY = [
   { f: E4,  d: 1 }, { f: G4,  d: 1 }, { f: B4,  d: 1 }, { f: G4,  d: 1 },
   { f: E4,  d: 1 }, { f: G4,  d: 1 }, { f: B4,  d: 2 },
 
@@ -78,7 +78,7 @@ const HARMONY = [
 // två gånger. Ackordvalet matchar tonerna i LEAD/HARMONY (ingen C-ackord
 // behövs — E/C som dyker upp i stämman blir naturliga genomgångstoner
 // ovanpå G-basen istället, se designspecen).
-const BASS = [
+export const BASS = [
   { f: G3, d: 2 }, { f: D4, d: 2 }, { f: G3, d: 2 }, { f: D4, d: 2 }, // takt 1 (G)
   { f: G3, d: 2 }, { f: D4, d: 2 }, { f: G3, d: 2 }, { f: D4, d: 2 }, // takt 2 (G)
   { f: D3, d: 2 }, { f: A3, d: 2 }, { f: D3, d: 2 }, { f: A3, d: 2 }, // takt 3 (D)
@@ -90,7 +90,7 @@ const BASS = [
 ];
 
 // Rytm — kick på ettan, hi-hat på slag 2–4, jämnt genom alla 8 takter.
-const RHYTHM = [];
+export const RHYTHM = [];
 for (let bar = 0; bar < 8; bar++) {
   for (let beat = 0; beat < 4; beat++) {
     RHYTHM.push({ type: beat === 0 ? 'kick' : 'hihat', d: 2 });
