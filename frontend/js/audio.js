@@ -179,6 +179,30 @@ export class AudioManager {
     osc.stop(t + 0.1);
   }
 
+  // Nedåtgående dubbel-"kvack" — spelas när en spelare dör (bilkrock eller
+  // drunkning, dvs när servern drar ett liv). Två sjunkande fyrkantspulser
+  // för att skilja sig tydligt från hoppets enkla, stigande blip.
+  playCroak() {
+    if (!this._ctx) return;
+    const t = this._ctx.currentTime;
+    this._scheduleQuack(t, 340, 220, 0.08);
+    this._scheduleQuack(t + 0.1, 260, 150, 0.1);
+  }
+
+  _scheduleQuack(startAt, fromFreq, toFreq, dur) {
+    const osc  = this._ctx.createOscillator();
+    const gain = this._ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(fromFreq, startAt);
+    osc.frequency.exponentialRampToValueAtTime(toFreq, startAt + dur);
+    gain.gain.setValueAtTime(0.0001, startAt);
+    gain.gain.exponentialRampToValueAtTime(1, startAt + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, startAt + dur);
+    osc.connect(gain).connect(this._sfxGain);
+    osc.start(startAt);
+    osc.stop(startAt + dur + 0.02);
+  }
+
   startMusic() {
     if (this._musicOn || !this._ctx) return;
     this._musicOn = true;

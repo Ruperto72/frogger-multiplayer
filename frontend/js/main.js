@@ -16,10 +16,10 @@ const canvas = document.getElementById('game');
 canvas.width  = COLS * CELL;
 canvas.height = ROWS * CELL;
 
-const state    = new GameState();
+const audio    = new AudioManager();
+const state    = new GameState(audio);
 const renderer = new Renderer(canvas, CELL, COLS, ROWS);
 const net      = new Net(state);
-const audio    = new AudioManager();
 const input    = new Input(net, state, audio);
 new TouchControls(input);
 const lobbyUi  = new LobbyUI(net, state);
