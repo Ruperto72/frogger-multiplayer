@@ -14,6 +14,7 @@ const B3 = 246.94;
 const D4 = 293.66, E4 = 329.63, Fs4 = 369.99, G4 = 392.00, A4 = 440.00, B4 = 493.88;
 const C5 = 523.25, D5 = 587.33, E5 = 659.25, Fs5 = 739.99, G5 = 783.99, A5 = 880.00, B5 = 987.77;
 const G3 = 196.00, A3 = 220.00, D3 = 146.83;
+const D6 = 1174.66;
 const REST = 0;
 
 // "Froggy Hop" — 8 takter, finslipade i ABC-notation och förhandslyssnade
@@ -201,6 +202,23 @@ export class AudioManager {
     osc.connect(gain).connect(this._sfxGain);
     osc.start(startAt);
     osc.stop(startAt + dur + 0.02);
+  }
+
+  // Stigande fanfar — spelas när en spelare når mål. Ett snabbt arpeggio
+  // (grundackordets toner) avslutat med en treklangsstöt (G-dur en oktav
+  // upp) för lite extra "ta-da". Återanvänder samma tonhjälpare som
+  // bakgrundsmusiken (_scheduleTone) istället för att duplicera envelopet.
+  playGoal() {
+    if (!this._ctx) return;
+    const t       = this._ctx.currentTime;
+    const spacing = 0.06;
+    [G4, B4, D5, G5].forEach((f, i) => {
+      this._scheduleTone({ f }, t + i * spacing, 0.08, this._sfxGain, 'square');
+    });
+    const chordAt = t + 4 * spacing;
+    for (const f of [G5, B5, D6]) {
+      this._scheduleTone({ f }, chordAt, 0.35, this._sfxGain, 'square');
+    }
   }
 
   startMusic() {

@@ -73,6 +73,8 @@ export class GameState {
         // Servern drar bara liv vid riktig död (bilkrock/drunkning) — inte
         // vid knuff (se _applyBump i room.js), så det är en pålitlig signal.
         if (after.lives < before.lives) this._audio?.playCroak();
+        // score ökar bara i _checkGoal när spelaren landar på en mål-cell.
+        if (after.score > before.score) this._audio?.playGoal();
         if (pid === this.you) continue;
         const dx = after.x - before.x;
         const dy = after.y - before.y;
