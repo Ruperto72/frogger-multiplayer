@@ -1,7 +1,7 @@
 # Musikeditor: alla spår samtidigt i pianorullen
 
 **Datum:** 2026-07-14
-**Status:** Godkänd, redo för implementation
+**Status:** Implementerad
 
 ## Bakgrund
 
