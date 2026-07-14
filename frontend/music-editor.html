@@ -74,6 +74,10 @@
   .note.vib::before {
     content: "~"; position: absolute; left: 2px; top: -3px; font-size: 10px; color: #111;
   }
+  .note.trem { background-image: repeating-linear-gradient(90deg, rgba(0,0,0,0.25) 0 2px, transparent 2px 4px); }
+  .note .arp-badge {
+    position: absolute; right: 2px; bottom: -3px; font-size: 9px; color: #111; pointer-events: none;
+  }
   .hit {
     background: var(--rhythm); border-radius: 3px; cursor: pointer;
     box-shadow: inset 0 0 0 1px rgba(0,0,0,0.4);
@@ -101,9 +105,10 @@
   <p class="hint">
     Dev-verktyg för att komponera "Froggy Hop"-loopen. Läser in den nuvarande låten från
     <code>js/audio.js</code>. Klicka i ett tomt rutnätsfält för att lägga en not, klicka på en
-    befintlig not för att markera den (radera/bend/vibrato i panelen nedan), dra i notens
-    högerkant för att ändra längd. Exportera och klistra in resultatet i <code>LEAD</code>/
-    <code>HARMONY</code>/<code>BASS</code>/<code>RHYTHM</code> i <code>audio.js</code>.
+    befintlig not för att markera den (panelen nedan: radera, vibrato, tremolo, bend,
+    pulsbredd, arpeggio), dra i notens högerkant för att ändra längd. Exportera och klistra
+    in resultatet i <code>LEAD</code>/<code>HARMONY</code>/<code>BASS</code>/<code>RHYTHM</code>
+    i <code>audio.js</code>.
   </p>
 
   <div class="toolbar">
@@ -149,13 +154,17 @@ const midiToName = (m) => NOTE_NAMES[((m % 12) + 12) % 12] + (Math.floor(m / 12)
 const freqToMidi  = (f) => Math.round(12 * Math.log2(f / 440) + 69);
 const round2 = (n) => Math.round(n * 100) / 100;
 
-// --- Konvertera sekventiellt {f,d,bend,vib}-format (som i audio.js) till
-// kolumnbaserade noter {start,len,freq,bend,vib} som editorn jobbar med. ---
+// --- Konvertera sekventiellt {f,d,bend,vib,trem,duty,arp}-format (som i
+// audio.js) till kolumnbaserade noter som editorn jobbar med. ---
 function toColumnNotes(seq) {
   const notes = [];
   let col = 0;
   for (const n of seq) {
-    if (n.f) notes.push({ start: col, len: n.d, freq: n.f, bend: n.bend ?? null, vib: !!n.vib });
+    if (n.f) notes.push({
+      start: col, len: n.d, freq: n.f,
+      bend: n.bend ?? null, vib: !!n.vib, trem: !!n.trem,
+      duty: n.duty ?? null, arp: n.arp ?? null
+    });
     col += n.d;
   }
   return notes;
@@ -178,7 +187,14 @@ function fromColumnNotes(notes) {
   let col = 0;
   for (const n of sorted) {
     if (n.start > col) out.push({ f: 0, d: n.start - col });
-    out.push({ f: round2(n.freq), d: n.len, ...(n.bend ? { bend: round2(n.bend) } : {}), ...(n.vib ? { vib: true } : {}) });
+    out.push({
+      f: round2(n.freq), d: n.len,
+      ...(n.bend ? { bend: round2(n.bend) } : {}),
+      ...(n.vib ? { vib: true } : {}),
+      ...(n.trem ? { trem: true } : {}),
+      ...(n.duty ? { duty: n.duty } : {}),
+      ...(n.arp && n.arp.length ? { arp: n.arp } : {})
+    });
     col = n.start + n.len;
   }
   if (col < COLS) out.push({ f: 0, d: COLS - col });
@@ -260,11 +276,18 @@ function render() {
     state.tracks[state.track].forEach((note, idx) => {
       const row = MIDI_MAX - freqToMidi(note.freq);
       const div = document.createElement('div');
-      div.className = 'note ' + state.track + (note.bend ? ' bend' : '') + (note.vib ? ' vib' : '') +
+      div.className = 'note ' + state.track +
+        (note.bend ? ' bend' : '') + (note.vib ? ' vib' : '') + (note.trem ? ' trem' : '') +
         (state.selected === idx ? ' selected' : '');
       div.style.gridRow = row + 1;
       div.style.gridColumn = `${note.start + 2} / span ${note.len}`;
       div.addEventListener('click', (e) => { e.stopPropagation(); selectNote(idx); });
+      if (note.arp && note.arp.length) {
+        const badge = document.createElement('span');
+        badge.className = 'arp-badge';
+        badge.textContent = '♪';
+        div.appendChild(badge);
+      }
       const handle = document.createElement('div');
       handle.className = 'handle';
       handle.addEventListener('mousedown', (e) => startResize(e, idx));
@@ -287,7 +310,10 @@ function onCellClick(row, col) {
   }
   const notes = state.tracks[state.track];
   const cleared = clearOverlaps(notes, col, 1);
-  cleared.push({ start: col, len: 1, freq: round2(midiToFreq(MIDI_MAX - row)), bend: null, vib: false });
+  cleared.push({
+    start: col, len: 1, freq: round2(midiToFreq(MIDI_MAX - row)),
+    bend: null, vib: false, trem: false, duty: null, arp: null
+  });
   state.tracks[state.track] = cleared;
   state.selected = cleared.length - 1;
   render();
@@ -356,6 +382,14 @@ function renderInspector() {
   vibLabel.append(vibBox, ' Vibrato');
   inspector.appendChild(vibLabel);
 
+  const tremLabel = document.createElement('label');
+  const tremBox = document.createElement('input');
+  tremBox.type = 'checkbox';
+  tremBox.checked = note.trem;
+  tremBox.addEventListener('change', () => { note.trem = tremBox.checked; render(); });
+  tremLabel.append(tremBox, ' Tremolo');
+  inspector.appendChild(tremLabel);
+
   const bendLabel = document.createElement('label');
   bendLabel.textContent = ' Bend (halvtoner): ';
   const bendInput = document.createElement('input');
@@ -365,10 +399,56 @@ function renderInspector() {
   bendInput.addEventListener('change', () => {
     const semitones = parseInt(bendInput.value, 10) || 0;
     note.bend = semitones === 0 ? null : round2(note.freq * Math.pow(2, semitones / 12));
+    if (note.bend) note.arp = null; // bend och arpeggio kombineras inte i uppspelningen
     render();
   });
   bendLabel.appendChild(bendInput);
   inspector.appendChild(bendLabel);
+
+  if (state.track !== 'bass') {
+    const dutyLabel = document.createElement('label');
+    dutyLabel.textContent = ' Pulsbredd: ';
+    const dutySelect = document.createElement('select');
+    [[null, 'Standard (50%)'], [0.125, '12.5%'], [0.25, '25%'], [0.5, '50%'], [0.75, '75%']].forEach(([v, label]) => {
+      const opt = document.createElement('option');
+      opt.value = v ?? '';
+      opt.textContent = label;
+      if (note.duty === v) opt.selected = true;
+      dutySelect.appendChild(opt);
+    });
+    dutySelect.addEventListener('change', () => {
+      note.duty = dutySelect.value === '' ? null : parseFloat(dutySelect.value);
+      render();
+    });
+    dutyLabel.appendChild(dutySelect);
+    inspector.appendChild(dutyLabel);
+  }
+
+  const arpLabel = document.createElement('label');
+  arpLabel.textContent = ' Arpeggio (halvtoner, kommaseparerat): ';
+  const arpInput = document.createElement('input');
+  arpInput.type = 'text';
+  arpInput.style.width = '70px';
+  arpInput.placeholder = 'ex. 4,7';
+  arpInput.value = note.arp ? note.arp.join(',') : '';
+  arpInput.addEventListener('change', () => {
+    const parsed = arpInput.value.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
+    note.arp = parsed.length ? parsed : null;
+    if (note.arp) note.bend = null; // bend och arpeggio kombineras inte i uppspelningen
+    render();
+  });
+  arpLabel.appendChild(arpInput);
+  inspector.appendChild(arpLabel);
+
+  const arpMajor = document.createElement('button');
+  arpMajor.textContent = 'Dur-treklang';
+  arpMajor.addEventListener('click', () => { note.arp = [4, 7]; note.bend = null; render(); });
+  inspector.appendChild(arpMajor);
+
+  const arpMinor = document.createElement('button');
+  arpMinor.textContent = 'Moll-treklang';
+  arpMinor.addEventListener('click', () => { note.arp = [3, 7]; note.bend = null; render(); });
+  inspector.appendChild(arpMinor);
 
   const del = document.createElement('button');
   del.textContent = 'Radera not';
@@ -415,26 +495,58 @@ function ensureCtx() {
   return ctx;
 }
 
-function scheduleTone(freq, startAt, dur, oscType, bend, vib) {
+const pulseWaves = new Map();
+function pulseWave(duty) {
+  if (pulseWaves.has(duty)) return pulseWaves.get(duty);
+  const harmonics = 32;
+  const real = new Float32Array(harmonics + 1);
+  const imag = new Float32Array(harmonics + 1);
+  for (let n = 1; n <= harmonics; n++) imag[n] = (2 / (n * Math.PI)) * Math.sin(n * Math.PI * duty);
+  const wave = ctx.createPeriodicWave(real, imag);
+  pulseWaves.set(duty, wave);
+  return wave;
+}
+
+function scheduleTone(note, startAt, dur, oscType) {
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
-  osc.type = oscType;
-  osc.frequency.setValueAtTime(freq, startAt);
-  if (bend) {
-    osc.frequency.setValueAtTime(freq, startAt + dur * 0.5);
-    osc.frequency.linearRampToValueAtTime(bend, startAt + dur);
+
+  if (oscType === 'square' && note.duty) osc.setPeriodicWave(pulseWave(note.duty));
+  else osc.type = oscType;
+
+  if (note.arp && note.arp.length) {
+    const freqs = [note.freq, ...note.arp.map(semi => note.freq * Math.pow(2, semi / 12))];
+    const stepSec = 0.03;
+    let t = startAt, i = 0;
+    while (t < startAt + dur) { osc.frequency.setValueAtTime(freqs[i % freqs.length], t); t += stepSec; i++; }
+  } else {
+    osc.frequency.setValueAtTime(note.freq, startAt);
+    if (note.bend) {
+      osc.frequency.setValueAtTime(note.freq, startAt + dur * 0.5);
+      osc.frequency.linearRampToValueAtTime(note.bend, startAt + dur);
+    }
+    if (note.vib) {
+      const lfo = ctx.createOscillator(), lfoGain = ctx.createGain();
+      lfo.frequency.value = 5.5;
+      lfoGain.gain.value = note.freq * 0.02;
+      lfo.connect(lfoGain).connect(osc.frequency);
+      lfo.start(startAt); lfo.stop(startAt + dur);
+    }
   }
-  if (vib) {
-    const lfo = ctx.createOscillator(), lfoGain = ctx.createGain();
-    lfo.frequency.value = 5.5;
-    lfoGain.gain.value = freq * 0.02;
-    lfo.connect(lfoGain).connect(osc.frequency);
-    lfo.start(startAt); lfo.stop(startAt + dur);
-  }
+
   gain.gain.setValueAtTime(0.0001, startAt);
   gain.gain.exponentialRampToValueAtTime(0.5, startAt + 0.015);
   gain.gain.setValueAtTime(0.5, startAt + dur * 0.85);
   gain.gain.exponentialRampToValueAtTime(0.0001, startAt + dur);
+
+  if (note.trem) {
+    const lfo = ctx.createOscillator(), lfoGain = ctx.createGain();
+    lfo.frequency.value = 18;
+    lfoGain.gain.value = 0.18; // halva djupet av spelets version, matchar den lägre bas-gainen (0.5) här
+    lfo.connect(lfoGain).connect(gain.gain);
+    lfo.start(startAt); lfo.stop(startAt + dur);
+  }
+
   osc.connect(gain).connect(ctx.destination);
   osc.start(startAt);
   osc.stop(startAt + dur);
@@ -471,9 +583,9 @@ function scheduleHihat(startAt) {
 }
 
 function playOnce(startAt, eighthSec) {
-  for (const n of state.tracks.lead) scheduleTone(n.freq, startAt + n.start * eighthSec, n.len * eighthSec, 'square', n.bend, n.vib);
-  for (const n of state.tracks.harmony) scheduleTone(n.freq, startAt + n.start * eighthSec, n.len * eighthSec * 0.9, 'square', n.bend, n.vib);
-  for (const n of state.tracks.bass) scheduleTone(n.freq, startAt + n.start * eighthSec, n.len * eighthSec, 'triangle', n.bend, n.vib);
+  for (const n of state.tracks.lead) scheduleTone(n, startAt + n.start * eighthSec, n.len * eighthSec, 'square');
+  for (const n of state.tracks.harmony) scheduleTone(n, startAt + n.start * eighthSec, n.len * eighthSec * 0.9, 'square');
+  for (const n of state.tracks.bass) scheduleTone(n, startAt + n.start * eighthSec, n.len * eighthSec, 'triangle');
   for (const h of state.tracks.rhythm) {
     const at = startAt + h.start * eighthSec;
     if (h.type === 'kick') scheduleKick(at); else scheduleHihat(at);
@@ -507,6 +619,9 @@ function formatSeqLine(entry, isRhythm) {
   const parts = [`f: ${entry.f}`, `d: ${entry.d}`];
   if (entry.bend) parts.push(`bend: ${entry.bend}`);
   if (entry.vib) parts.push(`vib: true`);
+  if (entry.trem) parts.push(`trem: true`);
+  if (entry.duty) parts.push(`duty: ${entry.duty}`);
+  if (entry.arp) parts.push(`arp: [${entry.arp.join(', ')}]`);
   return `{ ${parts.join(', ')} }`;
 }
 

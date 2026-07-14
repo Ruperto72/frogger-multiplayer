@@ -19,10 +19,12 @@ const REST = 0;
 
 // "Froggy Hop" — 8 takter, finslipade i ABC-notation och förhandslyssnade
 // innan de skrevs om till frekvens/notvärde-par här. d = längd i åttondelar.
-// `bend` glider tonhöjden mot målfrekvensen under notens sista hälft (en
-// snabb "scoop" in i nästa fras); `vib` lägger på vibrato — bara använt på
-// enstaka, utvalda noter (leaps och hållna toner) så det känns som kryddor,
-// inte ett genomgående effektlager.
+// Valfria effektflaggor per not (se _scheduleTone): `bend` glider tonhöjden
+// mot målfrekvensen under notens sista hälft; `vib` = vibrato (tonhöjds-LFO);
+// `trem` = tremolo (volym-LFO); `duty` = pulsbredd 0–1 för fyrkantsröster
+// (0.5 = vanlig "square"); `arp` = lista med halvtonsoffset som notens
+// grundton snabbt växlar med (chip-ackord). Bara använt på enstaka, utvalda
+// noter så det känns som kryddor, inte ett genomgående effektlager.
 export const LEAD = [
   // Takt 1
   { f: G4,  d: 1 }, { f: B4,  d: 1 }, { f: D5,  d: 1 }, { f: B4,  d: 1 },
@@ -108,6 +110,7 @@ export class AudioManager {
     this._rhythmGain   = null;
     this._sfxGain      = null;
     this._noiseBuffer  = null;
+    this._pulseWaves   = null;
     this._muted        = false;
     this._musicOn      = false;
     this._voices       = [];
@@ -265,30 +268,83 @@ export class AudioManager {
   _scheduleTone(note, startAt, durationSec, destGain, oscType) {
     const osc  = this._ctx.createOscillator();
     const gain = this._ctx.createGain();
-    osc.type = oscType;
-    osc.frequency.setValueAtTime(note.f, startAt);
-    if (note.bend) {
-      const bendAt = startAt + durationSec * 0.5;
-      osc.frequency.setValueAtTime(note.f, bendAt);
-      osc.frequency.linearRampToValueAtTime(note.bend, startAt + durationSec);
+
+    if (oscType === 'square' && note.duty) {
+      osc.setPeriodicWave(this._pulseWave(note.duty));
+    } else {
+      osc.type = oscType;
     }
-    if (note.vib) {
-      const lfo     = this._ctx.createOscillator();
-      const lfoGain = this._ctx.createGain();
-      lfo.frequency.value = 5.5;              // klassisk chiptune-vibratohastighet
-      lfoGain.gain.value  = note.f * 0.02;     // subtil djup, ~2% av tonhöjden
-      lfo.connect(lfoGain).connect(osc.frequency);
-      lfo.start(startAt);
-      lfo.stop(startAt + durationSec);
+
+    if (note.arp && note.arp.length) {
+      // Chip-ackord: växla snabbt mellan grundtonen och halvtonsoffsetten i
+      // arp istället för en stilla ton — bend/vib hoppas över för enkelhets
+      // skull när arpeggio är aktivt.
+      this._scheduleArpeggio(osc, note, startAt, durationSec);
+    } else {
+      osc.frequency.setValueAtTime(note.f, startAt);
+      if (note.bend) {
+        const bendAt = startAt + durationSec * 0.5;
+        osc.frequency.setValueAtTime(note.f, bendAt);
+        osc.frequency.linearRampToValueAtTime(note.bend, startAt + durationSec);
+      }
+      if (note.vib) {
+        const lfo     = this._ctx.createOscillator();
+        const lfoGain = this._ctx.createGain();
+        lfo.frequency.value = 5.5;              // klassisk chiptune-vibratohastighet
+        lfoGain.gain.value  = note.f * 0.02;     // subtil djup, ~2% av tonhöjden
+        lfo.connect(lfoGain).connect(osc.frequency);
+        lfo.start(startAt);
+        lfo.stop(startAt + durationSec);
+      }
     }
+
     const releaseAt = startAt + durationSec * 0.85;
     gain.gain.setValueAtTime(0.0001, startAt);
     gain.gain.exponentialRampToValueAtTime(1, startAt + 0.015);
     gain.gain.setValueAtTime(1, releaseAt);
     gain.gain.exponentialRampToValueAtTime(0.0001, startAt + durationSec);
+
+    if (note.trem) {
+      const lfo     = this._ctx.createOscillator();
+      const lfoGain = this._ctx.createGain();
+      lfo.frequency.value = 18;   // snabbare än vibrato — rytmisk volympulsering
+      lfoGain.gain.value  = 0.35; // moduleringsdjup, adderas till envelopets gain
+      lfo.connect(lfoGain).connect(gain.gain);
+      lfo.start(startAt);
+      lfo.stop(startAt + durationSec);
+    }
+
     osc.connect(gain).connect(destGain);
     osc.start(startAt);
     osc.stop(startAt + durationSec);
+  }
+
+  _scheduleArpeggio(osc, note, startAt, durationSec) {
+    const freqs = [note.f, ...note.arp.map(semi => note.f * Math.pow(2, semi / 12))];
+    const stepSec = 0.03; // ~33 Hz — klassisk NES-hastighet för brutna ackord
+    let t = startAt, i = 0;
+    while (t < startAt + durationSec) {
+      osc.frequency.setValueAtTime(freqs[i % freqs.length], t);
+      t += stepSec;
+      i++;
+    }
+  }
+
+  // Bygger (och cachar) en periodisk fyrkantsvåg med given pulsbredd
+  // (0–1, 0.5 = vanlig 50/50-square) via dess Fourier-koefficienter —
+  // Web Audios inbyggda 'square'-typ har alltid fast 50% duty cycle.
+  _pulseWave(duty) {
+    this._pulseWaves ??= new Map();
+    if (this._pulseWaves.has(duty)) return this._pulseWaves.get(duty);
+    const harmonics = 32;
+    const real = new Float32Array(harmonics + 1);
+    const imag = new Float32Array(harmonics + 1);
+    for (let n = 1; n <= harmonics; n++) {
+      imag[n] = (2 / (n * Math.PI)) * Math.sin(n * Math.PI * duty);
+    }
+    const wave = this._ctx.createPeriodicWave(real, imag);
+    this._pulseWaves.set(duty, wave);
+    return wave;
   }
 
   // Syntetisk "kick" — sjunkande sinuston, ingen brusbuffert behövs.
