@@ -18,29 +18,33 @@ const REST = 0;
 
 // "Froggy Hop" — 8 takter, finslipade i ABC-notation och förhandslyssnade
 // innan de skrevs om till frekvens/notvärde-par här. d = längd i åttondelar.
+// `bend` glider tonhöjden mot målfrekvensen under notens sista hälft (en
+// snabb "scoop" in i nästa fras); `vib` lägger på vibrato — bara använt på
+// enstaka, utvalda noter (leaps och hållna toner) så det känns som kryddor,
+// inte ett genomgående effektlager.
 const LEAD = [
   // Takt 1
   { f: G4,  d: 1 }, { f: B4,  d: 1 }, { f: D5,  d: 1 }, { f: B4,  d: 1 },
   { f: G4,  d: 1 }, { f: B4,  d: 1 }, { f: D5,  d: 2 },
-  // Takt 2
-  { f: G4,  d: 1 }, { f: B4,  d: 1 }, { f: D5,  d: 1 }, { f: G5,  d: 1 },
+  // Takt 2 — scoop upp i höjdpunkten (D5→G5)
+  { f: G4,  d: 1 }, { f: B4,  d: 1 }, { f: D5,  d: 1, bend: G5 }, { f: G5,  d: 1 },
   { f: E5,  d: 1 }, { f: D5,  d: 1 }, { f: B4,  d: 2 },
-  // Takt 3
+  // Takt 3 — vibrato på den avslutande, hållna tonen
   { f: Fs5, d: 1 }, { f: E5,  d: 1 }, { f: D5,  d: 1 }, { f: B4,  d: 1 },
-  { f: A4,  d: 1 }, { f: G4,  d: 1 }, { f: Fs4, d: 2 },
-  // Takt 4 — halvkadens, groda som väntar
-  { f: D4,   d: 2 }, { f: REST, d: 2 }, { f: B4,  d: 2 }, { f: REST, d: 2 },
+  { f: A4,  d: 1 }, { f: G4,  d: 1 }, { f: Fs4, d: 2, vib: true },
+  // Takt 4 — halvkadens, groda som väntar — vibrato på båda väntetonerna
+  { f: D4,   d: 2, vib: true }, { f: REST, d: 2 }, { f: B4,  d: 2, vib: true }, { f: REST, d: 2 },
   // Takt 5
   { f: D5,  d: 1 }, { f: Fs5, d: 1 }, { f: A5,  d: 1 }, { f: Fs5, d: 1 },
   { f: D5,  d: 1 }, { f: Fs5, d: 1 }, { f: A5,  d: 2 },
-  // Takt 6
-  { f: D5,  d: 1 }, { f: Fs5, d: 1 }, { f: A5,  d: 1 }, { f: B5,  d: 1 },
+  // Takt 6 — scoop upp mot styckets högsta ton (A5→B5)
+  { f: D5,  d: 1 }, { f: Fs5, d: 1 }, { f: A5,  d: 1, bend: B5 }, { f: B5,  d: 1 },
   { f: G5,  d: 1 }, { f: Fs5, d: 1 }, { f: D5,  d: 2 },
-  // Takt 7
+  // Takt 7 — vibrato in i den sista takten
   { f: A5,  d: 1 }, { f: G5,  d: 1 }, { f: Fs5, d: 1 }, { f: D5,  d: 1 },
-  { f: B4,  d: 1 }, { f: A4,  d: 1 }, { f: G4,  d: 2 },
-  // Takt 8 — final, landar på grundtonen
-  { f: G4,   d: 2 }, { f: REST, d: 2 }, { f: D4,  d: 2 }, { f: G4,  d: 2 }
+  { f: B4,  d: 1 }, { f: A4,  d: 1 }, { f: G4,  d: 2, vib: true },
+  // Takt 8 — final, sista tonen glider upp mot kvinten inför loopens omtag
+  { f: G4,   d: 2 }, { f: REST, d: 2 }, { f: D4,  d: 2 }, { f: G4,  d: 2, bend: D5 }
 ];
 
 // Stämma — parallell diatonisk ters under LEAD (G→E, A→F#, B→G, D→B, E→C,
@@ -207,7 +211,7 @@ export class AudioManager {
           if (note.type === 'kick') this._scheduleKick(voice.nextAt);
           else this._scheduleHihat(voice.nextAt);
         } else if (note.f !== REST) {
-          this._scheduleTone(note.f, voice.nextAt, dur, voice.gain, voice.osc);
+          this._scheduleTone(note, voice.nextAt, dur, voice.gain, voice.osc);
         }
         voice.nextAt += dur;
         voice.index = (voice.index + 1) % voice.notes.length;
@@ -216,11 +220,25 @@ export class AudioManager {
     this._timerId = setTimeout(() => this._scheduler(), LOOKAHEAD_MS);
   }
 
-  _scheduleTone(freq, startAt, durationSec, destGain, oscType) {
+  _scheduleTone(note, startAt, durationSec, destGain, oscType) {
     const osc  = this._ctx.createOscillator();
     const gain = this._ctx.createGain();
     osc.type = oscType;
-    osc.frequency.value = freq;
+    osc.frequency.setValueAtTime(note.f, startAt);
+    if (note.bend) {
+      const bendAt = startAt + durationSec * 0.5;
+      osc.frequency.setValueAtTime(note.f, bendAt);
+      osc.frequency.linearRampToValueAtTime(note.bend, startAt + durationSec);
+    }
+    if (note.vib) {
+      const lfo     = this._ctx.createOscillator();
+      const lfoGain = this._ctx.createGain();
+      lfo.frequency.value = 5.5;              // klassisk chiptune-vibratohastighet
+      lfoGain.gain.value  = note.f * 0.02;     // subtil djup, ~2% av tonhöjden
+      lfo.connect(lfoGain).connect(osc.frequency);
+      lfo.start(startAt);
+      lfo.stop(startAt + durationSec);
+    }
     const releaseAt = startAt + durationSec * 0.85;
     gain.gain.setValueAtTime(0.0001, startAt);
     gain.gain.exponentialRampToValueAtTime(1, startAt + 0.015);
