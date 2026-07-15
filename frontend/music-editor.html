@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="sv">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Musikeditor (dev-verktyg, ej del av appen)</title>
+<title>Music Editor (dev tool, not part of the app)</title>
 <style>
   :root {
     --lead: #2ff3ff; --harmony: #ff2fb0; --bass: #ffb347; --rhythm: #39ff6a;
@@ -132,57 +132,57 @@
 </style>
 </head>
 <body>
-  <h1>Frog vs Toad — musikeditor</h1>
+  <h1>Frog vs Toad — Music Editor</h1>
   <p class="hint">
-    Dev-verktyg för att komponera "Froggy Hop"-loopen. Läser in den nuvarande låten från
-    <code>js/audio.js</code>. Alla fyra spår visas samtidigt i pianorullen — kryssrutorna i
-    verktygsfältet styr synlighet och vilka spår som hörs vid Spela, medan "Aktivt spår"
-    styr vilket spår verktygen nedan ritar/raderar/flyttar i (övriga spår visas nedtonade
-    och går inte att klicka i). Tre verktyg: <b>Penna</b> lägger en ny not/slag i en tom
-    ruta, <b>Sudd</b> tar bort en not/slag du klickar på, <b>Grepp</b> flyttar en not/slag
-    genom att dra den (drar du i notens högerkant ändras längden istället). Markera en not
-    (Penna eller Grepp) för att redigera vibrato/tremolo/bend/pulsbredd/arpeggio i panelen
-    till höger. Rytmremsan har fyra rader (Kick/Snare/Hi-hat/Puka). Den röda linjen ovanför
-    rutnäten är en speluro — dra i den eller klicka i linjalraden för att välja varifrån
-    uppspelningen ska starta; under uppspelning rör den sig i takt med musiken. "Spara fil"
-    laddar ner det du håller på med som en <code>.json</code>-fil, "Ladda fil" läser in en
-    sådan fil igen — separat från "Exportera kod", som istället genererar färdig kod att
-    klistra in i
-    <code>LEAD</code>/<code>HARMONY</code>/<code>BASS</code>/<code>RHYTHM</code> i <code>audio.js</code>.
+    Dev tool for composing the "Froggy Hop" loop. Loads the current song from
+    <code>js/audio.js</code>. All four tracks are shown at once in the piano roll — the
+    checkboxes in the toolbar control both visibility and which tracks are audible when
+    playing, while "Active track" controls which track the tools below draw/erase/move in
+    (other tracks are shown dimmed and can't be clicked). Three tools: <b>Pen</b> adds a new
+    note/hit in an empty cell, <b>Eraser</b> removes a note/hit you click on, <b>Grab</b>
+    moves a note/hit by dragging it (drag its right edge instead to change its length).
+    Select a note (with Pen or Grab) to edit vibrato/tremolo/bend/duty cycle/arpeggio in the
+    panel on the right. The rhythm strip has four rows (Kick/Snare/Hi-hat/Tom). The red line
+    above the grids is a playhead — drag it, or click in the ruler row, to choose where
+    playback starts; it moves along with the music during playback. "Save file" downloads
+    what you're working on as a <code>.json</code> file, "Load file" reads such a file back
+    in — separate from "Export code", which instead generates finished code to paste into
+    <code>LEAD</code>/<code>HARMONY</code>/<code>BASS</code>/<code>RHYTHM</code> in
+    <code>audio.js</code>.
   </p>
 
   <div class="toolbar">
     <div class="track-toggles">
       <label class="track-toggle lead"><input type="checkbox" data-track="lead" checked> Lead</label>
-      <button data-clear="lead">Rensa</button>
-      <label class="track-toggle harmony"><input type="checkbox" data-track="harmony" checked> Stämma</label>
-      <button data-clear="harmony">Rensa</button>
-      <label class="track-toggle bass"><input type="checkbox" data-track="bass" checked> Bas</label>
-      <button data-clear="bass">Rensa</button>
-      <label class="track-toggle rhythm"><input type="checkbox" data-track="rhythm" checked> Rytm</label>
-      <button data-clear="rhythm">Rensa</button>
+      <button data-clear="lead">Clear</button>
+      <label class="track-toggle harmony"><input type="checkbox" data-track="harmony" checked> Harmony</label>
+      <button data-clear="harmony">Clear</button>
+      <label class="track-toggle bass"><input type="checkbox" data-track="bass" checked> Bass</label>
+      <button data-clear="bass">Clear</button>
+      <label class="track-toggle rhythm"><input type="checkbox" data-track="rhythm" checked> Rhythm</label>
+      <button data-clear="rhythm">Clear</button>
     </div>
     <div class="tool-group">
-      <button data-tool="pen" class="active" title="Penna: klicka i en tom ruta för att lägga en not/slag">✏️ Penna</button>
-      <button data-tool="eraser" title="Sudd: klicka på en not/slag för att ta bort den">🧽 Sudd</button>
-      <button data-tool="grab" title="Grepp: dra en not/slag för att flytta den, dra i högerkanten för att ändra längd">✋ Grepp</button>
+      <button data-tool="pen" class="active" title="Pen: click an empty cell to add a note/hit">✏️ Pen</button>
+      <button data-tool="eraser" title="Eraser: click a note/hit to remove it">🧽 Eraser</button>
+      <button data-tool="grab" title="Grab: drag a note/hit to move it, drag its right edge to change its length">✋ Grab</button>
     </div>
     <div class="active-track-group">
-      <span class="hint-label">Aktivt spår:</span>
+      <span class="hint-label">Active track:</span>
       <button data-active-track="lead" class="active">Lead</button>
-      <button data-active-track="harmony">Stämma</button>
-      <button data-active-track="bass">Bas</button>
-      <button data-active-track="rhythm">Rytm</button>
+      <button data-active-track="harmony">Harmony</button>
+      <button data-active-track="bass">Bass</button>
+      <button data-active-track="rhythm">Rhythm</button>
     </div>
     <label>Tempo <input id="tempo" type="number" min="40" max="300" step="1"></label>
-    <button id="play">▶ Spela</button>
-    <button id="stop">■ Stopp</button>
-    <label><input id="loop" type="checkbox" checked> Loopa</label>
-    <button id="reset">Återställ till spelets låt</button>
-    <button id="save-file">💾 Spara fil</button>
-    <button id="load-file">📂 Ladda fil</button>
+    <button id="play">▶ Play</button>
+    <button id="stop">■ Stop</button>
+    <label><input id="loop" type="checkbox" checked> Loop</label>
+    <button id="reset">Reset to game's song</button>
+    <button id="save-file">💾 Save file</button>
+    <button id="load-file">📂 Load file</button>
     <input type="file" id="load-file-input" accept="application/json,.json" style="display:none">
-    <button id="export">Exportera kod</button>
+    <button id="export">Export code</button>
   </div>
 
   <div class="editor-layout">
@@ -196,14 +196,14 @@
       </div>
     </div>
 
-    <div class="inspector empty" id="inspector">Ingen not markerad.</div>
+    <div class="inspector empty" id="inspector">No note selected.</div>
   </div>
 
   <div class="legend">
-    <span class="lead">Lead (fyrkant)</span>
-    <span class="harmony">Stämma (fyrkant)</span>
-    <span class="bass">Bas (triangel)</span>
-    <span class="rhythm">Rytm (kick/snare/hi-hat/puka)</span>
+    <span class="lead">Lead (square)</span>
+    <span class="harmony">Harmony (square)</span>
+    <span class="bass">Bass (triangle)</span>
+    <span class="rhythm">Rhythm (kick/snare/hi-hat/tom)</span>
   </div>
 
   <textarea id="exportBox" style="display:none" readonly></textarea>
@@ -211,11 +211,11 @@
 <script type="module">
 import { LEAD, HARMONY, BASS, RHYTHM, TEMPO_BPM } from './js/audio.js';
 
-const COLS = 64;                 // 8 takter × 8 åttondelar
-const MIDI_MIN = 45, MIDI_MAX = 93; // ~4 oktaver, täcker gott och väl nuvarande omfång
+const COLS = 64;                 // 8 bars × 8 eighth-notes
+const MIDI_MIN = 45, MIDI_MAX = 93; // ~4 octaves, comfortably covers the current range
 const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 const PITCH_TRACKS = ['lead', 'harmony', 'bass'];
-const TRACK_LABELS = { lead: 'Lead', harmony: 'Stämma', bass: 'Bas', rhythm: 'Rytm' };
+const TRACK_LABELS = { lead: 'Lead', harmony: 'Harmony', bass: 'Bass', rhythm: 'Rhythm' };
 const SUBLANE_PX = 10;
 
 const midiToFreq = (m) => 440 * Math.pow(2, (m - 69) / 12);
@@ -223,8 +223,8 @@ const midiToName = (m) => NOTE_NAMES[((m % 12) + 12) % 12] + (Math.floor(m / 12)
 const freqToMidi  = (f) => Math.round(12 * Math.log2(f / 440) + 69);
 const round2 = (n) => Math.round(n * 100) / 100;
 
-// --- Konvertera sekventiellt {f,d,bend,vib,trem,duty,arp}-format (som i
-// audio.js) till kolumnbaserade noter som editorn jobbar med. ---
+// --- Convert the sequential {f,d,bend,vib,trem,duty,arp} format (as used in
+// audio.js) into the column-based notes the editor works with. ---
 function toColumnNotes(seq) {
   const notes = [];
   let col = 0;
@@ -249,7 +249,7 @@ function toColumnHits(seq) {
   return hits;
 }
 
-// --- Tillbaka till sekventiellt format inför export (fyller i pauser). ---
+// --- Back to the sequential format before exporting (fills in rests). ---
 function fromColumnNotes(notes) {
   const sorted = [...notes].sort((a, b) => a.start - b.start);
   const out = [];
@@ -294,14 +294,14 @@ const state = {
   tracks: loadFromGame(),
   tempo: TEMPO_BPM,
   visible: { lead: true, harmony: true, bass: true, rhythm: true },
-  activeTrack: 'lead',  // 'lead' | 'harmony' | 'bass' | 'rhythm' — vad verktygen nedan påverkar
+  activeTrack: 'lead',  // 'lead' | 'harmony' | 'bass' | 'rhythm' — what the tools below affect
   tool: 'pen',           // 'pen' | 'eraser' | 'grab'
   selected: null, // { track, index } | null
   playhead: 0
 };
 
 const RHYTHM_ROWS = ['kick', 'snare', 'hihat', 'tom'];
-const RHYTHM_LABELS = { kick: 'Kick', snare: 'Snare', hihat: 'Hi-hat', tom: 'Puka' };
+const RHYTHM_LABELS = { kick: 'Kick', snare: 'Snare', hihat: 'Hi-hat', tom: 'Tom' };
 const RULER_H = 16;
 
 // ---------- Rendering ----------
@@ -332,8 +332,8 @@ function render() {
   renderInspector();
 }
 
-// En linjalrad (rad 1, RULER_H högre) ovanpå ett rutnät — tar emot klick/drag
-// för att flytta speluron. Delas mellan pianorullen och rytmremsan.
+// A ruler row (row 1, RULER_H tall) above a grid — receives click/drag to
+// move the playhead. Shared between the piano roll and the rhythm strip.
 function buildRuler(rollEl) {
   const corner = document.createElement('div');
   corner.className = 'label';
@@ -419,7 +419,7 @@ function renderPitchRoll() {
         if (inactive) return;
         if (state.tool === 'eraser') deleteNote(track, idx);
         else if (state.tool === 'pen') selectNote(track, idx);
-        // grab: hanteras helt via mousedown/mouseup i startMoveNote
+        // grab: handled entirely via mousedown/mouseup in startMoveNote
       });
       if (note.arp && note.arp.length) {
         const badge = document.createElement('span');
@@ -483,7 +483,7 @@ function renderRhythmRoll() {
       e.stopPropagation();
       if (rhythmInactive) return;
       if (state.tool === 'eraser') removeHit(hit);
-      // pen/grab: hanteras via cellklick respektive startMoveHit
+      // pen/grab: handled via the cell click and startMoveHit respectively
     });
     rhythmRoll.appendChild(div);
   }
@@ -491,7 +491,7 @@ function renderRhythmRoll() {
   rhythmPlayheadEl = buildPlayhead(rhythmRoll, RHYTHM_ROWS.length * 15);
 }
 
-// ---------- Speluro: startposition för Play + live-scrubbning ----------
+// ---------- Playhead: start position for Play + live scrubbing ----------
 function updatePlayheadPositions() {
   const left = (44 + visualPlayhead * 16) + 'px';
   if (pitchPlayheadEl) pitchPlayheadEl.style.left = left;
@@ -583,10 +583,10 @@ function startResize(e, track, idx) {
   window.addEventListener('mouseup', onUp);
 }
 
-// Grepp-verktyget: dra en not för att flytta den (tid + tonhöjd). Ett klick
-// utan rörelse räknas som en markering istället, precis som innan verktygen
-// fanns. Överlappande grannar i samma spår trimmas bort när man släpper,
-// samma regel som när en ny not läggs (clearOverlaps).
+// Grab tool: drag a note to move it (time + pitch). A click with no movement
+// counts as a selection instead, same as before the tools existed. Overlapping
+// neighbours in the same track are trimmed on release, the same rule used
+// when a new note is placed (clearOverlaps).
 function startMoveNote(e, track, idx, subLaneCount) {
   e.preventDefault();
   e.stopPropagation();
@@ -620,9 +620,9 @@ function startMoveNote(e, track, idx, subLaneCount) {
   window.addEventListener('mouseup', onUp);
 }
 
-// Samma sak för rytmslag — bara starttid + rad (typ) att flytta, ingen längd.
-// "Bara ett slag per kolumn"-regeln (samma som onRhythmCellClick) tillämpas
-// när man släpper.
+// Same idea for rhythm hits — just a start time + row (type) to move, no
+// length. The "one hit per column" rule (same as onRhythmCellClick) applies
+// on release.
 function startMoveHit(e, hit) {
   e.preventDefault();
   e.stopPropagation();
@@ -657,7 +657,7 @@ function renderInspector() {
   const note = sel && state.tracks[sel.track] && state.tracks[sel.track][sel.index];
   if (!note) {
     inspector.className = 'inspector empty';
-    inspector.textContent = 'Ingen not markerad. Klicka i en rad (Kick/Snare/Hi-hat/Puka) för att lägga/ta bort ett rytmslag.';
+    inspector.textContent = 'No note selected. Click a row (Kick/Snare/Hi-hat/Tom) to add/remove a rhythm hit.';
     return;
   }
   const { track, index } = sel;
@@ -665,7 +665,7 @@ function renderInspector() {
   inspector.innerHTML = '';
 
   const info = document.createElement('span');
-  info.textContent = `${TRACK_LABELS[track]} — ${midiToName(freqToMidi(note.freq))} (${note.freq} Hz), längd ${note.len}/8-del`;
+  info.textContent = `${TRACK_LABELS[track]} — ${midiToName(freqToMidi(note.freq))} (${note.freq} Hz), length ${note.len}/8th`;
   inspector.appendChild(info);
 
   const vibLabel = document.createElement('label');
@@ -685,7 +685,7 @@ function renderInspector() {
   inspector.appendChild(tremLabel);
 
   const bendLabel = document.createElement('label');
-  bendLabel.textContent = ' Bend (halvtoner): ';
+  bendLabel.textContent = ' Bend (semitones): ';
   const bendInput = document.createElement('input');
   bendInput.type = 'number';
   bendInput.min = -24; bendInput.max = 24; bendInput.step = 1;
@@ -693,7 +693,7 @@ function renderInspector() {
   bendInput.addEventListener('change', () => {
     const semitones = parseInt(bendInput.value, 10) || 0;
     note.bend = semitones === 0 ? null : round2(note.freq * Math.pow(2, semitones / 12));
-    if (note.bend) note.arp = null; // bend och arpeggio kombineras inte i uppspelningen
+    if (note.bend) note.arp = null; // bend and arpeggio aren't combined during playback
     render();
   });
   bendLabel.appendChild(bendInput);
@@ -701,7 +701,7 @@ function renderInspector() {
 
   if (track !== 'bass') {
     const dutyLabel = document.createElement('label');
-    dutyLabel.textContent = ' Pulsbredd: ';
+    dutyLabel.textContent = ' Duty cycle: ';
     const dutySelect = document.createElement('select');
     [[null, 'Standard (50%)'], [0.125, '12.5%'], [0.25, '25%'], [0.5, '50%'], [0.75, '75%']].forEach(([v, label]) => {
       const opt = document.createElement('option');
@@ -719,33 +719,33 @@ function renderInspector() {
   }
 
   const arpLabel = document.createElement('label');
-  arpLabel.textContent = ' Arpeggio (halvtoner, kommaseparerat): ';
+  arpLabel.textContent = ' Arpeggio (semitones, comma-separated): ';
   const arpInput = document.createElement('input');
   arpInput.type = 'text';
   arpInput.style.width = '70px';
-  arpInput.placeholder = 'ex. 4,7';
+  arpInput.placeholder = 'e.g. 4,7';
   arpInput.value = note.arp ? note.arp.join(',') : '';
   arpInput.addEventListener('change', () => {
     const parsed = arpInput.value.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
     note.arp = parsed.length ? parsed : null;
-    if (note.arp) note.bend = null; // bend och arpeggio kombineras inte i uppspelningen
+    if (note.arp) note.bend = null; // bend and arpeggio aren't combined during playback
     render();
   });
   arpLabel.appendChild(arpInput);
   inspector.appendChild(arpLabel);
 
   const arpMajor = document.createElement('button');
-  arpMajor.textContent = 'Dur-treklang';
+  arpMajor.textContent = 'Major triad';
   arpMajor.addEventListener('click', () => { note.arp = [4, 7]; note.bend = null; render(); });
   inspector.appendChild(arpMajor);
 
   const arpMinor = document.createElement('button');
-  arpMinor.textContent = 'Moll-treklang';
+  arpMinor.textContent = 'Minor triad';
   arpMinor.addEventListener('click', () => { note.arp = [3, 7]; note.bend = null; render(); });
   inspector.appendChild(arpMinor);
 
   const del = document.createElement('button');
-  del.textContent = 'Radera not';
+  del.textContent = 'Delete note';
   del.addEventListener('click', () => {
     state.tracks[track] = state.tracks[track].filter((_, i) => i !== index);
     state.selected = null;
@@ -754,7 +754,7 @@ function renderInspector() {
   inspector.appendChild(del);
 }
 
-// ---------- Verktygsfält ----------
+// ---------- Toolbar ----------
 document.querySelectorAll('.track-toggle input[type=checkbox]').forEach(box => {
   box.addEventListener('change', () => {
     state.visible[box.dataset.track] = box.checked;
@@ -801,10 +801,10 @@ document.getElementById('reset').addEventListener('click', () => {
   render();
 });
 
-// ---------- Spara/ladda fil (arbetsformat, skilt från "Exportera kod") ----------
-// Sparar hela state.tracks (kolumnbaserat, samma format editorn jobbar med
-// internt) + tempo som JSON — låter en fortsätta redigera en påbörjad låt
-// senare, till skillnad från exportrutan som genererar facit-koden för audio.js.
+// ---------- Save/load file (working format, separate from "Export code") ----------
+// Saves the whole state.tracks (column-based, the same format the editor works
+// with internally) + tempo as JSON — lets you keep editing a song in progress
+// later, unlike the export box, which generates the finished code for audio.js.
 document.getElementById('save-file').addEventListener('click', () => {
   const data = { version: 1, tempo: state.tempo, tracks: state.tracks };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -820,18 +820,18 @@ const loadInput = document.getElementById('load-file-input');
 document.getElementById('load-file').addEventListener('click', () => loadInput.click());
 loadInput.addEventListener('change', async () => {
   const file = loadInput.files[0];
-  loadInput.value = ''; // så samma fil kan väljas igen senare
+  loadInput.value = ''; // so the same file can be selected again later
   if (!file) return;
   let data;
   try {
     data = JSON.parse(await file.text());
   } catch (err) {
-    alert('Kunde inte läsa filen: ' + err.message);
+    alert('Could not read the file: ' + err.message);
     return;
   }
   const t = data && data.tracks;
   if (!t || !Array.isArray(t.lead) || !Array.isArray(t.harmony) || !Array.isArray(t.bass) || !Array.isArray(t.rhythm)) {
-    alert('Filen har inte rätt format (saknar lead/harmony/bass/rhythm-spår).');
+    alert('The file has the wrong format (missing lead/harmony/bass/rhythm tracks).');
     return;
   }
   state.tracks = t;
@@ -841,7 +841,7 @@ loadInput.addEventListener('change', async () => {
   render();
 });
 
-// ---------- Uppspelning (enkel engångs-scheduler, inte spelets lookahead-loop) ----------
+// ---------- Playback (a simple one-shot scheduler, not the game's lookahead loop) ----------
 let ctx = null, loopTimer = null, playing = false;
 
 function ensureCtx() {
@@ -896,7 +896,7 @@ function scheduleTone(note, startAt, dur, oscType) {
   if (note.trem) {
     const lfo = ctx.createOscillator(), lfoGain = ctx.createGain();
     lfo.frequency.value = 18;
-    lfoGain.gain.value = 0.18; // halva djupet av spelets version, matchar den lägre bas-gainen (0.5) här
+    lfoGain.gain.value = 0.18; // half the game's depth, matches the lower bass gain (0.5) here
     lfo.connect(lfoGain).connect(gain.gain);
     lfo.start(startAt); lfo.stop(startAt + dur);
   }
@@ -1069,7 +1069,7 @@ document.getElementById('export').addEventListener('click', () => {
     exportTrack('BASS', fromColumnNotes(state.tracks.bass), false),
     exportTrack('RHYTHM', fromColumnHits(state.tracks.rhythm), true)
   ].join('\n\n');
-  box.value = `// Tempo: ${state.tempo} BPM — uppdatera även TEMPO_BPM i audio.js om den ändrats.\n\n${code}`;
+  box.value = `// Tempo: ${state.tempo} BPM — also update TEMPO_BPM in audio.js if it changed.\n\n${code}`;
   box.style.display = 'block';
   box.focus();
   box.select();
