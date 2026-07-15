@@ -37,26 +37,32 @@ export const LEAD = [
   // Takt 1 — tremolo på den hållna avslutningstonen
   { f: G4,  d: 1 }, { f: B4,  d: 1 }, { f: D5,  d: 1 }, { f: B4,  d: 1 },
   { f: G4,  d: 1 }, { f: B4,  d: 1 }, { f: D5,  d: 2, trem: true },
-  // Takt 2 — scoop upp i höjdpunkten (D5→G5), tunnare puls på toppnoten
+  // Takt 2 — scoop upp i höjdpunkten (D5→G5), tunnare puls på toppnoten,
+  // chorus tjockar till den hållna sluttonen (speglar takt 6)
   { f: G4,  d: 1 }, { f: B4,  d: 1 }, { f: D5,  d: 1, bend: G5 }, { f: G5,  d: 1, duty: 0.25 },
-  { f: E5,  d: 1 }, { f: D5,  d: 1 }, { f: B4,  d: 2 },
+  { f: E5,  d: 1 }, { f: D5,  d: 1 }, { f: B4,  d: 2, chorus: true },
   // Takt 3 — vibrato på den avslutande, hållna tonen
   { f: Fs5, d: 1 }, { f: E5,  d: 1 }, { f: D5,  d: 1 }, { f: B4,  d: 1 },
   { f: A4,  d: 1 }, { f: G4,  d: 1 }, { f: Fs4, d: 2, vib: true },
-  // Takt 4 — halvkadens, groda som väntar — vibrato på båda väntetonerna
-  { f: D4,   d: 2, vib: true }, { f: REST, d: 2 }, { f: B4,  d: 2, vib: true }, { f: REST, d: 2 },
+  // Takt 4 — halvkadens, groda som väntar — vibrato på väntetonerna och eko
+  // som studsar in i pauserna efter dem
+  { f: D4,   d: 2, vib: true, echo: true }, { f: REST, d: 2 },
+  { f: B4,   d: 2, vib: true, echo: true }, { f: REST, d: 2 },
   // Takt 5 — tremolo på den hållna avslutningstonen, speglar takt 1
   { f: D5,  d: 1 }, { f: Fs5, d: 1 }, { f: A5,  d: 1 }, { f: Fs5, d: 1 },
   { f: D5,  d: 1 }, { f: Fs5, d: 1 }, { f: A5,  d: 2, trem: true },
-  // Takt 6 — scoop upp mot styckets högsta ton (A5→B5), tunnare puls på toppen
+  // Takt 6 — scoop upp mot styckets högsta ton (A5→B5), tunnare puls på
+  // toppen, chorus på sluttonen (speglar takt 2)
   { f: D5,  d: 1 }, { f: Fs5, d: 1 }, { f: A5,  d: 1, bend: B5 }, { f: B5,  d: 1, duty: 0.25 },
-  { f: G5,  d: 1 }, { f: Fs5, d: 1 }, { f: D5,  d: 2 },
+  { f: G5,  d: 1 }, { f: Fs5, d: 1 }, { f: D5,  d: 2, chorus: true },
   // Takt 7 — vibrato in i den sista takten
   { f: A5,  d: 1 }, { f: G5,  d: 1 }, { f: Fs5, d: 1 }, { f: D5,  d: 1 },
   { f: B4,  d: 1 }, { f: A4,  d: 1 }, { f: G4,  d: 2, vib: true },
-  // Takt 8 — final: kort chip-ackord (D-durtreklang) leder in i sista tonen,
-  // som glider upp mot kvinten inför loopens omtag
-  { f: G4,   d: 2 }, { f: REST, d: 2 }, { f: D4,  d: 2, arp: [4, 7] }, { f: G4,  d: 2, bend: D5 }
+  // Takt 8 — final: ekot fyller pausen efter grundtonen, kort chip-ackord
+  // (D-durtreklang) leder in i sista tonen, som glider upp mot kvinten med
+  // chorus-tjocklek inför loopens omtag
+  { f: G4,   d: 2, echo: true }, { f: REST, d: 2 },
+  { f: D4,   d: 2, arp: [4, 7] }, { f: G4,  d: 2, bend: D5, chorus: true }
 ];
 
 // Stämma — parallell diatonisk ters under LEAD (G→E, A→F#, B→G, D→B, E→C,

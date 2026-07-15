@@ -10,9 +10,10 @@ de enklare (bend/vibrato/tremolo/pulsbredd/arpeggio) implementerades:
 portamento, bitcrush/distortion, eko/delay och detune/chorus. Det här är de
 fyra, klara — i `AudioManager` (`frontend/js/audio.js`) och som redigerbara
 flaggor i `frontend/music-editor.html`, samma mönster som alla tidigare
-effekter. Inget av detta är applicerat på den faktiska "Froggy Hop"-låten —
-bara tillgängligt att komponera med, precis som när bend/vibrato/tremolo/
-pulsbredd/arpeggio först byggdes.
+effekter. Vid implementationen applicerades inget på den faktiska
+"Froggy Hop"-låten; senare samma dag sprinklades eko och chorus in i LEAD
+(se "Applicering i låten" nedan). Portamento och bitcrush är fortsatt bara
+tillgängliga att komponera med.
 
 ## Omfattning
 
@@ -101,6 +102,21 @@ utesluter varandra), `.note.crush` (prickig/pixlig bakgrund),
 sätter `box-shadow`) visar bara den senaste regelns markör — en känd, mindre
 kosmetisk begränsning (ljudet fungerar korrekt oavsett, bara den visuella
 indikeringen kan krocka).
+
+## Applicering i låten
+
+Eko och chorus sprinklades in i `LEAD` (samma speglade kryddfilosofi som
+tremolo/pulsbredd/arpeggio — enstaka utvalda noter, aldrig ett genomgående
+lager; stämma/bas lämnas odekorerade som tidigare):
+
+- **Eko** på de tre "ensamma" toner som följs av paus, så studsen fyller
+  tystnaden: väntetonerna D4 och B4 i takt 4 (halvkadensen) och grundtonen
+  G4 först i takt 8 (finalen).
+- **Chorus** på de hållna sluttonerna i takt 2 (B4) och takt 6 (D5) — de
+  enda hållna takt-sluten som ännu saknade effekt, vilket ger mönstret
+  takt 1/5 tremolo, takt 2/6 chorus, takt 3/7 vibrato — samt på slutnotens
+  G4→D5-glid i takt 8, där den feldstämda dubbleringen följer med i bendet
+  för ett tjockare avslut inför loopens omtag.
 
 ## Testning
 
