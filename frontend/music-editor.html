@@ -13,8 +13,18 @@
     background: var(--bg); color: #eee; font-family: monospace;
     padding: 16px; margin: 0;
   }
-  h1 { font-size: 18px; margin: 0 0 4px; }
-  p.hint { color: #999; font-size: 12px; margin: 0 0 16px; }
+  h1 { font-size: 18px; margin: 0; }
+  .header-row {
+    display: flex; align-items: center; gap: 10px; margin: 0 0 12px;
+  }
+  p.hint { color: #ccc; font-size: 12px; margin: 0; line-height: 1.6; }
+  dialog#help-dialog {
+    background: var(--panel); color: #eee; border: 1px solid #444; border-radius: 8px;
+    max-width: 640px; padding: 20px;
+  }
+  dialog#help-dialog::backdrop { background: rgba(0,0,0,0.6); }
+  dialog#help-dialog h2 { margin: 0 0 10px; font-size: 16px; }
+  dialog#help-dialog #help-close { margin-top: 14px; }
   .toolbar {
     display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
     background: var(--panel); padding: 10px; border-radius: 6px; margin-bottom: 10px;
@@ -132,24 +142,32 @@
 </style>
 </head>
 <body>
-  <h1>Frog vs Toad — Music Editor</h1>
-  <p class="hint">
-    Dev tool for composing the "Froggy Hop" loop. Loads the current song from
-    <code>js/audio.js</code>. All four tracks are shown at once in the piano roll — the
-    checkboxes in the toolbar control both visibility and which tracks are audible when
-    playing, while "Active track" controls which track the tools below draw/erase/move in
-    (other tracks are shown dimmed and can't be clicked). Three tools: <b>Pen</b> adds a new
-    note/hit in an empty cell, <b>Eraser</b> removes a note/hit you click on, <b>Grab</b>
-    moves a note/hit by dragging it (drag its right edge instead to change its length).
-    Select a note (with Pen or Grab) to edit vibrato/tremolo/bend/duty cycle/arpeggio in the
-    panel on the right. The rhythm strip has four rows (Kick/Snare/Hi-hat/Tom). The red line
-    above the grids is a playhead — drag it, or click in the ruler row, to choose where
-    playback starts; it moves along with the music during playback. "Save file" downloads
-    what you're working on as a <code>.json</code> file, "Load file" reads such a file back
-    in — separate from "Export code", which instead generates finished code to paste into
-    <code>LEAD</code>/<code>HARMONY</code>/<code>BASS</code>/<code>RHYTHM</code> in
-    <code>audio.js</code>.
-  </p>
+  <div class="header-row">
+    <h1>Frog vs Toad — Music Editor</h1>
+    <button id="help-btn" title="Show help">❓ Help</button>
+  </div>
+
+  <dialog id="help-dialog">
+    <h2>Help</h2>
+    <p class="hint">
+      Dev tool for composing the "Froggy Hop" loop. Loads the current song from
+      <code>js/audio.js</code>. All four tracks are shown at once in the piano roll — the
+      checkboxes in the toolbar control both visibility and which tracks are audible when
+      playing, while "Active track" controls which track the tools below draw/erase/move in
+      (other tracks are shown dimmed and can't be clicked). Three tools: <b>Pen</b> adds a new
+      note/hit in an empty cell, <b>Eraser</b> removes a note/hit you click on, <b>Grab</b>
+      moves a note/hit by dragging it (drag its right edge instead to change its length).
+      Select a note (with Pen or Grab) to edit vibrato/tremolo/bend/duty cycle/arpeggio in the
+      panel on the right. The rhythm strip has four rows (Kick/Snare/Hi-hat/Tom). The red line
+      above the grids is a playhead — drag it, or click in the ruler row, to choose where
+      playback starts; it moves along with the music during playback. "Save file" downloads
+      what you're working on as a <code>.json</code> file, "Load file" reads such a file back
+      in — separate from "Export code", which instead generates finished code to paste into
+      <code>LEAD</code>/<code>HARMONY</code>/<code>BASS</code>/<code>RHYTHM</code> in
+      <code>audio.js</code>.
+    </p>
+    <button id="help-close">Close</button>
+  </dialog>
 
   <div class="toolbar">
     <div class="track-toggles">
@@ -753,6 +771,11 @@ function renderInspector() {
   });
   inspector.appendChild(del);
 }
+
+// ---------- Help dialog ----------
+const helpDialog = document.getElementById('help-dialog');
+document.getElementById('help-btn').addEventListener('click', () => helpDialog.showModal());
+document.getElementById('help-close').addEventListener('click', () => helpDialog.close());
 
 // ---------- Toolbar ----------
 document.querySelectorAll('.track-toggle input[type=checkbox]').forEach(box => {
