@@ -94,5 +94,6 @@ canvas. Kvar att göra:
 arpeggio (chip-ackord), portamento, bitcrush, eko och chorus — alla
 redigerbara i `frontend/music-editor.html` (se
 [2026-07-15-audio-portamento-crush-echo-chorus.md](docs/superpowers/specs/2026-07-15-audio-portamento-crush-echo-chorus.md)
-för de fyra sistnämnda). Inget av detta är applicerat på den faktiska
-"Froggy Hop"-låten än — bara tillgängligt att komponera med.
+för de fyra sistnämnda). Eko och chorus är insprinklade i den faktiska
+"Froggy Hop"-melodin (takt 2/4/6/8); portamento och bitcrush är än så länge
+bara tillgängliga att komponera med i editorn.
