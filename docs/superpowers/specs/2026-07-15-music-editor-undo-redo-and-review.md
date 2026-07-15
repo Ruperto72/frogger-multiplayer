@@ -90,6 +90,47 @@ En genomgång av `music-editor.html`, `audio.js`, `game.js`, `input.js` och
    (`nextIndex === voice.index`). Nu vaktas fallet och noten spelas som
    vanligt. Inträffar inte med nuvarande låtdata — ren robusthet.
 
+## Granskning av själva spelet (backend + spelfrontend)
+
+Efter en följdfråga utökades granskningen till hela spelet: `room.js`,
+`gameloop.js`, `collision.js`, `constants.js`, `lobby.js`, `manager.js`,
+`server.js`, `tournament.js`, `bracket.js` samt frontendens `net.js`,
+`renderer.js`, `touch.js`, `sim.js`, `lobby-ui.js`, `start-ui.js`,
+`tournament-ui.js` (sprites/tiles/i18n är rena rit-/textdatamoduler med egna
+tester och skummades).
+
+**Fynd som visade sig vara avsiktlig design (verifierat mot tester/docs):**
+
+- Knuffmekanikens riktning: den knuffade "studsar bakåt" förbi knuffaren in
+  i dennes gamla ruta (ett platsbyte). Explicit testat
+  ("stöt: B studsar bakåt, A tar platsen") och beskrivet i ursprungsplanen.
+- Snabbmatch-rum återanvänds inte efter matchslut — "Ladda om sidan för ny
+  match" är den dokumenterade UX:en; turneringsvägen förstör rum korrekt via
+  `_activateNext()`.
+
+**Åtgärdat (härdning):** `Room._onDisconnect` anropade `_onMatchEnd` även
+när matchen redan var avgjord och rapporterad via `_endMatch` — en
+frånkoppling efteråt skulle dubbelrapportera matchen som walkover (med fel
+vinnare om förloraren stängde fliken sist). Onåbart i dagens kodvägar
+(turneringen förstör rummet synkront vid matchslut och tar då bort
+close-lyssnarna; snabbmatch har ingen callback) men en fälla för framtida
+ändringar. Nu returnerar `_onDisconnect` tidigt vid redan avgjord match.
+Nytt regressionstest (134 tester totalt).
+
+**End-to-end-verifiering av spelet** (som tidigare aldrig körts med riktig
+backend i denna svit):
+
+- Protokoll-e2e (`backend/e2e-test.js` mot live-server): 20/20 — snabbmatch,
+  turnering med frilott, walkover under match, okänd kod.
+- Riktigt tvåspelartest i headless Chromium mot live-backend: två klienter
+  matchas, fyller i namn, klickar Redo, spelar genom countdown; drag
+  synkas åt båda hållen; drag rakt in i brädkanten skickar inget
+  move-meddelande (väggfixen verifierad i skarpt läge); spelare som ställer
+  sig i trafiken blir påkörd — liv minskar på BÅDA klienterna och spelaren
+  respawnar på startrutan (motionerar kvack-ljudvägen live). Inga
+  konsolfel utöver den kända, sedan tidigare dokumenterade 404:an för
+  saknade PWA-ikoner.
+
 ### Noterat men medvetet inte ändrat
 
 - `startResize` respekterar inte flerval (bara den dragna noten ändrar

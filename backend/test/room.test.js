@@ -358,6 +358,17 @@ test('disconnect ger motståndaren matchvinst som walkover', () => {
   assert.deepEqual(ends, [['p2', { walkover: true }]]);
 });
 
+test('disconnect efter avgjord match rapporterar inte matchen igen', () => {
+  const ends = [];
+  const ws1 = mockWs(), ws2 = mockWs();
+  const room = new Room(ws1, ws2, { winsNeeded: 1, onMatchEnd: (w, info) => ends.push([w, info]) });
+  clearInterval(room._tick);
+  room.state.phase = 'playing';
+  room._endRound('p1'); // matchen avgörs och rapporteras (walkover: false)
+  ws1.emit('close');    // förloraren stänger fliken efteråt
+  assert.deepEqual(ends, [['p1', { walkover: false }]]); // ingen dubbelrapport
+});
+
 test('addSpectator skickar match_start you=spectator och state', () => {
   const { room } = makeRoom();
   const spec = mockWs();
