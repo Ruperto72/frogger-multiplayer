@@ -144,8 +144,10 @@
     (Penna eller Grepp) för att redigera vibrato/tremolo/bend/pulsbredd/arpeggio i panelen
     till höger. Rytmremsan har fyra rader (Kick/Snare/Hi-hat/Puka). Den röda linjen ovanför
     rutnäten är en speluro — dra i den eller klicka i linjalraden för att välja varifrån
-    uppspelningen ska starta; under uppspelning rör den sig i takt med musiken. Exportera
-    och klistra in resultatet i
+    uppspelningen ska starta; under uppspelning rör den sig i takt med musiken. "Spara fil"
+    laddar ner det du håller på med som en <code>.json</code>-fil, "Ladda fil" läser in en
+    sådan fil igen — separat från "Exportera kod", som istället genererar färdig kod att
+    klistra in i
     <code>LEAD</code>/<code>HARMONY</code>/<code>BASS</code>/<code>RHYTHM</code> i <code>audio.js</code>.
   </p>
 
@@ -177,6 +179,9 @@
     <button id="stop">■ Stopp</button>
     <label><input id="loop" type="checkbox" checked> Loopa</label>
     <button id="reset">Återställ till spelets låt</button>
+    <button id="save-file">💾 Spara fil</button>
+    <button id="load-file">📂 Ladda fil</button>
+    <input type="file" id="load-file-input" accept="application/json,.json" style="display:none">
     <button id="export">Exportera kod</button>
   </div>
 
@@ -792,6 +797,46 @@ tempoInput.addEventListener('change', () => { state.tempo = parseInt(tempoInput.
 
 document.getElementById('reset').addEventListener('click', () => {
   state.tracks = loadFromGame();
+  state.selected = null;
+  render();
+});
+
+// ---------- Spara/ladda fil (arbetsformat, skilt från "Exportera kod") ----------
+// Sparar hela state.tracks (kolumnbaserat, samma format editorn jobbar med
+// internt) + tempo som JSON — låter en fortsätta redigera en påbörjad låt
+// senare, till skillnad från exportrutan som genererar facit-koden för audio.js.
+document.getElementById('save-file').addEventListener('click', () => {
+  const data = { version: 1, tempo: state.tempo, tracks: state.tracks };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'froggy-hop.json';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+const loadInput = document.getElementById('load-file-input');
+document.getElementById('load-file').addEventListener('click', () => loadInput.click());
+loadInput.addEventListener('change', async () => {
+  const file = loadInput.files[0];
+  loadInput.value = ''; // så samma fil kan väljas igen senare
+  if (!file) return;
+  let data;
+  try {
+    data = JSON.parse(await file.text());
+  } catch (err) {
+    alert('Kunde inte läsa filen: ' + err.message);
+    return;
+  }
+  const t = data && data.tracks;
+  if (!t || !Array.isArray(t.lead) || !Array.isArray(t.harmony) || !Array.isArray(t.bass) || !Array.isArray(t.rhythm)) {
+    alert('Filen har inte rätt format (saknar lead/harmony/bass/rhythm-spår).');
+    return;
+  }
+  state.tracks = t;
+  state.tempo = typeof data.tempo === 'number' ? data.tempo : TEMPO_BPM;
+  tempoInput.value = state.tempo;
   state.selected = null;
   render();
 });
