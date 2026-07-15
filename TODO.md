@@ -90,15 +90,9 @@ canvas. Kvar att göra:
 
 ## Ljud — fler effekter
 
-`frontend/js/audio.js` har bend, vibrato, tremolo, pulsbredd (duty cycle) och
-arpeggio (chip-ackord), redigerbara i `frontend/music-editor.html`. Tyngre
-effekter som diskuterats men inte byggts än:
-
-- **Portamento till nästa not** — skild från dagens `bend` (som glider mot en
-  godtycklig målfrekvens inom samma not): en riktig legato-glidning som
-  fortsätter obruten in i nästa nots attack, utan ny retrigger.
-- **Bitcrush/distortion** — via `WaveShaperNode` (eller sample-rate-reduktion)
-  för ett råare, mer lo-fi ljud, t.ex. på bas eller rytm.
-- **Eko/delay** — feedback-`DelayNode`-kedja för extra rymd på lead-rösten.
-- **Detune/chorus** — två lätt feldstämda oscillatorer per not för ett tjockare
-  ljud (klassisk "supersaw"-teknik, fast med fyrkant/triangel).
+`frontend/js/audio.js` har bend, vibrato, tremolo, pulsbredd (duty cycle),
+arpeggio (chip-ackord), portamento, bitcrush, eko och chorus — alla
+redigerbara i `frontend/music-editor.html` (se
+[2026-07-15-audio-portamento-crush-echo-chorus.md](docs/superpowers/specs/2026-07-15-audio-portamento-crush-echo-chorus.md)
+för de fyra sistnämnda). Inget av detta är applicerat på den faktiska
+"Froggy Hop"-låten än — bara tillgängligt att komponera med.

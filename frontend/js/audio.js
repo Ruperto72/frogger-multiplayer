@@ -19,12 +19,20 @@ const REST = 0;
 
 // "Froggy Hop" — 8 takter, finslipade i ABC-notation och förhandslyssnade
 // innan de skrevs om till frekvens/notvärde-par här. d = längd i åttondelar.
-// Valfria effektflaggor per not (se _scheduleTone): `bend` glider tonhöjden
-// mot målfrekvensen under notens sista hälft; `vib` = vibrato (tonhöjds-LFO);
-// `trem` = tremolo (volym-LFO); `duty` = pulsbredd 0–1 för fyrkantsröster
-// (0.5 = vanlig "square"); `arp` = lista med halvtonsoffset som notens
-// grundton snabbt växlar med (chip-ackord). Bara använt på enstaka, utvalda
-// noter så det känns som kryddor, inte ett genomgående effektlager.
+// Valfria effektflaggor per not (se _scheduleTone/_schedulePortamentoTone):
+// `bend` glider tonhöjden mot målfrekvensen under notens sista hälft;
+// `vib` = vibrato (tonhöjds-LFO); `trem` = tremolo (volym-LFO); `duty` =
+// pulsbredd 0–1 för fyrkantsröster (0.5 = vanlig "square"); `arp` = lista med
+// halvtonsoffset som notens grundton snabbt växlar med (chip-ackord);
+// `porta` = portamento, en obruten legato-glidning in i nästa nots attack
+// utan ny retrigger (skild från `bend`, som glider mot ett mål och sedan
+// släpper som vanligt inom samma not — utesluter bend/arp på samma not);
+// `crush` = bitcrush (kvantiserar amplituden via en WaveShaperNode för ett
+// råare, nedsamplat ljud); `echo` = skickar noten till en delad eko-buss
+// (feedback-DelayNode); `chorus` = en andra, lätt feldstämd oscillator läggs
+// ovanpå för ett tjockare ljud (hoppas över vid arpeggio). Bara använt på
+// enstaka, utvalda noter så det känns som kryddor, inte ett genomgående
+// effektlager.
 export const LEAD = [
   // Takt 1 — tremolo på den hållna avslutningstonen
   { f: G4,  d: 1 }, { f: B4,  d: 1 }, { f: D5,  d: 1 }, { f: B4,  d: 1 },
@@ -122,6 +130,10 @@ export class AudioManager {
     this._sfxGain      = null;
     this._noiseBuffer  = null;
     this._pulseWaves   = null;
+    this._crushCurve   = null;
+    this._delay        = null;
+    this._delayFeedback = null;
+    this._delayWet     = null;
     this._muted        = false;
     this._musicOn      = false;
     this._voices       = [];
@@ -159,6 +171,19 @@ export class AudioManager {
     this._sfxGain = this._ctx.createGain();
     this._sfxGain.gain.value = 0.3;
     this._sfxGain.connect(this._master);
+
+    // Eko-buss (note.echo) — en delad feedback-DelayNode-slinga, inte en
+    // permanent effekt på hela kanalen. Enstaka noter skickas hit i tillägg
+    // till sin vanliga (torra) anslutning, se _scheduleTone. Fördröjningen
+    // är en punkterad åttondel — en klassisk rytmisk slaptillbaka-eko.
+    this._delay = this._ctx.createDelay(1.0);
+    this._delay.delayTime.value = EIGHTH_SEC * 1.5;
+    this._delayFeedback = this._ctx.createGain();
+    this._delayFeedback.gain.value = 0.35;
+    this._delay.connect(this._delayFeedback).connect(this._delay);
+    this._delayWet = this._ctx.createGain();
+    this._delayWet.gain.value = 0.5;
+    this._delay.connect(this._delayWet).connect(this._musicGain);
   }
 
   // Måste anropas från en användargest (klick/tangenttryck) — webbläsare
@@ -268,11 +293,27 @@ export class AudioManager {
           else if (note.type === 'snare') this._scheduleSnare(voice.nextAt);
           else if (note.type === 'tom') this._schedulePuka(voice.nextAt);
           else this._scheduleHihat(voice.nextAt);
-        } else if (note.f !== REST) {
-          this._scheduleTone(note, voice.nextAt, dur, voice.gain, voice.osc);
+          voice.nextAt += dur;
+          voice.index = (voice.index + 1) % voice.notes.length;
+        } else if (note.f === REST) {
+          voice.nextAt += dur;
+          voice.index = (voice.index + 1) % voice.notes.length;
+        } else {
+          const nextIndex = (voice.index + 1) % voice.notes.length;
+          const nextNote  = voice.notes[nextIndex];
+          if (note.porta && nextNote.f !== REST) {
+            // Absorberar nästa not i samma oscillator/envelope istället för
+            // att schemalägga den separat — se _schedulePortamentoTone.
+            const nextDur = nextNote.d * EIGHTH_SEC;
+            this._schedulePortamentoTone(note, nextNote, voice.nextAt, dur, nextDur, voice.gain, voice.osc);
+            voice.nextAt += dur + nextDur;
+            voice.index = (nextIndex + 1) % voice.notes.length;
+          } else {
+            this._scheduleTone(note, voice.nextAt, dur, voice.gain, voice.osc);
+            voice.nextAt += dur;
+            voice.index = nextIndex;
+          }
         }
-        voice.nextAt += dur;
-        voice.index = (voice.index + 1) % voice.notes.length;
       }
     }
     this._timerId = setTimeout(() => this._scheduler(), LOOKAHEAD_MS);
@@ -288,10 +329,11 @@ export class AudioManager {
       osc.type = oscType;
     }
 
+    let chorusOsc = null;
     if (note.arp && note.arp.length) {
       // Chip-ackord: växla snabbt mellan grundtonen och halvtonsoffsetten i
-      // arp istället för en stilla ton — bend/vib hoppas över för enkelhets
-      // skull när arpeggio är aktivt.
+      // arp istället för en stilla ton — bend/vib/chorus hoppas över för
+      // enkelhets skull när arpeggio är aktivt.
       this._scheduleArpeggio(osc, note, startAt, durationSec);
     } else {
       osc.frequency.setValueAtTime(note.f, startAt);
@@ -308,6 +350,22 @@ export class AudioManager {
         lfo.connect(lfoGain).connect(osc.frequency);
         lfo.start(startAt);
         lfo.stop(startAt + durationSec);
+      }
+      if (note.chorus) {
+        // Tjockare unison: en andra, lätt feldstämd oscillator (±8 cent,
+        // via den inbyggda detune-parametern) delar notens envelope (samma
+        // gain-nod) — klassisk "supersaw"-teknik, fast med fyrkant/triangel.
+        chorusOsc = this._ctx.createOscillator();
+        if (oscType === 'square' && note.duty) chorusOsc.setPeriodicWave(this._pulseWave(note.duty));
+        else chorusOsc.type = oscType;
+        osc.detune.value = 8;
+        chorusOsc.detune.value = -8;
+        chorusOsc.frequency.setValueAtTime(note.f, startAt);
+        if (note.bend) {
+          const bendAt = startAt + durationSec * 0.5;
+          chorusOsc.frequency.setValueAtTime(note.f, bendAt);
+          chorusOsc.frequency.linearRampToValueAtTime(note.bend, startAt + durationSec);
+        }
       }
     }
 
@@ -327,9 +385,103 @@ export class AudioManager {
       lfo.stop(startAt + durationSec);
     }
 
-    osc.connect(gain).connect(destGain);
+    this._connectVoiceOutput(gain, note, destGain);
+
+    osc.connect(gain);
     osc.start(startAt);
     osc.stop(startAt + durationSec);
+
+    if (chorusOsc) {
+      chorusOsc.connect(gain);
+      chorusOsc.start(startAt);
+      chorusOsc.stop(startAt + durationSec);
+    }
+  }
+
+  // Portamento: en enda oscillator/envelope glider obrutet från note.f till
+  // nextNote.f över gränsen mellan de två noterna, istället för att
+  // retriggas (ny attack) vid nästa nots start. Nästa nots egna
+  // effektflaggor (bend/vib/trem/duty/arp) hoppas över eftersom den
+  // "absorberas" in i den här glidande tonen — se _scheduler().
+  _schedulePortamentoTone(note, nextNote, startAt, dur, nextDur, destGain, oscType) {
+    const osc  = this._ctx.createOscillator();
+    const gain = this._ctx.createGain();
+    const totalDur = dur + nextDur;
+
+    if (oscType === 'square' && note.duty) {
+      osc.setPeriodicWave(this._pulseWave(note.duty));
+    } else {
+      osc.type = oscType;
+    }
+
+    osc.frequency.setValueAtTime(note.f, startAt);
+    const glideStart = startAt + dur * 0.6;
+    const glideEnd    = startAt + dur + Math.min(nextDur * 0.3, 0.12);
+    osc.frequency.setValueAtTime(note.f, glideStart);
+    osc.frequency.linearRampToValueAtTime(nextNote.f, glideEnd);
+
+    if (note.vib) {
+      const lfo     = this._ctx.createOscillator();
+      const lfoGain = this._ctx.createGain();
+      lfo.frequency.value = 5.5;
+      lfoGain.gain.value  = note.f * 0.02;
+      lfo.connect(lfoGain).connect(osc.frequency);
+      lfo.start(startAt);
+      lfo.stop(startAt + totalDur);
+    }
+
+    const releaseAt = startAt + totalDur * 0.85;
+    gain.gain.setValueAtTime(0.0001, startAt);
+    gain.gain.exponentialRampToValueAtTime(1, startAt + 0.015);
+    gain.gain.setValueAtTime(1, releaseAt);
+    gain.gain.exponentialRampToValueAtTime(0.0001, startAt + totalDur);
+
+    if (note.trem) {
+      const lfo     = this._ctx.createOscillator();
+      const lfoGain = this._ctx.createGain();
+      lfo.frequency.value = 18;
+      lfoGain.gain.value  = 0.35;
+      lfo.connect(lfoGain).connect(gain.gain);
+      lfo.start(startAt);
+      lfo.stop(startAt + totalDur);
+    }
+
+    this._connectVoiceOutput(gain, note, destGain);
+
+    osc.connect(gain);
+    osc.start(startAt);
+    osc.stop(startAt + totalDur);
+  }
+
+  // Kopplar en tons envelope-gain vidare till kanalens destGain (torrt) och,
+  // om flaggat, till bitcrush-formaren och/eller eko-bussen. Delad av
+  // _scheduleTone och _schedulePortamentoTone.
+  _connectVoiceOutput(gain, note, destGain) {
+    let outputNode = gain;
+    if (note.crush) {
+      const shaper = this._ctx.createWaveShaper();
+      shaper.curve = this._bitcrushCurve();
+      gain.connect(shaper);
+      outputNode = shaper;
+    }
+    outputNode.connect(destGain);
+    if (note.echo) outputNode.connect(this._delay);
+  }
+
+  // Cachead WaveShaperNode-kurva som kvantiserar amplituden till 16 nivåer
+  // (4-bitars) — ett riktigt bitcrush/nedsamplings-sound, inte bara mjuk
+  // distortion, för att passa 8-bitstemat.
+  _bitcrushCurve() {
+    if (this._crushCurve) return this._crushCurve;
+    const n = 1 << 16;
+    const steps = 16;
+    const curve = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      const x = (i * 2) / n - 1;
+      curve[i] = Math.round(x * steps) / steps;
+    }
+    this._crushCurve = curve;
+    return curve;
   }
 
   _scheduleArpeggio(osc, note, startAt, durationSec) {
