@@ -31,6 +31,17 @@
   .track-toggle.harmony { color: var(--harmony); }
   .track-toggle.bass    { color: var(--bass); }
   .track-toggle.rhythm  { color: var(--rhythm); }
+  .tool-group, .active-track-group { display: flex; gap: 4px; align-items: center; }
+  .active-track-group .hint-label { font-size: 12px; color: #bbb; }
+  .tool-group button.active { outline: 2px solid #fff; }
+  .active-track-group button.active { outline: 2px solid #fff; color: #111; }
+  .active-track-group button[data-active-track="lead"].active    { background: var(--lead); }
+  .active-track-group button[data-active-track="harmony"].active { background: var(--harmony); }
+  .active-track-group button[data-active-track="bass"].active    { background: var(--bass); }
+  .active-track-group button[data-active-track="rhythm"].active  { background: var(--rhythm); }
+  body[data-tool="pen"] .cell:not(.inactive) { cursor: crosshair; }
+  body[data-tool="eraser"] .note:not(.inactive), body[data-tool="eraser"] .hit:not(.inactive) { cursor: not-allowed; }
+  body[data-tool="grab"] .note:not(.inactive), body[data-tool="grab"] .hit:not(.inactive) { cursor: grab; }
   button, input[type=number] {
     font: inherit; font-size: 12px; padding: 6px 10px; cursor: pointer;
     background: #2a2a2a; color: #eee; border: 1px solid #444; border-radius: 4px;
@@ -79,6 +90,8 @@
   .note .arp-badge {
     position: absolute; right: 2px; bottom: -3px; font-size: 9px; color: #111; pointer-events: none;
   }
+  .note.inactive, .hit.inactive { opacity: 0.35; pointer-events: none; }
+  .cell.inactive { pointer-events: none; opacity: 0.5; }
   .hit {
     background: var(--rhythm); border-radius: 3px; cursor: pointer;
     box-shadow: inset 0 0 0 1px rgba(0,0,0,0.4);
@@ -123,14 +136,16 @@
   <p class="hint">
     Dev-verktyg för att komponera "Froggy Hop"-loopen. Läser in den nuvarande låten från
     <code>js/audio.js</code>. Alla fyra spår visas samtidigt i pianorullen — kryssrutorna i
-    verktygsfältet styr både synlighet och vilka spår som hörs vid Spela (kryssa ur för att
-    lyssna på enstaka röster). Klicka i ett tomt rutnätsfält i ett spårs egen rad för att lägga
-    en not i just det spåret, klicka på en befintlig not för att markera den (panelen till
-    höger: radera, vibrato, tremolo, bend, pulsbredd, arpeggio), dra i notens högerkant för
-    att ändra längd. Rytmremsan har fyra rader (Kick/Snare/Hi-hat/Puka). Den röda linjen
-    ovanför rutnäten är en speluro — dra i den eller klicka i linjalraden för att välja
-    varifrån uppspelningen ska starta; under uppspelning rör den sig i takt med musiken.
-    Exportera och klistra in resultatet i
+    verktygsfältet styr synlighet och vilka spår som hörs vid Spela, medan "Aktivt spår"
+    styr vilket spår verktygen nedan ritar/raderar/flyttar i (övriga spår visas nedtonade
+    och går inte att klicka i). Tre verktyg: <b>Penna</b> lägger en ny not/slag i en tom
+    ruta, <b>Sudd</b> tar bort en not/slag du klickar på, <b>Grepp</b> flyttar en not/slag
+    genom att dra den (drar du i notens högerkant ändras längden istället). Markera en not
+    (Penna eller Grepp) för att redigera vibrato/tremolo/bend/pulsbredd/arpeggio i panelen
+    till höger. Rytmremsan har fyra rader (Kick/Snare/Hi-hat/Puka). Den röda linjen ovanför
+    rutnäten är en speluro — dra i den eller klicka i linjalraden för att välja varifrån
+    uppspelningen ska starta; under uppspelning rör den sig i takt med musiken. Exportera
+    och klistra in resultatet i
     <code>LEAD</code>/<code>HARMONY</code>/<code>BASS</code>/<code>RHYTHM</code> i <code>audio.js</code>.
   </p>
 
@@ -144,6 +159,18 @@
       <button data-clear="bass">Rensa</button>
       <label class="track-toggle rhythm"><input type="checkbox" data-track="rhythm" checked> Rytm</label>
       <button data-clear="rhythm">Rensa</button>
+    </div>
+    <div class="tool-group">
+      <button data-tool="pen" class="active" title="Penna: klicka i en tom ruta för att lägga en not/slag">✏️ Penna</button>
+      <button data-tool="eraser" title="Sudd: klicka på en not/slag för att ta bort den">🧽 Sudd</button>
+      <button data-tool="grab" title="Grepp: dra en not/slag för att flytta den, dra i högerkanten för att ändra längd">✋ Grepp</button>
+    </div>
+    <div class="active-track-group">
+      <span class="hint-label">Aktivt spår:</span>
+      <button data-active-track="lead" class="active">Lead</button>
+      <button data-active-track="harmony">Stämma</button>
+      <button data-active-track="bass">Bas</button>
+      <button data-active-track="rhythm">Rytm</button>
     </div>
     <label>Tempo <input id="tempo" type="number" min="40" max="300" step="1"></label>
     <button id="play">▶ Spela</button>
@@ -262,6 +289,8 @@ const state = {
   tracks: loadFromGame(),
   tempo: TEMPO_BPM,
   visible: { lead: true, harmony: true, bass: true, rhythm: true },
+  activeTrack: 'lead',  // 'lead' | 'harmony' | 'bass' | 'rhythm' — vad verktygen nedan påverkar
+  tool: 'pen',           // 'pen' | 'eraser' | 'grab'
   selected: null, // { track, index } | null
   playhead: 0
 };
@@ -348,18 +377,24 @@ function renderPitchRoll() {
 
     tracks.forEach((track, subIdx) => {
       const gridRow = firstSubRow + subIdx;
+      const inactive = track !== state.activeTrack;
       for (let c = 0; c < COLS; c++) {
         const cell = document.createElement('div');
-        cell.className = 'cell' + (c % 8 === 0 ? ' bar-start' : '') + (isBlack ? ' black' : '');
+        cell.className = 'cell' + (c % 8 === 0 ? ' bar-start' : '') + (isBlack ? ' black' : '') +
+          (inactive ? ' inactive' : '');
         cell.style.gridRow = gridRow;
         cell.style.gridColumn = c + 2;
-        cell.addEventListener('click', () => onCellClick(track, midi, c));
+        cell.addEventListener('click', () => {
+          if (inactive || state.tool !== 'pen') return;
+          onCellClick(track, midi, c);
+        });
         roll.appendChild(cell);
       }
     });
   }
 
   tracks.forEach((track, subIdx) => {
+    const inactive = track !== state.activeTrack;
     state.tracks[track].forEach((note, idx) => {
       const pitchIdx = MIDI_MAX - freqToMidi(note.freq);
       const gridRow = pitchIdx * tracks.length + subIdx + 2;
@@ -367,20 +402,32 @@ function renderPitchRoll() {
       const isSelected = state.selected && state.selected.track === track && state.selected.index === idx;
       div.className = 'note ' + track +
         (note.bend ? ' bend' : '') + (note.vib ? ' vib' : '') + (note.trem ? ' trem' : '') +
-        (isSelected ? ' selected' : '');
+        (isSelected ? ' selected' : '') + (inactive ? ' inactive' : '');
       div.style.gridRow = gridRow;
       div.style.gridColumn = `${note.start + 2} / span ${note.len}`;
-      div.addEventListener('click', (e) => { e.stopPropagation(); selectNote(track, idx); });
+      div.addEventListener('mousedown', (e) => {
+        if (inactive || state.tool !== 'grab') return;
+        startMoveNote(e, track, idx, tracks.length);
+      });
+      div.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (inactive) return;
+        if (state.tool === 'eraser') deleteNote(track, idx);
+        else if (state.tool === 'pen') selectNote(track, idx);
+        // grab: hanteras helt via mousedown/mouseup i startMoveNote
+      });
       if (note.arp && note.arp.length) {
         const badge = document.createElement('span');
         badge.className = 'arp-badge';
         badge.textContent = '♪';
         div.appendChild(badge);
       }
-      const handle = document.createElement('div');
-      handle.className = 'handle';
-      handle.addEventListener('mousedown', (e) => startResize(e, track, idx));
-      div.appendChild(handle);
+      if (!inactive && state.tool === 'grab') {
+        const handle = document.createElement('div');
+        handle.className = 'handle';
+        handle.addEventListener('mousedown', (e) => startResize(e, track, idx));
+        div.appendChild(handle);
+      }
       roll.appendChild(div);
     });
   });
@@ -395,6 +442,8 @@ function renderRhythmRoll() {
   rhythmRoll.style.gridTemplateRows = `${RULER_H}px repeat(${RHYTHM_ROWS.length}, 15px)`;
   buildRuler(rhythmRoll);
 
+  const rhythmInactive = state.activeTrack !== 'rhythm';
+
   RHYTHM_ROWS.forEach((type, r) => {
     const label = document.createElement('div');
     label.className = 'label';
@@ -404,10 +453,13 @@ function renderRhythmRoll() {
     rhythmRoll.appendChild(label);
     for (let c = 0; c < COLS; c++) {
       const cell = document.createElement('div');
-      cell.className = 'cell' + (c % 8 === 0 ? ' bar-start' : '');
+      cell.className = 'cell' + (c % 8 === 0 ? ' bar-start' : '') + (rhythmInactive ? ' inactive' : '');
       cell.style.gridRow = r + 2;
       cell.style.gridColumn = c + 2;
-      cell.addEventListener('click', () => onRhythmCellClick(r, c));
+      cell.addEventListener('click', () => {
+        if (rhythmInactive || state.tool !== 'pen') return;
+        onRhythmCellClick(r, c);
+      });
       rhythmRoll.appendChild(cell);
     }
   });
@@ -415,10 +467,19 @@ function renderRhythmRoll() {
   for (const hit of state.tracks.rhythm) {
     const row = RHYTHM_ROWS.indexOf(hit.type);
     const div = document.createElement('div');
-    div.className = 'hit' + (hit.type !== 'kick' ? ' ' + hit.type : '');
+    div.className = 'hit' + (hit.type !== 'kick' ? ' ' + hit.type : '') + (rhythmInactive ? ' inactive' : '');
     div.style.gridRow = row + 2;
     div.style.gridColumn = `${hit.start + 2} / span 1`;
-    div.addEventListener('click', (e) => { e.stopPropagation(); removeHit(hit); });
+    div.addEventListener('mousedown', (e) => {
+      if (rhythmInactive || state.tool !== 'grab') return;
+      startMoveHit(e, hit);
+    });
+    div.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (rhythmInactive) return;
+      if (state.tool === 'eraser') removeHit(hit);
+      // pen/grab: hanteras via cellklick respektive startMoveHit
+    });
     rhythmRoll.appendChild(div);
   }
 
@@ -488,6 +549,12 @@ function selectNote(track, idx) {
   render();
 }
 
+function deleteNote(track, idx) {
+  state.tracks[track] = state.tracks[track].filter((_, i) => i !== idx);
+  if (state.selected && state.selected.track === track && state.selected.index === idx) state.selected = null;
+  render();
+}
+
 function startResize(e, track, idx) {
   e.preventDefault();
   e.stopPropagation();
@@ -506,6 +573,69 @@ function startResize(e, track, idx) {
   function onUp() {
     window.removeEventListener('mousemove', onMove);
     window.removeEventListener('mouseup', onUp);
+  }
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onUp);
+}
+
+// Grepp-verktyget: dra en not för att flytta den (tid + tonhöjd). Ett klick
+// utan rörelse räknas som en markering istället, precis som innan verktygen
+// fanns. Överlappande grannar i samma spår trimmas bort när man släpper,
+// samma regel som när en ny not läggs (clearOverlaps).
+function startMoveNote(e, track, idx, subLaneCount) {
+  e.preventDefault();
+  e.stopPropagation();
+  const notes = state.tracks[track];
+  const note = notes[idx];
+  const startX = e.clientX, startY = e.clientY;
+  const startCol = note.start;
+  const startMidi = freqToMidi(note.freq);
+  let moved = false;
+  function onMove(ev) {
+    const dx = ev.clientX - startX, dy = ev.clientY - startY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
+    if (!moved) return;
+    const deltaCols = Math.round(dx / 16);
+    const pitchRowDelta = Math.round(dy / (SUBLANE_PX * subLaneCount));
+    note.start = Math.max(0, Math.min(COLS - note.len, startCol + deltaCols));
+    const newMidi = Math.max(MIDI_MIN, Math.min(MIDI_MAX, startMidi - pitchRowDelta));
+    note.freq = round2(midiToFreq(newMidi));
+    render();
+  }
+  function onUp() {
+    window.removeEventListener('mousemove', onMove);
+    window.removeEventListener('mouseup', onUp);
+    if (!moved) { selectNote(track, idx); return; }
+    const cleared = clearOverlaps(notes, note.start, note.len, notes.indexOf(note));
+    state.tracks[track] = cleared;
+    state.selected = { track, index: cleared.indexOf(note) };
+    render();
+  }
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onUp);
+}
+
+// Samma sak för rytmslag — bara starttid + rad (typ) att flytta, ingen längd.
+// "Bara ett slag per kolumn"-regeln (samma som onRhythmCellClick) tillämpas
+// när man släpper.
+function startMoveHit(e, hit) {
+  e.preventDefault();
+  e.stopPropagation();
+  const startX = e.clientX, startY = e.clientY;
+  const startCol = hit.start;
+  const startRow = RHYTHM_ROWS.indexOf(hit.type);
+  function onMove(ev) {
+    const deltaCols = Math.round((ev.clientX - startX) / 16);
+    const deltaRows = Math.round((ev.clientY - startY) / 15);
+    hit.start = Math.max(0, Math.min(COLS - 1, startCol + deltaCols));
+    hit.type = RHYTHM_ROWS[Math.max(0, Math.min(RHYTHM_ROWS.length - 1, startRow + deltaRows))];
+    render();
+  }
+  function onUp() {
+    window.removeEventListener('mousemove', onMove);
+    window.removeEventListener('mouseup', onUp);
+    state.tracks.rhythm = state.tracks.rhythm.filter(h => h === hit || h.start !== hit.start);
+    render();
   }
   window.addEventListener('mousemove', onMove);
   window.addEventListener('mouseup', onUp);
@@ -632,6 +762,26 @@ document.querySelectorAll('button[data-clear]').forEach(btn => {
     const track = btn.dataset.clear;
     state.tracks[track] = [];
     if (state.selected && state.selected.track === track) state.selected = null;
+    render();
+  });
+});
+
+document.querySelectorAll('.tool-group button[data-tool]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tool-group button[data-tool]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.tool = btn.dataset.tool;
+    document.body.dataset.tool = state.tool;
+    render();
+  });
+});
+document.body.dataset.tool = state.tool;
+
+document.querySelectorAll('.active-track-group button[data-active-track]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.active-track-group button[data-active-track]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.activeTrack = btn.dataset.activeTrack;
     render();
   });
 });
