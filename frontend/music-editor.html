@@ -83,10 +83,27 @@
     background: var(--rhythm); border-radius: 3px; cursor: pointer;
     box-shadow: inset 0 0 0 1px rgba(0,0,0,0.4);
   }
+  .hit.snare { background: #ffdf3b; }
   .hit.hihat { background: #1fae54; }
+  .hit.tom   { background: #ff6a3b; }
+  .ruler-cell {
+    border-right: 1px solid var(--grid); background: #232323; cursor: pointer;
+  }
+  .ruler-cell.bar-start { border-left: 2px solid var(--bar); }
+  .playhead {
+    position: absolute; top: 0; width: 2px; background: #ff3b3b;
+    cursor: ew-resize; z-index: 5;
+  }
+  .playhead::before {
+    content: ''; position: absolute; top: -1px; left: -4px;
+    border: 5px solid transparent; border-top-color: #ff3b3b;
+  }
+  .editor-layout { display: flex; gap: 10px; align-items: flex-start; }
+  .rolls-column { flex: 1; min-width: 0; }
   .inspector {
-    margin-top: 10px; background: var(--panel); padding: 10px; border-radius: 6px;
-    font-size: 12px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
+    margin-top: 0; background: var(--panel); padding: 10px; border-radius: 6px;
+    font-size: 12px; display: flex; flex-direction: column; gap: 10px; align-items: stretch;
+    width: 220px; flex: 0 0 220px;
   }
   .inspector.empty { color: #666; }
   textarea {
@@ -108,9 +125,12 @@
     <code>js/audio.js</code>. Alla fyra spår visas samtidigt i pianorullen — kryssrutorna i
     verktygsfältet styr både synlighet och vilka spår som hörs vid Spela (kryssa ur för att
     lyssna på enstaka röster). Klicka i ett tomt rutnätsfält i ett spårs egen rad för att lägga
-    en not i just det spåret, klicka på en befintlig not för att markera den (panelen nedan:
-    radera, vibrato, tremolo, bend, pulsbredd, arpeggio), dra i notens högerkant för att ändra
-    längd. Exportera och klistra in resultatet i
+    en not i just det spåret, klicka på en befintlig not för att markera den (panelen till
+    höger: radera, vibrato, tremolo, bend, pulsbredd, arpeggio), dra i notens högerkant för
+    att ändra längd. Rytmremsan har fyra rader (Kick/Snare/Hi-hat/Puka). Den röda linjen
+    ovanför rutnäten är en speluro — dra i den eller klicka i linjalraden för att välja
+    varifrån uppspelningen ska starta; under uppspelning rör den sig i takt med musiken.
+    Exportera och klistra in resultatet i
     <code>LEAD</code>/<code>HARMONY</code>/<code>BASS</code>/<code>RHYTHM</code> i <code>audio.js</code>.
   </p>
 
@@ -133,21 +153,25 @@
     <button id="export">Exportera kod</button>
   </div>
 
-  <div class="roll-wrap">
-    <div class="roll" id="roll"></div>
-  </div>
+  <div class="editor-layout">
+    <div class="rolls-column">
+      <div class="roll-wrap">
+        <div class="roll" id="roll"></div>
+      </div>
 
-  <div class="roll-wrap" id="rhythmWrap">
-    <div class="roll" id="rhythmRoll"></div>
-  </div>
+      <div class="roll-wrap" id="rhythmWrap">
+        <div class="roll" id="rhythmRoll"></div>
+      </div>
+    </div>
 
-  <div class="inspector empty" id="inspector">Ingen not markerad.</div>
+    <div class="inspector empty" id="inspector">Ingen not markerad.</div>
+  </div>
 
   <div class="legend">
     <span class="lead">Lead (fyrkant)</span>
     <span class="harmony">Stämma (fyrkant)</span>
     <span class="bass">Bas (triangel)</span>
-    <span class="rhythm">Rytm (kick/hi-hat)</span>
+    <span class="rhythm">Rytm (kick/snare/hi-hat/puka)</span>
   </div>
 
   <textarea id="exportBox" style="display:none" readonly></textarea>
@@ -238,14 +262,21 @@ const state = {
   tracks: loadFromGame(),
   tempo: TEMPO_BPM,
   visible: { lead: true, harmony: true, bass: true, rhythm: true },
-  selected: null // { track, index } | null
+  selected: null, // { track, index } | null
+  playhead: 0
 };
+
+const RHYTHM_ROWS = ['kick', 'snare', 'hihat', 'tom'];
+const RHYTHM_LABELS = { kick: 'Kick', snare: 'Snare', hihat: 'Hi-hat', tom: 'Puka' };
+const RULER_H = 16;
 
 // ---------- Rendering ----------
 const roll = document.getElementById('roll');
 const rhythmRoll = document.getElementById('rhythmRoll');
 const rhythmWrap = document.getElementById('rhythmWrap');
 const inspector = document.getElementById('inspector');
+let pitchPlayheadEl = null, rhythmPlayheadEl = null;
+let visualPlayhead = 0;
 
 function visiblePitchTracks() {
   return PITCH_TRACKS.filter(t => state.visible[t]);
@@ -263,21 +294,50 @@ function clearOverlaps(notes, start, len, exceptIdx = -1) {
 function render() {
   renderPitchRoll();
   renderRhythmRoll();
+  updatePlayheadPositions();
   renderInspector();
+}
+
+// En linjalrad (rad 1, RULER_H högre) ovanpå ett rutnät — tar emot klick/drag
+// för att flytta speluron. Delas mellan pianorullen och rytmremsan.
+function buildRuler(rollEl) {
+  const corner = document.createElement('div');
+  corner.className = 'label';
+  corner.style.gridRow = 1;
+  corner.style.gridColumn = 1;
+  rollEl.appendChild(corner);
+  for (let c = 0; c < COLS; c++) {
+    const rc = document.createElement('div');
+    rc.className = 'ruler-cell' + (c % 8 === 0 ? ' bar-start' : '');
+    rc.style.gridRow = 1;
+    rc.style.gridColumn = c + 2;
+    rc.addEventListener('mousedown', (e) => startScrub(e, rollEl));
+    rollEl.appendChild(rc);
+  }
+}
+
+function buildPlayhead(rollEl, totalRowsPx) {
+  const el = document.createElement('div');
+  el.className = 'playhead';
+  el.style.height = (RULER_H + totalRowsPx) + 'px';
+  el.addEventListener('mousedown', (e) => startScrub(e, rollEl));
+  rollEl.appendChild(el);
+  return el;
 }
 
 function renderPitchRoll() {
   roll.innerHTML = '';
   const tracks = visiblePitchTracks();
-  if (tracks.length === 0) return;
+  if (tracks.length === 0) { pitchPlayheadEl = null; return; }
 
   const pitchCount = MIDI_MAX - MIDI_MIN + 1;
-  roll.style.gridTemplateRows = `repeat(${pitchCount * tracks.length}, ${SUBLANE_PX}px)`;
+  roll.style.gridTemplateRows = `${RULER_H}px repeat(${pitchCount * tracks.length}, ${SUBLANE_PX}px)`;
+  buildRuler(roll);
 
   for (let p = 0; p < pitchCount; p++) {
     const midi = MIDI_MAX - p;
     const isBlack = NOTE_NAMES[((midi % 12) + 12) % 12].includes('#');
-    const firstSubRow = p * tracks.length + 1;
+    const firstSubRow = p * tracks.length + 2;
 
     const label = document.createElement('div');
     label.className = 'label';
@@ -302,7 +362,7 @@ function renderPitchRoll() {
   tracks.forEach((track, subIdx) => {
     state.tracks[track].forEach((note, idx) => {
       const pitchIdx = MIDI_MAX - freqToMidi(note.freq);
-      const gridRow = pitchIdx * tracks.length + subIdx + 1;
+      const gridRow = pitchIdx * tracks.length + subIdx + 2;
       const div = document.createElement('div');
       const isSelected = state.selected && state.selected.track === track && state.selected.index === idx;
       div.className = 'note ' + track +
@@ -324,25 +384,28 @@ function renderPitchRoll() {
       roll.appendChild(div);
     });
   });
+
+  pitchPlayheadEl = buildPlayhead(roll, pitchCount * tracks.length * SUBLANE_PX);
 }
 
 function renderRhythmRoll() {
-  if (!state.visible.rhythm) { rhythmWrap.style.display = 'none'; return; }
+  if (!state.visible.rhythm) { rhythmWrap.style.display = 'none'; rhythmPlayheadEl = null; return; }
   rhythmWrap.style.display = '';
   rhythmRoll.innerHTML = '';
-  rhythmRoll.style.gridTemplateRows = 'repeat(2, 15px)';
+  rhythmRoll.style.gridTemplateRows = `${RULER_H}px repeat(${RHYTHM_ROWS.length}, 15px)`;
+  buildRuler(rhythmRoll);
 
-  ['Kick', 'Hi-hat'].forEach((name, r) => {
+  RHYTHM_ROWS.forEach((type, r) => {
     const label = document.createElement('div');
     label.className = 'label';
-    label.style.gridRow = r + 1;
+    label.style.gridRow = r + 2;
     label.style.gridColumn = 1;
-    label.textContent = name;
+    label.textContent = RHYTHM_LABELS[type];
     rhythmRoll.appendChild(label);
     for (let c = 0; c < COLS; c++) {
       const cell = document.createElement('div');
       cell.className = 'cell' + (c % 8 === 0 ? ' bar-start' : '');
-      cell.style.gridRow = r + 1;
+      cell.style.gridRow = r + 2;
       cell.style.gridColumn = c + 2;
       cell.addEventListener('click', () => onRhythmCellClick(r, c));
       rhythmRoll.appendChild(cell);
@@ -350,13 +413,49 @@ function renderRhythmRoll() {
   });
 
   for (const hit of state.tracks.rhythm) {
+    const row = RHYTHM_ROWS.indexOf(hit.type);
     const div = document.createElement('div');
-    div.className = 'hit' + (hit.type === 'hihat' ? ' hihat' : '');
-    div.style.gridRow = (hit.type === 'kick' ? 1 : 2);
+    div.className = 'hit' + (hit.type !== 'kick' ? ' ' + hit.type : '');
+    div.style.gridRow = row + 2;
     div.style.gridColumn = `${hit.start + 2} / span 1`;
     div.addEventListener('click', (e) => { e.stopPropagation(); removeHit(hit); });
     rhythmRoll.appendChild(div);
   }
+
+  rhythmPlayheadEl = buildPlayhead(rhythmRoll, RHYTHM_ROWS.length * 15);
+}
+
+// ---------- Speluro: startposition för Play + live-scrubbning ----------
+function updatePlayheadPositions() {
+  const left = (44 + visualPlayhead * 16) + 'px';
+  if (pitchPlayheadEl) pitchPlayheadEl.style.left = left;
+  if (rhythmPlayheadEl) rhythmPlayheadEl.style.left = left;
+}
+
+function seekTo(col) {
+  col = Math.max(0, Math.min(COLS - 1, Math.round(col)));
+  state.playhead = col;
+  visualPlayhead = col;
+  updatePlayheadPositions();
+  if (playing) {
+    ensureCtx();
+    startPlaybackFrom(col);
+  }
+}
+
+function startScrub(e, rollEl) {
+  e.preventDefault();
+  e.stopPropagation();
+  const rollRect = rollEl.getBoundingClientRect();
+  const seek = (ev) => seekTo((ev.clientX - rollRect.left - 44) / 16);
+  seek(e);
+  function onMove(ev) { seek(ev); }
+  function onUp() {
+    window.removeEventListener('mousemove', onMove);
+    window.removeEventListener('mouseup', onUp);
+  }
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onUp);
 }
 
 function onCellClick(track, midi, col) {
@@ -372,7 +471,7 @@ function onCellClick(track, midi, col) {
 }
 
 function onRhythmCellClick(row, col) {
-  const type = row === 0 ? 'kick' : 'hihat';
+  const type = RHYTHM_ROWS[row];
   const hits = state.tracks.rhythm.filter(h => h.start !== col);
   hits.push({ start: col, type });
   state.tracks.rhythm = hits;
@@ -423,7 +522,7 @@ function renderInspector() {
   const note = sel && state.tracks[sel.track] && state.tracks[sel.track][sel.index];
   if (!note) {
     inspector.className = 'inspector empty';
-    inspector.textContent = 'Ingen not markerad. Klicka i Kick-/Hi-hat-raden för att lägga/ta bort ett rytmslag.';
+    inspector.textContent = 'Ingen not markerad. Klicka i en rad (Kick/Snare/Hi-hat/Puka) för att lägga/ta bort ett rytmslag.';
     return;
   }
   const { track, index } = sel;
@@ -642,43 +741,112 @@ function scheduleHihat(startAt) {
   src.start(startAt); src.stop(startAt + 0.04);
 }
 
-function playOnce(startAt, eighthSec) {
+function schedulePuka(startAt) {
+  const osc = ctx.createOscillator(), gain = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(220, startAt);
+  osc.frequency.exponentialRampToValueAtTime(90, startAt + 0.18);
+  gain.gain.setValueAtTime(0.0001, startAt);
+  gain.gain.exponentialRampToValueAtTime(1, startAt + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.28);
+  osc.connect(gain).connect(ctx.destination);
+  osc.start(startAt); osc.stop(startAt + 0.3);
+}
+
+function scheduleSnare(startAt) {
+  if (!noiseBuffer) {
+    const len = Math.ceil(ctx.sampleRate * 0.1);
+    noiseBuffer = ctx.createBuffer(1, len, ctx.sampleRate);
+    const data = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+  }
+  const src = ctx.createBufferSource(), filter = ctx.createBiquadFilter(), noiseGain = ctx.createGain();
+  src.buffer = noiseBuffer;
+  filter.type = 'bandpass'; filter.frequency.value = 1800; filter.Q.value = 0.7;
+  noiseGain.gain.setValueAtTime(0.0001, startAt);
+  noiseGain.gain.exponentialRampToValueAtTime(1, startAt + 0.004);
+  noiseGain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.09);
+  src.connect(filter).connect(noiseGain).connect(ctx.destination);
+  src.start(startAt); src.stop(startAt + 0.1);
+
+  const osc = ctx.createOscillator(), oscGain = ctx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(190, startAt);
+  osc.frequency.exponentialRampToValueAtTime(120, startAt + 0.07);
+  oscGain.gain.setValueAtTime(0.0001, startAt);
+  oscGain.gain.exponentialRampToValueAtTime(0.5, startAt + 0.004);
+  oscGain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.08);
+  osc.connect(oscGain).connect(ctx.destination);
+  osc.start(startAt); osc.stop(startAt + 0.09);
+}
+
+function playOnce(startAt, eighthSec, fromCol) {
+  const after = (arr) => arr.filter(n => n.start >= fromCol);
   if (state.visible.lead) {
-    for (const n of state.tracks.lead) scheduleTone(n, startAt + n.start * eighthSec, n.len * eighthSec, 'square');
+    for (const n of after(state.tracks.lead)) scheduleTone(n, startAt + (n.start - fromCol) * eighthSec, n.len * eighthSec, 'square');
   }
   if (state.visible.harmony) {
-    for (const n of state.tracks.harmony) scheduleTone(n, startAt + n.start * eighthSec, n.len * eighthSec * 0.9, 'square');
+    for (const n of after(state.tracks.harmony)) scheduleTone(n, startAt + (n.start - fromCol) * eighthSec, n.len * eighthSec * 0.9, 'square');
   }
   if (state.visible.bass) {
-    for (const n of state.tracks.bass) scheduleTone(n, startAt + n.start * eighthSec, n.len * eighthSec, 'triangle');
+    for (const n of after(state.tracks.bass)) scheduleTone(n, startAt + (n.start - fromCol) * eighthSec, n.len * eighthSec, 'triangle');
   }
   if (state.visible.rhythm) {
-    for (const h of state.tracks.rhythm) {
-      const at = startAt + h.start * eighthSec;
-      if (h.type === 'kick') scheduleKick(at); else scheduleHihat(at);
+    for (const h of after(state.tracks.rhythm)) {
+      const at = startAt + (h.start - fromCol) * eighthSec;
+      if (h.type === 'kick') scheduleKick(at);
+      else if (h.type === 'snare') scheduleSnare(at);
+      else if (h.type === 'tom') schedulePuka(at);
+      else scheduleHihat(at);
     }
   }
+}
+
+let rafId = null, playStartCtxTime = 0, playStartCol = 0;
+
+function startPlaybackFrom(col) {
+  playing = true;
+  clearTimeout(loopTimer);
+  function loop(fromCol) {
+    if (!playing) return;
+    const eighthSec = 60 / state.tempo / 2;
+    const startAt = ctx.currentTime + 0.05;
+    playOnce(startAt, eighthSec, fromCol);
+    playStartCtxTime = startAt;
+    playStartCol = fromCol;
+    const remainingDur = (COLS - fromCol) * eighthSec;
+    loopTimer = setTimeout(() => {
+      if (document.getElementById('loop').checked) loop(0);
+      else playing = false;
+    }, remainingDur * 1000);
+  }
+  loop(col);
+  if (!rafId) animatePlayhead();
+}
+
+function animatePlayhead() {
+  function tick() {
+    if (!playing) { rafId = null; return; }
+    const eighthSec = 60 / state.tempo / 2;
+    const col = playStartCol + (ctx.currentTime - playStartCtxTime) / eighthSec;
+    visualPlayhead = Math.min(col, COLS - 0.001);
+    updatePlayheadPositions();
+    rafId = requestAnimationFrame(tick);
+  }
+  rafId = requestAnimationFrame(tick);
 }
 
 document.getElementById('play').addEventListener('click', () => {
   ensureCtx();
   if (ctx.state === 'suspended') ctx.resume();
-  playing = true;
-  const eighthSec = 60 / state.tempo / 2;
-  const loopDur = COLS * eighthSec;
-  function loop() {
-    if (!playing) return;
-    playOnce(ctx.currentTime + 0.05, eighthSec);
-    if (document.getElementById('loop').checked) {
-      loopTimer = setTimeout(loop, loopDur * 1000);
-    }
-  }
-  loop();
+  startPlaybackFrom(state.playhead);
 });
 
 document.getElementById('stop').addEventListener('click', () => {
   playing = false;
   clearTimeout(loopTimer);
+  visualPlayhead = state.playhead;
+  updatePlayheadPositions();
 });
 
 // ---------- Export ----------

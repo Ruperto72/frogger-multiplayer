@@ -92,13 +92,23 @@ export const BASS = [
   { f: G3, d: 2 }, { f: REST, d: 2 }, { f: G3, d: 2 }, { f: G3, d: 2 }  // takt 8 (G, final)
 ];
 
-// Rytm — kick på ettan, hi-hat på slag 2–4, jämnt genom alla 8 takter.
-export const RHYTHM = [];
-for (let bar = 0; bar < 8; bar++) {
-  for (let beat = 0; beat < 4; beat++) {
-    RHYTHM.push({ type: beat === 0 ? 'kick' : 'hihat', d: 2 });
-  }
-}
+// Rytm — kick på ettan, hi-hat på slag 2/4 som grundpuls i alla 8 takter.
+// Snare (klassisk "backbeat" på slag 3) och puka sprinklade in på samma
+// speglade ställen som LEAD:s egna kryddor — takt 1/5 (tremolo-tonen) får
+// backbeat, takt 4/8 (väntetakten/loopens omtag) får en liten pukafyllning
+// — istället för på varje takt, så det känns som kryddor snarare än ett
+// genomgående mönster. `type` kan vara 'kick', 'snare', 'hihat' eller 'tom'
+// (pukan), se _scheduler()/_scheduleSnare()/_schedulePuka() nedan.
+export const RHYTHM = [
+  { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'snare', d: 2 }, { type: 'hihat', d: 2 }, // takt 1
+  { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'hihat', d: 2 }, { type: 'hihat', d: 2 }, // takt 2
+  { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'hihat', d: 2 }, { type: 'hihat', d: 2 }, // takt 3
+  { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'hihat', d: 2 }, { type: 'tom',   d: 2 }, // takt 4
+  { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'snare', d: 2 }, { type: 'hihat', d: 2 }, // takt 5
+  { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'hihat', d: 2 }, { type: 'hihat', d: 2 }, // takt 6
+  { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'hihat', d: 2 }, { type: 'hihat', d: 2 }, // takt 7
+  { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'snare', d: 2 }, { type: 'tom',   d: 2 }  // takt 8
+];
 
 export class AudioManager {
   constructor() {
@@ -255,6 +265,8 @@ export class AudioManager {
         const dur  = note.d * EIGHTH_SEC;
         if (voice.kind === 'rhythm') {
           if (note.type === 'kick') this._scheduleKick(voice.nextAt);
+          else if (note.type === 'snare') this._scheduleSnare(voice.nextAt);
+          else if (note.type === 'tom') this._schedulePuka(voice.nextAt);
           else this._scheduleHihat(voice.nextAt);
         } else if (note.f !== REST) {
           this._scheduleTone(note, voice.nextAt, dur, voice.gain, voice.osc);
@@ -361,6 +373,54 @@ export class AudioManager {
     osc.connect(gain).connect(this._rhythmGain);
     osc.start(startAt);
     osc.stop(startAt + 0.13);
+  }
+
+  // Syntetisk "puka" (tom-tom) — som kicken men ljusare startfrekvens och
+  // längre, mer "bombig" utklingning, så den hörs som ett eget slag.
+  _schedulePuka(startAt) {
+    const osc  = this._ctx.createOscillator();
+    const gain = this._ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(220, startAt);
+    osc.frequency.exponentialRampToValueAtTime(90, startAt + 0.18);
+    gain.gain.setValueAtTime(0.0001, startAt);
+    gain.gain.exponentialRampToValueAtTime(1, startAt + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.28);
+    osc.connect(gain).connect(this._rhythmGain);
+    osc.start(startAt);
+    osc.stop(startAt + 0.3);
+  }
+
+  // Snare — brus (bandpass runt 1.8 kHz, för det klassiska "crack") lagt
+  // ovanpå en kort tonal "kropp" (triangel), likt hur en akustisk virveltrumma
+  // har både skinn-ton och snarrsladdarnas brus.
+  _scheduleSnare(startAt) {
+    this._ensureNoiseBuffer();
+    const src    = this._ctx.createBufferSource();
+    const filter = this._ctx.createBiquadFilter();
+    const noiseGain = this._ctx.createGain();
+    src.buffer = this._noiseBuffer;
+    filter.type = 'bandpass';
+    filter.frequency.value = 1800;
+    filter.Q.value = 0.7;
+    noiseGain.gain.setValueAtTime(0.0001, startAt);
+    noiseGain.gain.exponentialRampToValueAtTime(1, startAt + 0.004);
+    noiseGain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.09);
+    src.connect(filter).connect(noiseGain).connect(this._rhythmGain);
+    src.start(startAt);
+    src.stop(startAt + 0.1);
+
+    const osc     = this._ctx.createOscillator();
+    const oscGain = this._ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(190, startAt);
+    osc.frequency.exponentialRampToValueAtTime(120, startAt + 0.07);
+    oscGain.gain.setValueAtTime(0.0001, startAt);
+    oscGain.gain.exponentialRampToValueAtTime(0.5, startAt + 0.004);
+    oscGain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.08);
+    osc.connect(oscGain).connect(this._rhythmGain);
+    osc.start(startAt);
+    osc.stop(startAt + 0.09);
   }
 
   // Brusbaserad "hi-hat" — återanvänder en enda buffert med vitt brus.
