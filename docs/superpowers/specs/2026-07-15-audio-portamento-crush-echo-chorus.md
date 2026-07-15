@@ -11,9 +11,8 @@ portamento, bitcrush/distortion, eko/delay och detune/chorus. Det här är de
 fyra, klara — i `AudioManager` (`frontend/js/audio.js`) och som redigerbara
 flaggor i `frontend/music-editor.html`, samma mönster som alla tidigare
 effekter. Vid implementationen applicerades inget på den faktiska
-"Froggy Hop"-låten; senare samma dag sprinklades eko och chorus in i LEAD
-(se "Applicering i låten" nedan). Portamento och bitcrush är fortsatt bara
-tillgängliga att komponera med.
+"Froggy Hop"-låten; senare samma dag sprinklades alla fyra in i LEAD
+(se "Applicering i låten" nedan).
 
 ## Omfattning
 
@@ -105,7 +104,7 @@ indikeringen kan krocka).
 
 ## Applicering i låten
 
-Eko och chorus sprinklades in i `LEAD` (samma speglade kryddfilosofi som
+Alla fyra effekter sprinklades in i `LEAD` (samma speglade kryddfilosofi som
 tremolo/pulsbredd/arpeggio — enstaka utvalda noter, aldrig ett genomgående
 lager; stämma/bas lämnas odekorerade som tidigare):
 
@@ -117,6 +116,16 @@ lager; stämma/bas lämnas odekorerade som tidigare):
   takt 1/5 tremolo, takt 2/6 chorus, takt 3/7 vibrato — samt på slutnotens
   G4→D5-glid i takt 8, där den feldstämda dubbleringen följer med i bendet
   för ett tjockare avslut inför loopens omtag.
+- **Portamento** på det sista fallande steget i takt 3 (G4) och takt 7 (A4):
+  tonen glider legato, utan ny attack, ner i taktens hållna slutton
+  (Fs4 resp. G4). Vibratot som tidigare låg på sluttonerna flyttades till
+  porta-noterna — den absorberade notens egna flaggor ignoreras vid
+  sammanslagningen (se `_schedulePortamentoTone`), så flaggan hade annars
+  blivit död data; nu gäller vibratot över hela den sammanslagna glidtonen.
+- **Bitcrush** på de två speglade topptonerna (G5 i takt 2, B5 i takt 6, båda
+  redan med 25 % pulsbredd) som ett kort grus-accent i klimaxen, samt på
+  D4-chip-ackordet i takt 8 — kvantiserat brutet ackord är ett klassiskt
+  smutsigt NES-sound för finalen.
 
 ## Testning
 
