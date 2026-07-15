@@ -97,6 +97,15 @@
     content: "~"; position: absolute; left: 2px; top: -3px; font-size: 10px; color: #111;
   }
   .note.trem { background-image: repeating-linear-gradient(90deg, rgba(0,0,0,0.25) 0 2px, transparent 2px 4px); }
+  .note.porta::after {
+    content: "⌒"; position: absolute; right: 2px; top: -2px; font-size: 10px; color: #111;
+  }
+  .note.crush {
+    background-image: radial-gradient(circle, rgba(0,0,0,0.45) 1px, transparent 1.3px);
+    background-size: 4px 4px;
+  }
+  .note.echo { box-shadow: inset 0 0 0 1px rgba(0,0,0,0.4), -4px 0 3px -1px rgba(255,255,255,0.35); }
+  .note.chorus { box-shadow: inset 0 0 0 1px rgba(0,0,0,0.4), 0 0 0 1.5px rgba(255,255,255,0.4); }
   .note .arp-badge {
     position: absolute; right: 2px; bottom: -3px; font-size: 9px; color: #111; pointer-events: none;
   }
@@ -157,8 +166,11 @@
       (other tracks are shown dimmed and can't be clicked). Three tools: <b>Pen</b> adds a new
       note/hit in an empty cell, <b>Eraser</b> removes a note/hit you click on, <b>Grab</b>
       moves a note/hit by dragging it (drag its right edge instead to change its length).
-      Select a note (with Pen or Grab) to edit vibrato/tremolo/bend/duty cycle/arpeggio in the
-      panel on the right. The rhythm strip has four rows (Kick/Snare/Hi-hat/Tom). The red line
+      Select a note (with Pen or Grab) to edit vibrato/tremolo/bend/duty cycle/arpeggio/
+      portamento/bitcrush/echo/chorus in the panel on the right. Portamento glides unbroken
+      into the very next note in the same track (no gap between them) instead of retriggering;
+      it can't be combined with bend or arpeggio on the same note. The rhythm strip has four
+      rows (Kick/Snare/Hi-hat/Tom). The red line
       above the grids is a playhead — drag it, or click in the ruler row, to choose where
       playback starts; it moves along with the music during playback. "Save file" downloads
       what you're working on as a <code>.json</code> file, "Load file" reads such a file back
@@ -250,7 +262,8 @@ function toColumnNotes(seq) {
     if (n.f) notes.push({
       start: col, len: n.d, freq: n.f,
       bend: n.bend ?? null, vib: !!n.vib, trem: !!n.trem,
-      duty: n.duty ?? null, arp: n.arp ?? null
+      duty: n.duty ?? null, arp: n.arp ?? null,
+      porta: !!n.porta, crush: !!n.crush, echo: !!n.echo, chorus: !!n.chorus
     });
     col += n.d;
   }
@@ -280,7 +293,11 @@ function fromColumnNotes(notes) {
       ...(n.vib ? { vib: true } : {}),
       ...(n.trem ? { trem: true } : {}),
       ...(n.duty ? { duty: n.duty } : {}),
-      ...(n.arp && n.arp.length ? { arp: n.arp } : {})
+      ...(n.arp && n.arp.length ? { arp: n.arp } : {}),
+      ...(n.porta ? { porta: true } : {}),
+      ...(n.crush ? { crush: true } : {}),
+      ...(n.echo ? { echo: true } : {}),
+      ...(n.chorus ? { chorus: true } : {})
     });
     col = n.start + n.len;
   }
@@ -425,6 +442,8 @@ function renderPitchRoll() {
       const isSelected = state.selected && state.selected.track === track && state.selected.index === idx;
       div.className = 'note ' + track +
         (note.bend ? ' bend' : '') + (note.vib ? ' vib' : '') + (note.trem ? ' trem' : '') +
+        (note.porta ? ' porta' : '') + (note.crush ? ' crush' : '') +
+        (note.echo ? ' echo' : '') + (note.chorus ? ' chorus' : '') +
         (isSelected ? ' selected' : '') + (inactive ? ' inactive' : '');
       div.style.gridRow = gridRow;
       div.style.gridColumn = `${note.start + 2} / span ${note.len}`;
@@ -547,7 +566,8 @@ function onCellClick(track, midi, col) {
   const cleared = clearOverlaps(notes, col, 1);
   cleared.push({
     start: col, len: 1, freq: round2(midiToFreq(midi)),
-    bend: null, vib: false, trem: false, duty: null, arp: null
+    bend: null, vib: false, trem: false, duty: null, arp: null,
+    porta: false, crush: false, echo: false, chorus: false
   });
   state.tracks[track] = cleared;
   state.selected = { track, index: cleared.length - 1 };
@@ -702,6 +722,19 @@ function renderInspector() {
   tremLabel.append(tremBox, ' Tremolo');
   inspector.appendChild(tremLabel);
 
+  const portaLabel = document.createElement('label');
+  const portaBox = document.createElement('input');
+  portaBox.type = 'checkbox';
+  portaBox.checked = note.porta;
+  portaBox.title = 'Glides unbroken into the next note in this track, without a new attack.';
+  portaBox.addEventListener('change', () => {
+    note.porta = portaBox.checked;
+    if (note.porta) { note.bend = null; note.arp = null; } // porta manages its own glide into the next note
+    render();
+  });
+  portaLabel.append(portaBox, ' Portamento');
+  inspector.appendChild(portaLabel);
+
   const bendLabel = document.createElement('label');
   bendLabel.textContent = ' Bend (semitones): ';
   const bendInput = document.createElement('input');
@@ -711,7 +744,7 @@ function renderInspector() {
   bendInput.addEventListener('change', () => {
     const semitones = parseInt(bendInput.value, 10) || 0;
     note.bend = semitones === 0 ? null : round2(note.freq * Math.pow(2, semitones / 12));
-    if (note.bend) note.arp = null; // bend and arpeggio aren't combined during playback
+    if (note.bend) { note.arp = null; note.porta = false; } // bend, arpeggio and portamento aren't combined
     render();
   });
   bendLabel.appendChild(bendInput);
@@ -746,7 +779,7 @@ function renderInspector() {
   arpInput.addEventListener('change', () => {
     const parsed = arpInput.value.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
     note.arp = parsed.length ? parsed : null;
-    if (note.arp) note.bend = null; // bend and arpeggio aren't combined during playback
+    if (note.arp) { note.bend = null; note.porta = false; } // bend, arpeggio and portamento aren't combined
     render();
   });
   arpLabel.appendChild(arpInput);
@@ -754,13 +787,38 @@ function renderInspector() {
 
   const arpMajor = document.createElement('button');
   arpMajor.textContent = 'Major triad';
-  arpMajor.addEventListener('click', () => { note.arp = [4, 7]; note.bend = null; render(); });
+  arpMajor.addEventListener('click', () => { note.arp = [4, 7]; note.bend = null; note.porta = false; render(); });
   inspector.appendChild(arpMajor);
 
   const arpMinor = document.createElement('button');
   arpMinor.textContent = 'Minor triad';
-  arpMinor.addEventListener('click', () => { note.arp = [3, 7]; note.bend = null; render(); });
+  arpMinor.addEventListener('click', () => { note.arp = [3, 7]; note.bend = null; note.porta = false; render(); });
   inspector.appendChild(arpMinor);
+
+  const crushLabel = document.createElement('label');
+  const crushBox = document.createElement('input');
+  crushBox.type = 'checkbox';
+  crushBox.checked = note.crush;
+  crushBox.addEventListener('change', () => { note.crush = crushBox.checked; render(); });
+  crushLabel.append(crushBox, ' Bitcrush');
+  inspector.appendChild(crushLabel);
+
+  const echoLabel = document.createElement('label');
+  const echoBox = document.createElement('input');
+  echoBox.type = 'checkbox';
+  echoBox.checked = note.echo;
+  echoBox.addEventListener('change', () => { note.echo = echoBox.checked; render(); });
+  echoLabel.append(echoBox, ' Echo');
+  inspector.appendChild(echoLabel);
+
+  const chorusLabel = document.createElement('label');
+  const chorusBox = document.createElement('input');
+  chorusBox.type = 'checkbox';
+  chorusBox.checked = note.chorus;
+  chorusBox.title = note.arp ? 'Skipped while arpeggio is active.' : '';
+  chorusBox.addEventListener('change', () => { note.chorus = chorusBox.checked; render(); });
+  chorusLabel.append(chorusBox, ' Chorus');
+  inspector.appendChild(chorusLabel);
 
   const del = document.createElement('button');
   del.textContent = 'Delete note';
@@ -884,6 +942,49 @@ function pulseWave(duty) {
   return wave;
 }
 
+let crushCurve = null;
+function bitcrushCurve() {
+  if (crushCurve) return crushCurve;
+  const n = 1 << 16;
+  const steps = 16; // 4-bit quantization, same as the game's AudioManager
+  const curve = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const x = (i * 2) / n - 1;
+    curve[i] = Math.round(x * steps) / steps;
+  }
+  crushCurve = curve;
+  return curve;
+}
+
+let delay = null, delayFeedback = null, delayWet = null;
+function ensureDelay() {
+  if (delay) return delay;
+  delay = ctx.createDelay(1.0);
+  delay.delayTime.value = (60 / state.tempo / 2) * 1.5; // dotted-eighth slapback
+  delayFeedback = ctx.createGain();
+  delayFeedback.gain.value = 0.35;
+  delay.connect(delayFeedback).connect(delay);
+  delayWet = ctx.createGain();
+  delayWet.gain.value = 0.5;
+  delay.connect(delayWet).connect(ctx.destination);
+  return delay;
+}
+
+// Routes a note's envelope gain to the destination (dry) and, if flagged, to
+// the bitcrush shaper and/or the shared echo bus. Shared by scheduleTone and
+// schedulePortamentoTone.
+function connectVoiceOutput(gain, note) {
+  let outputNode = gain;
+  if (note.crush) {
+    const shaper = ctx.createWaveShaper();
+    shaper.curve = bitcrushCurve();
+    gain.connect(shaper);
+    outputNode = shaper;
+  }
+  outputNode.connect(ctx.destination);
+  if (note.echo) outputNode.connect(ensureDelay());
+}
+
 function scheduleTone(note, startAt, dur, oscType) {
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
@@ -891,6 +992,7 @@ function scheduleTone(note, startAt, dur, oscType) {
   if (oscType === 'square' && note.duty) osc.setPeriodicWave(pulseWave(note.duty));
   else osc.type = oscType;
 
+  let chorusOsc = null;
   if (note.arp && note.arp.length) {
     const freqs = [note.freq, ...note.arp.map(semi => note.freq * Math.pow(2, semi / 12))];
     const stepSec = 0.03;
@@ -909,6 +1011,18 @@ function scheduleTone(note, startAt, dur, oscType) {
       lfo.connect(lfoGain).connect(osc.frequency);
       lfo.start(startAt); lfo.stop(startAt + dur);
     }
+    if (note.chorus) {
+      chorusOsc = ctx.createOscillator();
+      if (oscType === 'square' && note.duty) chorusOsc.setPeriodicWave(pulseWave(note.duty));
+      else chorusOsc.type = oscType;
+      osc.detune.value = 8;
+      chorusOsc.detune.value = -8;
+      chorusOsc.frequency.setValueAtTime(note.freq, startAt);
+      if (note.bend) {
+        chorusOsc.frequency.setValueAtTime(note.freq, startAt + dur * 0.5);
+        chorusOsc.frequency.linearRampToValueAtTime(note.bend, startAt + dur);
+      }
+    }
   }
 
   gain.gain.setValueAtTime(0.0001, startAt);
@@ -924,9 +1038,63 @@ function scheduleTone(note, startAt, dur, oscType) {
     lfo.start(startAt); lfo.stop(startAt + dur);
   }
 
-  osc.connect(gain).connect(ctx.destination);
+  connectVoiceOutput(gain, note);
+
+  osc.connect(gain);
   osc.start(startAt);
   osc.stop(startAt + dur);
+
+  if (chorusOsc) {
+    chorusOsc.connect(gain);
+    chorusOsc.start(startAt);
+    chorusOsc.stop(startAt + dur);
+  }
+}
+
+// Portamento preview: a single oscillator/envelope glides unbroken from
+// note.freq to nextNote.freq across the boundary between the two notes,
+// mirroring AudioManager._schedulePortamentoTone in audio.js. The absorbed
+// next note's own effect flags are ignored, same rule as the game.
+function schedulePortamentoTone(note, nextNote, startAt, dur, nextDur, oscType, durScale = 1) {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  const totalDur = (dur + nextDur) * durScale;
+
+  if (oscType === 'square' && note.duty) osc.setPeriodicWave(pulseWave(note.duty));
+  else osc.type = oscType;
+
+  osc.frequency.setValueAtTime(note.freq, startAt);
+  const glideStart = startAt + dur * 0.6;
+  const glideEnd = startAt + dur + Math.min(nextDur * 0.3, 0.12);
+  osc.frequency.setValueAtTime(note.freq, glideStart);
+  osc.frequency.linearRampToValueAtTime(nextNote.freq, glideEnd);
+
+  if (note.vib) {
+    const lfo = ctx.createOscillator(), lfoGain = ctx.createGain();
+    lfo.frequency.value = 5.5;
+    lfoGain.gain.value = note.freq * 0.02;
+    lfo.connect(lfoGain).connect(osc.frequency);
+    lfo.start(startAt); lfo.stop(startAt + totalDur);
+  }
+
+  gain.gain.setValueAtTime(0.0001, startAt);
+  gain.gain.exponentialRampToValueAtTime(0.5, startAt + 0.015);
+  gain.gain.setValueAtTime(0.5, startAt + totalDur * 0.85);
+  gain.gain.exponentialRampToValueAtTime(0.0001, startAt + totalDur);
+
+  if (note.trem) {
+    const lfo = ctx.createOscillator(), lfoGain = ctx.createGain();
+    lfo.frequency.value = 18;
+    lfoGain.gain.value = 0.18;
+    lfo.connect(lfoGain).connect(gain.gain);
+    lfo.start(startAt); lfo.stop(startAt + totalDur);
+  }
+
+  connectVoiceOutput(gain, note);
+
+  osc.connect(gain);
+  osc.start(startAt);
+  osc.stop(startAt + totalDur);
 }
 
 function scheduleKick(startAt) {
@@ -998,19 +1166,34 @@ function scheduleSnare(startAt) {
   osc.start(startAt); osc.stop(startAt + 0.09);
 }
 
+// Schedules one track's notes, sorted by start position so a `porta`-flagged
+// note can be merged with the note immediately following it (same rule as
+// AudioManager._scheduler in audio.js: only merges when the next note starts
+// exactly where this one ends, i.e. no gap/rest between them).
+function scheduleTrackNotes(notes, startAt, eighthSec, fromCol, oscType, durScale) {
+  const sorted = [...notes].sort((a, b) => a.start - b.start);
+  for (let i = 0; i < sorted.length; i++) {
+    const n = sorted[i];
+    if (n.start < fromCol) continue;
+    const at = startAt + (n.start - fromCol) * eighthSec;
+    if (n.porta) {
+      const next = sorted[i + 1];
+      if (next && next.start === n.start + n.len) {
+        schedulePortamentoTone(n, next, at, n.len * eighthSec, next.len * eighthSec, oscType, durScale);
+        i++; // absorbed into the portamento tone above, don't schedule separately
+        continue;
+      }
+    }
+    scheduleTone(n, at, n.len * eighthSec * durScale, oscType);
+  }
+}
+
 function playOnce(startAt, eighthSec, fromCol) {
-  const after = (arr) => arr.filter(n => n.start >= fromCol);
-  if (state.visible.lead) {
-    for (const n of after(state.tracks.lead)) scheduleTone(n, startAt + (n.start - fromCol) * eighthSec, n.len * eighthSec, 'square');
-  }
-  if (state.visible.harmony) {
-    for (const n of after(state.tracks.harmony)) scheduleTone(n, startAt + (n.start - fromCol) * eighthSec, n.len * eighthSec * 0.9, 'square');
-  }
-  if (state.visible.bass) {
-    for (const n of after(state.tracks.bass)) scheduleTone(n, startAt + (n.start - fromCol) * eighthSec, n.len * eighthSec, 'triangle');
-  }
+  if (state.visible.lead) scheduleTrackNotes(state.tracks.lead, startAt, eighthSec, fromCol, 'square', 1);
+  if (state.visible.harmony) scheduleTrackNotes(state.tracks.harmony, startAt, eighthSec, fromCol, 'square', 0.9);
+  if (state.visible.bass) scheduleTrackNotes(state.tracks.bass, startAt, eighthSec, fromCol, 'triangle', 1);
   if (state.visible.rhythm) {
-    for (const h of after(state.tracks.rhythm)) {
+    for (const h of state.tracks.rhythm.filter(n => n.start >= fromCol)) {
       const at = startAt + (h.start - fromCol) * eighthSec;
       if (h.type === 'kick') scheduleKick(at);
       else if (h.type === 'snare') scheduleSnare(at);
@@ -1076,6 +1259,10 @@ document.getElementById('stop').addEventListener('click', () => {
     ctx = null;
     noiseBuffer = null;
     pulseWaves.clear();
+    crushCurve = null;
+    delay = null;
+    delayFeedback = null;
+    delayWet = null;
   }
   visualPlayhead = state.playhead;
   updatePlayheadPositions();
@@ -1090,6 +1277,10 @@ function formatSeqLine(entry, isRhythm) {
   if (entry.trem) parts.push(`trem: true`);
   if (entry.duty) parts.push(`duty: ${entry.duty}`);
   if (entry.arp) parts.push(`arp: [${entry.arp.join(', ')}]`);
+  if (entry.porta) parts.push(`porta: true`);
+  if (entry.crush) parts.push(`crush: true`);
+  if (entry.echo) parts.push(`echo: true`);
+  if (entry.chorus) parts.push(`chorus: true`);
   return `{ ${parts.join(', ')} }`;
 }
 
