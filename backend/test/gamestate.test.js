@@ -168,6 +168,15 @@ test('predictMove returnerar null när matchen inte pågår', async () => {
   assert.equal(gs.predictMove('up'), null);
 });
 
+test('predictMove mot brädkanten returnerar null utan att öka seq', async () => {
+  const gs = await makeGs();
+  gs.applyMessage(stateMsg(), 1000); // p1 spawnar på nedersta raden (y=14)
+  assert.equal(gs.predictMove('down'), null); // in i väggen — inget drag
+  assert.equal(gs.players.p1.y, 14);          // står kvar
+  assert.equal(gs.dirOf('p1'), 'down');       // men spriten vänds
+  assert.equal(gs.predictMove('up'), 1);      // nästa riktiga drag får seq 1, inte 2
+});
+
 test('waiting sätter mode quick, tournament_state sätter mode tournament', async () => {
   const { GameState } = await import('../../frontend/js/game.js');
   const gs = new GameState();

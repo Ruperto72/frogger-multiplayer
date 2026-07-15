@@ -301,7 +301,7 @@ export class AudioManager {
         } else {
           const nextIndex = (voice.index + 1) % voice.notes.length;
           const nextNote  = voice.notes[nextIndex];
-          if (note.porta && nextNote.f !== REST) {
+          if (note.porta && nextNote.f !== REST && nextIndex !== voice.index) {
             // Absorberar nästa not i samma oscillator/envelope istället för
             // att schemalägga den separat — se _schedulePortamentoTone.
             const nextDur = nextNote.d * EIGHTH_SEC;
