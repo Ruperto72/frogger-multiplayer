@@ -92,17 +92,23 @@ export const BASS = [
   { f: G3, d: 2 }, { f: REST, d: 2 }, { f: G3, d: 2 }, { f: G3, d: 2 }  // takt 8 (G, final)
 ];
 
-// Rytm — kick på ettan, hi-hat på slag 2–4, jämnt genom alla 8 takter.
-// `type` kan vara 'kick', 'snare', 'hihat' eller 'tom' (pukan) — se
-// _scheduler()/_scheduleSnare()/_schedulePuka() nedan. Bara kick/hihat
-// används i den faktiska loopen än så länge; snare/tom är tillgängliga
-// för den som vill komponera om rytmspåret i music-editor.html.
-export const RHYTHM = [];
-for (let bar = 0; bar < 8; bar++) {
-  for (let beat = 0; beat < 4; beat++) {
-    RHYTHM.push({ type: beat === 0 ? 'kick' : 'hihat', d: 2 });
-  }
-}
+// Rytm — kick på ettan, hi-hat på slag 2/4 som grundpuls i alla 8 takter.
+// Snare (klassisk "backbeat" på slag 3) och puka sprinklade in på samma
+// speglade ställen som LEAD:s egna kryddor — takt 1/5 (tremolo-tonen) får
+// backbeat, takt 4/8 (väntetakten/loopens omtag) får en liten pukafyllning
+// — istället för på varje takt, så det känns som kryddor snarare än ett
+// genomgående mönster. `type` kan vara 'kick', 'snare', 'hihat' eller 'tom'
+// (pukan), se _scheduler()/_scheduleSnare()/_schedulePuka() nedan.
+export const RHYTHM = [
+  { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'snare', d: 2 }, { type: 'hihat', d: 2 }, // takt 1
+  { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'hihat', d: 2 }, { type: 'hihat', d: 2 }, // takt 2
+  { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'hihat', d: 2 }, { type: 'hihat', d: 2 }, // takt 3
+  { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'hihat', d: 2 }, { type: 'tom',   d: 2 }, // takt 4
+  { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'snare', d: 2 }, { type: 'hihat', d: 2 }, // takt 5
+  { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'hihat', d: 2 }, { type: 'hihat', d: 2 }, // takt 6
+  { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'hihat', d: 2 }, { type: 'hihat', d: 2 }, // takt 7
+  { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'snare', d: 2 }, { type: 'tom',   d: 2 }  // takt 8
+];
 
 export class AudioManager {
   constructor() {

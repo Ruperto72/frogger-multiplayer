@@ -74,9 +74,9 @@ editorns förhandslyssningssyntes, och (avsiktligt inte) den faktiska `RHYTHM`-a
   startfrekvens (220 Hz) och längre utklingning (~0.3s mot kickens ~0.13s), så den
   hörs som ett eget, mer "bombigt" slag.
 
-Snare/puka är bara tillgängliga att komponera med — den faktiska `RHYTHM`-loopen i
-spelet använder fortfarande bara kick/hi-hat tills någon aktivt lägger till fler
-slagtyper via editorn och exporterar.
+Sprinklades sedan in i den faktiska `RHYTHM`-loopen (snare som backbeat på slag 3,
+puka som liten fyllning) på samma speglade ställen som LEAD:s egna kryddor — se
+`RHYTHM` i `audio.js` och [2026-07-13-audio-8bit-design.md](2026-07-13-audio-8bit-design.md).
 
 ## Testning
 
@@ -99,7 +99,7 @@ Verifierat manuellt och via headless Chromium (Playwright):
 
 - Ingen städning av redan schemalagda toner vid live-sökning (se ovan) — accepterat
   litet ljudöverlapp.
-- Snare/puka läggs inte till i den faktiska `RHYTHM`-datan som skickas till spelet —
-  bara tillgängliga i editorn tills någon väljer att komponera om trumsättningen.
+- (Uppdaterat) Snare/puka lades senare in i den faktiska `RHYTHM`-datan, se
+  [2026-07-13-audio-8bit-design.md](2026-07-13-audio-8bit-design.md).
 - Ingen ytterligare uppdelning av linjalraden per takt/slag utöver taktstrecken som
   redan finns i `.cell.bar-start`/`.ruler-cell.bar-start`.

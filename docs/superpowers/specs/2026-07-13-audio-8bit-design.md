@@ -59,12 +59,13 @@ triangel-bas, en bruskanal):
   melodin, så ingen C-ackord används som basnot; det E/C som skymtar i
   stämman i takt 2/6 blir istället en genomgångston ovanpå G-basen, vilket
   låter som ett tillfälligt infärgat ackord snarare än en dissonans).
-- **`RHYTHM`** — genererad programmatiskt (`for`-loop, inte hårdkodad array):
-  kick på slag 1, hi-hat på slag 2–4, jämnt genom alla 8 takter. `AudioManager`
-  kan även schemalägga `snare` (bandpassat brus + kort triangel-kropp,
-  `_scheduleSnare`) och `tom` ("pukan", sjunkande sinus likt kicken men ljusare
-  och längre utklingning, `_schedulePuka`) — inte använt i den faktiska loopen
-  än, men tillgängligt att komponera med i `music-editor.html` (se
+- **`RHYTHM`** — hårdkodad array (var tidigare en `for`-loop, men behövde per-takt
+  variation): kick på ettan, hi-hat på slag 2/4 som grundpuls i alla 8 takter.
+  `AudioManager` kan även schemalägga `snare` (bandpassat brus + kort
+  triangel-kropp, `_scheduleSnare`) och `tom` ("pukan", sjunkande sinus likt
+  kicken men ljusare och längre utklingning, `_schedulePuka`) — sprinklade in
+  som en backbeat (snare på slag 3) och en liten fyllning (puka) i takt 1/5
+  respektive 4/8, samma speglade platser som LEAD:s egna kryddor (se
   [2026-07-15-music-editor-playhead-sidebar-drums.md](2026-07-15-music-editor-playhead-sidebar-drums.md)).
 
 Alla fyra arrayer summerar till exakt 64 åttondelar (8 takter × 8 åttondelar)
