@@ -41,8 +41,9 @@
   .track-toggle.harmony { color: var(--harmony); }
   .track-toggle.bass    { color: var(--bass); }
   .track-toggle.rhythm  { color: var(--rhythm); }
-  .tool-group, .active-track-group, .zoom-group { display: flex; gap: 4px; align-items: center; }
+  .tool-group, .active-track-group, .zoom-group, .history-group { display: flex; gap: 4px; align-items: center; }
   .zoom-group span { font-size: 12px; color: #bbb; min-width: 34px; text-align: center; }
+  button:disabled { opacity: 0.4; cursor: default; }
   .active-track-group .hint-label { font-size: 12px; color: #bbb; }
   .tool-group button.active { outline: 2px solid #fff; }
   .active-track-group button.active { outline: 2px solid #fff; color: #111; }
@@ -198,7 +199,9 @@
       Keyboard shortcuts (ignored while typing in a field): <b>Space</b> play/stop,
       <b>1/2/3</b> select Pen/Eraser/Grab, <b>Delete</b>/<b>Backspace</b> delete the selection,
       arrow keys nudge it by one column/semitone, <b>Ctrl/Cmd+C/V</b> copy/paste,
-      <b>Escape</b> deselect (or close this dialog).
+      <b>Ctrl/Cmd+Z</b> undo, <b>Ctrl/Cmd+Shift+Z</b> or <b>Ctrl/Cmd+Y</b> redo,
+      <b>Escape</b> deselect (or close this dialog). Undo history covers the song data
+      (notes/hits/tempo), one step per gesture; the ↶/↷ toolbar buttons do the same.
     </p>
     <p class="hint">
       The red line above the grids is a playhead — drag it, or click in the ruler row, to
@@ -232,6 +235,10 @@
       <button data-tool="pen" class="active" title="Pen: click an empty cell to add a note/hit">✏️ Pen</button>
       <button data-tool="eraser" title="Eraser: click a note/hit to remove it">🧽 Eraser</button>
       <button data-tool="grab" title="Grab: drag a note/hit to move it, drag its right edge to change its length">✋ Grab</button>
+    </div>
+    <div class="history-group">
+      <button id="undo-btn" title="Undo (Ctrl+Z)" disabled>↶ Undo</button>
+      <button id="redo-btn" title="Redo (Ctrl+Y / Ctrl+Shift+Z)" disabled>↷ Redo</button>
     </div>
     <div class="active-track-group">
       <span class="hint-label">Active track:</span>
@@ -425,6 +432,73 @@ if (autosaveDraft && confirm('Found an unsaved draft from a previous session. Re
   try { localStorage.removeItem(AUTOSAVE_KEY); } catch { /* ignore */ }
 }
 
+// ---------- Undo/redo ----------
+// Debounced checkpointing piggybacked on render(): when the serialized
+// {tempo, tracks} settles into a new value (400 ms without further changes),
+// the previous value becomes an undo step. A drag that re-renders on every
+// mousemove therefore collapses into a single step — history granularity
+// matches gestures, not mousemoves. Selection/zoom/loop-range are deliberately
+// NOT part of history (they're view state, not song data).
+const HISTORY_LIMIT = 100;
+const undoStack = [];
+const redoStack = [];
+let historyTimer = null;
+let lastCommitted = JSON.stringify({ tempo: state.tempo, tracks: state.tracks });
+
+function snapshotSong() {
+  return JSON.stringify({ tempo: state.tempo, tracks: state.tracks });
+}
+
+function checkpointHistory() {
+  clearTimeout(historyTimer);
+  historyTimer = setTimeout(commitHistory, 400);
+}
+
+function commitHistory() {
+  clearTimeout(historyTimer);
+  historyTimer = null;
+  const s = snapshotSong();
+  if (s === lastCommitted) return;
+  undoStack.push(lastCommitted);
+  if (undoStack.length > HISTORY_LIMIT) undoStack.shift();
+  redoStack.length = 0; // a new edit invalidates the redo branch
+  lastCommitted = s;
+  updateHistoryButtons();
+}
+
+function restoreSnapshot(s) {
+  const data = JSON.parse(s);
+  state.tracks = data.tracks;
+  state.tempo = data.tempo;
+  tempoInput.value = state.tempo;
+  state.selected = null;
+  state.multiSelected.clear(); // old object refs don't exist in the restored tracks
+  render();
+}
+
+function undo() {
+  commitHistory(); // fold any pending, not-yet-debounced change into a step first
+  if (undoStack.length === 0) return;
+  redoStack.push(lastCommitted);
+  lastCommitted = undoStack.pop();
+  restoreSnapshot(lastCommitted);
+  updateHistoryButtons();
+}
+
+function redo() {
+  commitHistory();
+  if (redoStack.length === 0) return;
+  undoStack.push(lastCommitted);
+  lastCommitted = redoStack.pop();
+  restoreSnapshot(lastCommitted);
+  updateHistoryButtons();
+}
+
+function updateHistoryButtons() {
+  document.getElementById('undo-btn').disabled = undoStack.length === 0;
+  document.getElementById('redo-btn').disabled = redoStack.length === 0;
+}
+
 const RHYTHM_ROWS = ['kick', 'snare', 'hihat', 'tom'];
 const RHYTHM_LABELS = { kick: 'Kick', snare: 'Snare', hihat: 'Hi-hat', tom: 'Tom' };
 const RULER_H = 16;
@@ -459,6 +533,7 @@ function render() {
   renderMarquee();
   renderInspector();
   autosave();
+  checkpointHistory();
 }
 
 // A translucent band shown while marquee-selecting (dragging on empty grid
@@ -845,23 +920,35 @@ function deleteSelection() {
 // notes/hits NOT in the selection. Shared by arrow-key nudging.
 function nudgeSelection(dCol, dRow) {
   if (state.multiSelected.size > 0) {
-    const sel = state.multiSelected;
+    const sel = [...state.multiSelected];
+    // Klampa det gemensamma deltat mot gruppens ytterlighet (samma princip
+    // som startMoveNote/startMoveHit) — då bevaras inbördes avstånd vid
+    // brädkanten istället för att gruppen trycks ihop.
     if (state.activeTrack === 'rhythm') {
-      for (const h of sel) {
-        h.start = Math.max(0, Math.min(COLS - 1, h.start + dCol));
-        if (dRow) h.type = RHYTHM_ROWS[Math.max(0, Math.min(RHYTHM_ROWS.length - 1, RHYTHM_ROWS.indexOf(h.type) - dRow))];
-      }
-      state.tracks.rhythm = state.tracks.rhythm.filter(h => sel.has(h) || ![...sel].some(s => s.start === h.start));
+      const minStart = Math.min(...sel.map(h => h.start));
+      const maxStart = Math.max(...sel.map(h => h.start));
+      const rows = sel.map(h => RHYTHM_ROWS.indexOf(h.type));
+      const dc = Math.max(-minStart, Math.min(COLS - 1 - maxStart, dCol));
+      const dr = Math.max(Math.max(...rows) - (RHYTHM_ROWS.length - 1), Math.min(Math.min(...rows), dRow));
+      sel.forEach((h, i) => {
+        h.start += dc;
+        if (dr) h.type = RHYTHM_ROWS[rows[i] - dr];
+      });
+      const selSet = state.multiSelected;
+      state.tracks.rhythm = state.tracks.rhythm.filter(h => selSet.has(h) || !sel.some(s => s.start === h.start));
     } else {
       const notes = state.tracks[state.activeTrack];
-      for (const n of sel) {
-        n.start = Math.max(0, Math.min(COLS - n.len, n.start + dCol));
-        if (dRow) {
-          const midi = Math.max(MIDI_MIN, Math.min(MIDI_MAX, freqToMidi(n.freq) + dRow));
-          n.freq = round2(midiToFreq(midi));
-        }
-      }
-      let rest = notes.filter(n => !sel.has(n));
+      const minStart = Math.min(...sel.map(n => n.start));
+      const maxEnd   = Math.max(...sel.map(n => n.start + n.len));
+      const midis    = sel.map(n => freqToMidi(n.freq));
+      const dc = Math.max(-minStart, Math.min(COLS - maxEnd, dCol));
+      const dr = Math.max(MIDI_MIN - Math.min(...midis), Math.min(MIDI_MAX - Math.max(...midis), dRow));
+      sel.forEach((n, i) => {
+        n.start += dc;
+        if (dr) n.freq = round2(midiToFreq(midis[i] + dr));
+      });
+      const selSet = state.multiSelected;
+      let rest = notes.filter(n => !selSet.has(n));
       for (const n of sel) rest = rest.filter(o => o.start + o.len <= n.start || o.start >= n.start + n.len);
       state.tracks[state.activeTrack] = [...rest, ...sel];
     }
@@ -903,12 +990,24 @@ function copySelection() {
 // the one it was copied from (a rhythm clipboard can't paste into a pitch
 // track and vice versa).
 function pasteClipboard() {
-  if (!clipboard || clipboard.track !== state.activeTrack) return;
+  if (!clipboard) return;
+  // Tonhöjdsspår delar notformat och kan klistras korsvis (lead↔harmony↔bass);
+  // bara rytm-urklipp är inkompatibla med tonhöjdsspår och tvärtom.
+  const clipIsRhythm = clipboard.track === 'rhythm';
+  if (clipIsRhythm !== (state.activeTrack === 'rhythm')) return;
   const anchor = state.playhead;
   if (state.activeTrack === 'rhythm') {
-    const pasted = clipboard.items.map(it => ({ start: Math.max(0, Math.min(COLS - 1, it.start + anchor)), type: it.type }));
-    const pastedCols = new Set(pasted.map(p => p.start));
-    state.tracks.rhythm = [...state.tracks.rhythm.filter(h => !pastedCols.has(h.start)), ...pasted];
+    // Klamning vid brädkanten kan trycka ihop två urklippsposter till samma
+    // kolumn — behåll bara den första per kolumn ("ett slag per kolumn").
+    const seen = new Set();
+    const pasted = [];
+    for (const it of clipboard.items) {
+      const start = Math.max(0, Math.min(COLS - 1, it.start + anchor));
+      if (seen.has(start)) continue;
+      seen.add(start);
+      pasted.push({ start, type: it.type });
+    }
+    state.tracks.rhythm = [...state.tracks.rhythm.filter(h => !seen.has(h.start)), ...pasted];
     state.multiSelected = new Set(pasted);
   } else {
     let notes = state.tracks[state.activeTrack];
@@ -962,18 +1061,25 @@ function startMoveNote(e, track, idx, subLaneCount) {
   const note = notes[idx];
   const group = (state.multiSelected.size > 1 && state.multiSelected.has(note)) ? [...state.multiSelected] : [note];
   const startPositions = group.map(n => ({ n, start: n.start, midi: freqToMidi(n.freq) }));
+  // Klampa det GEMENSAMMA deltat utifrån gruppens ytterlighet — klampas varje
+  // medlem för sig trycks gruppens inbördes avstånd ihop vid brädkanten och
+  // medlemmar kan hamna ovanpå varandra permanent.
+  const minStart = Math.min(...startPositions.map(p => p.start));
+  const maxEnd   = Math.max(...startPositions.map(p => p.start + p.n.len));
+  const minMidi  = Math.min(...startPositions.map(p => p.midi));
+  const maxMidi  = Math.max(...startPositions.map(p => p.midi));
   const startX = e.clientX, startY = e.clientY;
   let moved = false;
   function onMove(ev) {
     const dx = ev.clientX - startX, dy = ev.clientY - startY;
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
     if (!moved) return;
-    const deltaCols = Math.round(dx / colPx);
-    const pitchRowDelta = Math.round(dy / (SUBLANE_PX * subLaneCount));
+    const deltaCols = Math.max(-minStart, Math.min(COLS - maxEnd, Math.round(dx / colPx)));
+    const pitchRowDelta = Math.max(maxMidi - MIDI_MAX,
+      Math.min(minMidi - MIDI_MIN, Math.round(dy / (SUBLANE_PX * subLaneCount))));
     for (const { n, start, midi } of startPositions) {
-      n.start = Math.max(0, Math.min(COLS - n.len, start + deltaCols));
-      const newMidi = Math.max(MIDI_MIN, Math.min(MIDI_MAX, midi - pitchRowDelta));
-      n.freq = round2(midiToFreq(newMidi));
+      n.start = start + deltaCols;
+      n.freq = round2(midiToFreq(midi - pitchRowDelta));
     }
     render();
   }
@@ -1000,13 +1106,18 @@ function startMoveHit(e, hit) {
   e.stopPropagation();
   const group = (state.multiSelected.size > 1 && state.multiSelected.has(hit)) ? [...state.multiSelected] : [hit];
   const startPositions = group.map(h => ({ h, start: h.start, row: RHYTHM_ROWS.indexOf(h.type) }));
+  // Gemensamt delta klampat mot gruppens ytterlighet — se startMoveNote.
+  const minStart = Math.min(...startPositions.map(p => p.start));
+  const maxStart = Math.max(...startPositions.map(p => p.start));
+  const minRow   = Math.min(...startPositions.map(p => p.row));
+  const maxRow   = Math.max(...startPositions.map(p => p.row));
   const startX = e.clientX, startY = e.clientY;
   function onMove(ev) {
-    const deltaCols = Math.round((ev.clientX - startX) / colPx);
-    const deltaRows = Math.round((ev.clientY - startY) / 15);
+    const deltaCols = Math.max(-minStart, Math.min(COLS - 1 - maxStart, Math.round((ev.clientX - startX) / colPx)));
+    const deltaRows = Math.max(-minRow, Math.min(RHYTHM_ROWS.length - 1 - maxRow, Math.round((ev.clientY - startY) / 15)));
     for (const { h, start, row } of startPositions) {
-      h.start = Math.max(0, Math.min(COLS - 1, start + deltaCols));
-      h.type = RHYTHM_ROWS[Math.max(0, Math.min(RHYTHM_ROWS.length - 1, row + deltaRows))];
+      h.start = start + deltaCols;
+      h.type = RHYTHM_ROWS[row + deltaRows];
     }
     render();
   }
@@ -1226,6 +1337,7 @@ window.addEventListener('keydown', (e) => {
   }
   if (e.key === ' ') {
     e.preventDefault();
+    if (e.repeat) return; // hålls tangenten nere ska den inte toggla play/stop i repeat-takt
     document.getElementById(playing ? 'stop' : 'play').click();
     return;
   }
@@ -1242,7 +1354,12 @@ window.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowDown')  { e.preventDefault(); nudgeSelection(0, -1); return; }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') { e.preventDefault(); copySelection(); return; }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') { e.preventDefault(); pasteClipboard(); return; }
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); return; }
+  if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'y' || (e.shiftKey && e.key.toLowerCase() === 'z'))) { e.preventDefault(); redo(); return; }
 });
+
+document.getElementById('undo-btn').addEventListener('click', undo);
+document.getElementById('redo-btn').addEventListener('click', redo);
 
 const tempoInput = document.getElementById('tempo');
 tempoInput.value = state.tempo;
@@ -1347,15 +1464,18 @@ function bitcrushCurve() {
 
 let delay = null, delayFeedback = null, delayWet = null;
 function ensureDelay() {
-  if (delay) return delay;
-  delay = ctx.createDelay(1.0);
-  delay.delayTime.value = (60 / state.tempo / 2) * 1.5; // dotted-eighth slapback
-  delayFeedback = ctx.createGain();
-  delayFeedback.gain.value = 0.35;
-  delay.connect(delayFeedback).connect(delay);
-  delayWet = ctx.createGain();
-  delayWet.gain.value = 0.5;
-  delay.connect(delayWet).connect(ctx.destination);
+  if (!delay) {
+    delay = ctx.createDelay(1.0);
+    delayFeedback = ctx.createGain();
+    delayFeedback.gain.value = 0.35;
+    delay.connect(delayFeedback).connect(delay);
+    delayWet = ctx.createGain();
+    delayWet.gain.value = 0.5;
+    delay.connect(delayWet).connect(ctx.destination);
+  }
+  // Uppdateras varje anrop, inte bara vid skapandet — annars behåller ekot
+  // det gamla tempots rytm efter ett tempobyte inom samma AudioContext.
+  delay.delayTime.value = (60 / state.tempo / 2) * 1.5; // punkterad åttondel
   return delay;
 }
 
@@ -1567,7 +1687,9 @@ function scheduleTrackNotes(notes, startAt, eighthSec, fromCol, toCol, oscType, 
     const at = startAt + (n.start - fromCol) * eighthSec;
     if (n.porta) {
       const next = sorted[i + 1];
-      if (next && next.start === n.start + n.len) {
+      // next.start < toCol: a porta note just before the loop end must not
+      // absorb a note beyond it and play past the loop boundary.
+      if (next && next.start === n.start + n.len && next.start < toCol) {
         schedulePortamentoTone(n, next, at, n.len * eighthSec, next.len * eighthSec, oscType, durScale);
         i++; // absorbed into the portamento tone above, don't schedule separately
         continue;

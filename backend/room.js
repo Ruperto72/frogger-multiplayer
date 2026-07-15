@@ -262,10 +262,11 @@ class Room {
     clearTimeout(this._roundTimer);
     clearTimeout(this._startTimer);
     clearInterval(this._tick);
-    if (this.state.phase !== 'match_over') {
-      this.state.phase = 'match_over';
-      this._broadcastEvent('opponent_disconnected', {});
-    }
+    // Redan avgjord match har rapporterats via _endMatch — en frånkoppling
+    // efteråt får inte rapportera samma match igen som walkover.
+    if (this.state.phase === 'match_over') return;
+    this.state.phase = 'match_over';
+    this._broadcastEvent('opponent_disconnected', {});
     this._onMatchEnd?.(pid === 'p1' ? 'p2' : 'p1', { walkover: true });
   }
 

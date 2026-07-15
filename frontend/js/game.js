@@ -151,18 +151,20 @@ export class GameState {
   }
 
   // Optimistisk lokal flytt; servern korrigerar via ack i state-broadcasts.
+  // Drag rakt in i brädkanten returnerar null utan att öka seq — då skickas
+  // inget move-meddelande och inget hoppljud spelas (grodan står ju still).
+  // Spriten vänds dock även mot kanten, som innan.
   predictMove(direction) {
     const d = DIRS[direction];
     const p = this.you && this.players[this.you];
     if (!d || !p || this.phase !== 'playing') return null;
-    this._seq++;
     this._lastDir[this.you] = direction;
     const nx = p.x + d.dx;
     const ny = p.y + d.dy;
-    if (nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS) {
-      p.x = nx;
-      p.y = ny;
-    }
+    if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) return null;
+    this._seq++;
+    p.x = nx;
+    p.y = ny;
     return this._seq;
   }
 
