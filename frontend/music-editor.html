@@ -41,7 +41,8 @@
   .track-toggle.harmony { color: var(--harmony); }
   .track-toggle.bass    { color: var(--bass); }
   .track-toggle.rhythm  { color: var(--rhythm); }
-  .tool-group, .active-track-group { display: flex; gap: 4px; align-items: center; }
+  .tool-group, .active-track-group, .zoom-group { display: flex; gap: 4px; align-items: center; }
+  .zoom-group span { font-size: 12px; color: #bbb; min-width: 34px; text-align: center; }
   .active-track-group .hint-label { font-size: 12px; color: #bbb; }
   .tool-group button.active { outline: 2px solid #fff; }
   .active-track-group button.active { outline: 2px solid #fff; color: #111; }
@@ -62,7 +63,7 @@
   #rhythmWrap { margin-top: 10px; }
   .roll {
     display: grid;
-    grid-template-columns: 44px repeat(64, 16px);
+    grid-template-columns: 44px repeat(64, var(--col-px, 16px));
     position: relative;
     width: max-content;
   }
@@ -86,6 +87,11 @@
   .note.harmony { background: var(--harmony); }
   .note.bass    { background: var(--bass); }
   .note.selected { outline: 2px solid #fff; }
+  .note.multi-selected, .hit.multi-selected { outline: 2px dashed #ffcc00; }
+  .marquee {
+    position: absolute; top: 0; background: rgba(255, 204, 0, 0.12);
+    border: 1px dashed #ffcc00; pointer-events: none; z-index: 4;
+  }
   .note .handle {
     position: absolute; right: 0; top: 0; width: 5px; height: 100%;
     cursor: ew-resize; background: rgba(0,0,0,0.25);
@@ -130,6 +136,17 @@
     content: ''; position: absolute; top: -1px; left: -4px;
     border: 5px solid transparent; border-top-color: #ff3b3b;
   }
+  .loop-region {
+    position: absolute; top: 0; height: 16px; background: rgba(59, 255, 143, 0.12);
+    border-top: 2px solid #3bff8f; pointer-events: none; z-index: 2;
+  }
+  .loop-handle {
+    position: absolute; top: 0; width: 8px; height: 16px; margin-left: -4px;
+    cursor: ew-resize; z-index: 3;
+  }
+  .loop-handle::after {
+    content: ''; position: absolute; left: 3px; top: 0; width: 2px; height: 16px; background: #3bff8f;
+  }
   .editor-layout { display: flex; gap: 10px; align-items: flex-start; }
   .rolls-column { flex: 1; min-width: 0; }
   .inspector {
@@ -163,20 +180,39 @@
       <code>js/audio.js</code>. All four tracks are shown at once in the piano roll — the
       checkboxes in the toolbar control both visibility and which tracks are audible when
       playing, while "Active track" controls which track the tools below draw/erase/move in
-      (other tracks are shown dimmed and can't be clicked). Three tools: <b>Pen</b> adds a new
-      note/hit in an empty cell, <b>Eraser</b> removes a note/hit you click on, <b>Grab</b>
-      moves a note/hit by dragging it (drag its right edge instead to change its length).
-      Select a note (with Pen or Grab) to edit vibrato/tremolo/bend/duty cycle/arpeggio/
-      portamento/bitcrush/echo/chorus in the panel on the right. Portamento glides unbroken
-      into the very next note in the same track (no gap between them) instead of retriggering;
-      it can't be combined with bend or arpeggio on the same note. The rhythm strip has four
-      rows (Kick/Snare/Hi-hat/Tom). The red line
-      above the grids is a playhead — drag it, or click in the ruler row, to choose where
-      playback starts; it moves along with the music during playback. "Save file" downloads
-      what you're working on as a <code>.json</code> file, "Load file" reads such a file back
-      in — separate from "Export code", which instead generates finished code to paste into
+      (other tracks are shown dimmed and can't be clicked).
+    </p>
+    <p class="hint">
+      Three tools: <b>Pen</b> adds a new note/hit in an empty cell, <b>Eraser</b> removes a
+      note/hit you click on (or a whole marquee-selected group, see below), <b>Grab</b> moves a
+      note/hit by dragging it (drag its right edge instead to change its length). In Grab,
+      dragging on empty space marquee-selects every note/hit in the active track whose start
+      falls within the dragged time range — the group then moves together, and Ctrl/Cmd+C /
+      Ctrl/Cmd+V copies and pastes it (anchored at the playhead). Select a single note (with
+      Pen or Grab) to edit vibrato/tremolo/bend/duty cycle/arpeggio/portamento/bitcrush/echo/
+      chorus in the panel on the right. Portamento glides unbroken into the very next note in
+      the same track (no gap between them) instead of retriggering; it can't be combined with
+      bend or arpeggio on the same note. The rhythm strip has four rows (Kick/Snare/Hi-hat/Tom).
+    </p>
+    <p class="hint">
+      Keyboard shortcuts (ignored while typing in a field): <b>Space</b> play/stop,
+      <b>1/2/3</b> select Pen/Eraser/Grab, <b>Delete</b>/<b>Backspace</b> delete the selection,
+      arrow keys nudge it by one column/semitone, <b>Ctrl/Cmd+C/V</b> copy/paste,
+      <b>Escape</b> deselect (or close this dialog).
+    </p>
+    <p class="hint">
+      The red line above the grids is a playhead — drag it, or click in the ruler row, to
+      choose where playback starts; it moves along with the music during playback. The green
+      band in the ruler is the loop range — drag its ends to loop just a section, or "Full loop
+      range" to reset it to the whole song. The 🔍 buttons zoom the piano roll horizontally.
+    </p>
+    <p class="hint">
+      "Save file" downloads what you're working on as a <code>.json</code> file, "Load file"
+      reads such a file back in — separate from "Export code", which instead generates
+      finished code to paste into
       <code>LEAD</code>/<code>HARMONY</code>/<code>BASS</code>/<code>RHYTHM</code> in
-      <code>audio.js</code>.
+      <code>audio.js</code>. Your work is also autosaved to this browser continuously as a
+      safety net against an accidental reload.
     </p>
     <button id="help-close">Close</button>
   </dialog>
@@ -205,9 +241,15 @@
       <button data-active-track="rhythm">Rhythm</button>
     </div>
     <label>Tempo <input id="tempo" type="number" min="40" max="300" step="1"></label>
+    <div class="zoom-group">
+      <button id="zoom-out" title="Zoom out">🔍−</button>
+      <span id="zoom-level">100%</span>
+      <button id="zoom-in" title="Zoom in">🔍+</button>
+    </div>
     <button id="play">▶ Play</button>
     <button id="stop">■ Stop</button>
     <label><input id="loop" type="checkbox" checked> Loop</label>
+    <button id="loop-reset" title="Reset the loop range to the full song">Full loop range</button>
     <button id="reset">Reset to game's song</button>
     <button id="save-file">💾 Save file</button>
     <button id="load-file">📂 Load file</button>
@@ -247,6 +289,17 @@ const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 const PITCH_TRACKS = ['lead', 'harmony', 'bass'];
 const TRACK_LABELS = { lead: 'Lead', harmony: 'Harmony', bass: 'Bass', rhythm: 'Rhythm' };
 const SUBLANE_PX = 10;
+const ZOOM_LEVELS = [8, 12, 16, 24, 32]; // column width in px
+let zoomIndex = ZOOM_LEVELS.indexOf(16);
+let colPx = ZOOM_LEVELS[zoomIndex];
+
+function applyZoom() {
+  colPx = ZOOM_LEVELS[zoomIndex];
+  roll.style.setProperty('--col-px', colPx + 'px');
+  rhythmRoll.style.setProperty('--col-px', colPx + 'px');
+  document.getElementById('zoom-level').textContent = Math.round(colPx / 16 * 100) + '%';
+  render();
+}
 
 const midiToFreq = (m) => 440 * Math.pow(2, (m - 69) / 12);
 const midiToName = (m) => NOTE_NAMES[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1);
@@ -325,15 +378,52 @@ function loadFromGame() {
   };
 }
 
+// ---------- Autosave (localStorage) ----------
+// A safety net against an accidental reload, separate from the explicit
+// Save/Load-file flow. Debounced so a drag (which re-renders on every
+// mousemove) doesn't hammer localStorage.
+const AUTOSAVE_KEY = 'frogger-music-editor-autosave';
+let autosaveTimer = null;
+function autosave() {
+  clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(() => {
+    try {
+      localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({ tempo: state.tempo, tracks: state.tracks }));
+    } catch { /* storage disabled/full — autosave is best-effort */ }
+  }, 400);
+}
+
+function loadAutosaveIfPresent() {
+  let raw;
+  try { raw = localStorage.getItem(AUTOSAVE_KEY); } catch { return null; }
+  if (!raw) return null;
+  let data;
+  try { data = JSON.parse(raw); } catch { return null; }
+  const t = data && data.tracks;
+  if (!t || !Array.isArray(t.lead) || !Array.isArray(t.harmony) || !Array.isArray(t.bass) || !Array.isArray(t.rhythm)) return null;
+  return data;
+}
+
 const state = {
   tracks: loadFromGame(),
   tempo: TEMPO_BPM,
   visible: { lead: true, harmony: true, bass: true, rhythm: true },
   activeTrack: 'lead',  // 'lead' | 'harmony' | 'bass' | 'rhythm' — what the tools below affect
   tool: 'pen',           // 'pen' | 'eraser' | 'grab'
-  selected: null, // { track, index } | null
-  playhead: 0
+  selected: null, // { track, index } | null — single note, drives the inspector
+  multiSelected: new Set(), // Set of note/hit object refs in state.activeTrack — marquee-selected group
+  playhead: 0,
+  loopStart: 0, loopEnd: COLS, // playback loops within this range when Loop is checked
+  marquee: null // { col0, col1 } while a marquee-select drag is in progress
 };
+
+const autosaveDraft = loadAutosaveIfPresent();
+if (autosaveDraft && confirm('Found an unsaved draft from a previous session. Restore it?\n\n(Cancel discards it and loads the game\'s current song instead.)')) {
+  state.tracks = autosaveDraft.tracks;
+  state.tempo = typeof autosaveDraft.tempo === 'number' ? autosaveDraft.tempo : TEMPO_BPM;
+} else if (autosaveDraft) {
+  try { localStorage.removeItem(AUTOSAVE_KEY); } catch { /* ignore */ }
+}
 
 const RHYTHM_ROWS = ['kick', 'snare', 'hihat', 'tom'];
 const RHYTHM_LABELS = { kick: 'Kick', snare: 'Snare', hihat: 'Hi-hat', tom: 'Tom' };
@@ -345,6 +435,7 @@ const rhythmRoll = document.getElementById('rhythmRoll');
 const rhythmWrap = document.getElementById('rhythmWrap');
 const inspector = document.getElementById('inspector');
 let pitchPlayheadEl = null, rhythmPlayheadEl = null;
+let pitchLoopEls = null, rhythmLoopEls = null;
 let visualPlayhead = 0;
 
 function visiblePitchTracks() {
@@ -364,7 +455,116 @@ function render() {
   renderPitchRoll();
   renderRhythmRoll();
   updatePlayheadPositions();
+  updateLoopPositions();
+  renderMarquee();
   renderInspector();
+  autosave();
+}
+
+// A translucent band shown while marquee-selecting (dragging on empty grid
+// space with Grab). Purely visual — the selection itself is computed once on
+// mouseup by selectRange().
+function renderMarquee() {
+  if (!state.marquee) return;
+  const { col0, col1 } = state.marquee;
+  for (const rollEl of [roll, rhythmRoll]) {
+    if (!rollEl.firstChild) continue;
+    const el = document.createElement('div');
+    el.className = 'marquee';
+    el.style.left = (44 + col0 * colPx) + 'px';
+    el.style.width = ((col1 - col0) * colPx) + 'px';
+    el.style.height = rollEl.scrollHeight + 'px';
+    rollEl.appendChild(el);
+  }
+}
+
+// Drag on an empty cell in Grab tool: marquee-selects every note/hit in the
+// active track whose start column falls within the dragged range. A click
+// with no movement clears the current selection instead.
+function startMarquee(e, rollEl) {
+  e.preventDefault();
+  const rollRect = rollEl.getBoundingClientRect();
+  const startCol = Math.max(0, Math.min(COLS, Math.round((e.clientX - rollRect.left - 44) / colPx)));
+  let moved = false;
+  function setRange(a, b) {
+    state.marquee = { col0: Math.min(a, b), col1: Math.max(a, b) };
+    render();
+  }
+  setRange(startCol, startCol);
+  function onMove(ev) {
+    const col = Math.max(0, Math.min(COLS, Math.round((ev.clientX - rollRect.left - 44) / colPx)));
+    if (col !== startCol) moved = true;
+    setRange(startCol, col);
+  }
+  function onUp() {
+    window.removeEventListener('mousemove', onMove);
+    window.removeEventListener('mouseup', onUp);
+    const range = state.marquee;
+    state.marquee = null;
+    if (!moved) { clearSelection(); return; }
+    selectRange(range.col0, range.col1);
+  }
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onUp);
+}
+
+function selectRange(lo, hi) {
+  state.multiSelected.clear();
+  const items = state.activeTrack === 'rhythm' ? state.tracks.rhythm : state.tracks[state.activeTrack];
+  for (const item of items) {
+    if (item.start >= lo && item.start < hi) state.multiSelected.add(item);
+  }
+  state.selected = null;
+  render();
+}
+
+// A highlighted band in the ruler row (row 1) marking [loopStart, loopEnd) —
+// draggable handles at each end. When Loop is checked, playback repeats
+// within this range instead of always looping the whole 64-column song.
+function buildLoopRegion(rollEl) {
+  const region = document.createElement('div');
+  region.className = 'loop-region';
+  rollEl.appendChild(region);
+  const startHandle = document.createElement('div');
+  startHandle.className = 'loop-handle';
+  startHandle.addEventListener('mousedown', (e) => startLoopDrag(e, rollEl, 'start'));
+  rollEl.appendChild(startHandle);
+  const endHandle = document.createElement('div');
+  endHandle.className = 'loop-handle';
+  endHandle.addEventListener('mousedown', (e) => startLoopDrag(e, rollEl, 'end'));
+  rollEl.appendChild(endHandle);
+  return { region, startHandle, endHandle };
+}
+
+function updateLoopPositions() {
+  const left = 44 + state.loopStart * colPx;
+  const width = (state.loopEnd - state.loopStart) * colPx;
+  for (const els of [pitchLoopEls, rhythmLoopEls]) {
+    if (!els) continue;
+    els.region.style.left = left + 'px';
+    els.region.style.width = width + 'px';
+    els.startHandle.style.left = left + 'px';
+    els.endHandle.style.left = (left + width) + 'px';
+  }
+}
+
+function startLoopDrag(e, rollEl, which) {
+  e.preventDefault();
+  e.stopPropagation();
+  const rollRect = rollEl.getBoundingClientRect();
+  function move(ev) {
+    const col = Math.max(0, Math.min(COLS, Math.round((ev.clientX - rollRect.left - 44) / colPx)));
+    if (which === 'start') state.loopStart = Math.min(col, state.loopEnd - 1);
+    else state.loopEnd = Math.max(col, state.loopStart + 1);
+    updateLoopPositions();
+  }
+  move(e);
+  function up() {
+    window.removeEventListener('mousemove', move);
+    window.removeEventListener('mouseup', up);
+  }
+  window.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', up);
 }
 
 // A ruler row (row 1, RULER_H tall) above a grid — receives click/drag to
@@ -397,11 +597,12 @@ function buildPlayhead(rollEl, totalRowsPx) {
 function renderPitchRoll() {
   roll.innerHTML = '';
   const tracks = visiblePitchTracks();
-  if (tracks.length === 0) { pitchPlayheadEl = null; return; }
+  if (tracks.length === 0) { pitchPlayheadEl = null; pitchLoopEls = null; return; }
 
   const pitchCount = MIDI_MAX - MIDI_MIN + 1;
   roll.style.gridTemplateRows = `${RULER_H}px repeat(${pitchCount * tracks.length}, ${SUBLANE_PX}px)`;
   buildRuler(roll);
+  pitchLoopEls = buildLoopRegion(roll);
 
   for (let p = 0; p < pitchCount; p++) {
     const midi = MIDI_MAX - p;
@@ -428,6 +629,10 @@ function renderPitchRoll() {
           if (inactive || state.tool !== 'pen') return;
           onCellClick(track, midi, c);
         });
+        cell.addEventListener('mousedown', (e) => {
+          if (inactive || state.tool !== 'grab') return;
+          startMarquee(e, roll);
+        });
         roll.appendChild(cell);
       }
     });
@@ -444,7 +649,8 @@ function renderPitchRoll() {
         (note.bend ? ' bend' : '') + (note.vib ? ' vib' : '') + (note.trem ? ' trem' : '') +
         (note.porta ? ' porta' : '') + (note.crush ? ' crush' : '') +
         (note.echo ? ' echo' : '') + (note.chorus ? ' chorus' : '') +
-        (isSelected ? ' selected' : '') + (inactive ? ' inactive' : '');
+        (isSelected ? ' selected' : '') + (inactive ? ' inactive' : '') +
+        (state.multiSelected.has(note) ? ' multi-selected' : '');
       div.style.gridRow = gridRow;
       div.style.gridColumn = `${note.start + 2} / span ${note.len}`;
       div.addEventListener('mousedown', (e) => {
@@ -454,8 +660,10 @@ function renderPitchRoll() {
       div.addEventListener('click', (e) => {
         e.stopPropagation();
         if (inactive) return;
-        if (state.tool === 'eraser') deleteNote(track, idx);
-        else if (state.tool === 'pen') selectNote(track, idx);
+        if (state.tool === 'eraser') {
+          if (state.multiSelected.size > 1 && state.multiSelected.has(note)) deleteSelection();
+          else deleteNote(track, idx);
+        } else if (state.tool === 'pen') selectNote(track, idx);
         // grab: handled entirely via mousedown/mouseup in startMoveNote
       });
       if (note.arp && note.arp.length) {
@@ -478,11 +686,12 @@ function renderPitchRoll() {
 }
 
 function renderRhythmRoll() {
-  if (!state.visible.rhythm) { rhythmWrap.style.display = 'none'; rhythmPlayheadEl = null; return; }
+  if (!state.visible.rhythm) { rhythmWrap.style.display = 'none'; rhythmPlayheadEl = null; rhythmLoopEls = null; return; }
   rhythmWrap.style.display = '';
   rhythmRoll.innerHTML = '';
   rhythmRoll.style.gridTemplateRows = `${RULER_H}px repeat(${RHYTHM_ROWS.length}, 15px)`;
   buildRuler(rhythmRoll);
+  rhythmLoopEls = buildLoopRegion(rhythmRoll);
 
   const rhythmInactive = state.activeTrack !== 'rhythm';
 
@@ -502,6 +711,10 @@ function renderRhythmRoll() {
         if (rhythmInactive || state.tool !== 'pen') return;
         onRhythmCellClick(r, c);
       });
+      cell.addEventListener('mousedown', (e) => {
+        if (rhythmInactive || state.tool !== 'grab') return;
+        startMarquee(e, rhythmRoll);
+      });
       rhythmRoll.appendChild(cell);
     }
   });
@@ -509,7 +722,8 @@ function renderRhythmRoll() {
   for (const hit of state.tracks.rhythm) {
     const row = RHYTHM_ROWS.indexOf(hit.type);
     const div = document.createElement('div');
-    div.className = 'hit' + (hit.type !== 'kick' ? ' ' + hit.type : '') + (rhythmInactive ? ' inactive' : '');
+    div.className = 'hit' + (hit.type !== 'kick' ? ' ' + hit.type : '') + (rhythmInactive ? ' inactive' : '') +
+      (state.multiSelected.has(hit) ? ' multi-selected' : '');
     div.style.gridRow = row + 2;
     div.style.gridColumn = `${hit.start + 2} / span 1`;
     div.addEventListener('mousedown', (e) => {
@@ -519,7 +733,10 @@ function renderRhythmRoll() {
     div.addEventListener('click', (e) => {
       e.stopPropagation();
       if (rhythmInactive) return;
-      if (state.tool === 'eraser') removeHit(hit);
+      if (state.tool === 'eraser') {
+        if (state.multiSelected.size > 1 && state.multiSelected.has(hit)) deleteSelection();
+        else removeHit(hit);
+      }
       // pen/grab: handled via the cell click and startMoveHit respectively
     });
     rhythmRoll.appendChild(div);
@@ -530,7 +747,7 @@ function renderRhythmRoll() {
 
 // ---------- Playhead: start position for Play + live scrubbing ----------
 function updatePlayheadPositions() {
-  const left = (44 + visualPlayhead * 16) + 'px';
+  const left = (44 + visualPlayhead * colPx) + 'px';
   if (pitchPlayheadEl) pitchPlayheadEl.style.left = left;
   if (rhythmPlayheadEl) rhythmPlayheadEl.style.left = left;
 }
@@ -550,7 +767,7 @@ function startScrub(e, rollEl) {
   e.preventDefault();
   e.stopPropagation();
   const rollRect = rollEl.getBoundingClientRect();
-  const seek = (ev) => seekTo((ev.clientX - rollRect.left - 44) / 16);
+  const seek = (ev) => seekTo((ev.clientX - rollRect.left - 44) / colPx);
   seek(e);
   function onMove(ev) { seek(ev); }
   function onUp() {
@@ -589,12 +806,124 @@ function removeHit(hit) {
 
 function selectNote(track, idx) {
   state.selected = { track, index: idx };
+  state.multiSelected.clear(); // a plain click always collapses to a single selection
   render();
 }
 
 function deleteNote(track, idx) {
   state.tracks[track] = state.tracks[track].filter((_, i) => i !== idx);
   if (state.selected && state.selected.track === track && state.selected.index === idx) state.selected = null;
+  render();
+}
+
+// ---------- Multi-select, copy/paste, keyboard nudging ----------
+let clipboard = null; // { track, items: [...] } (items' `start` is relative to the earliest item) | null
+
+function clearSelection() {
+  if (state.multiSelected.size === 0 && !state.selected) return;
+  state.multiSelected.clear();
+  state.selected = null;
+  render();
+}
+
+function deleteSelection() {
+  if (state.multiSelected.size > 0) {
+    if (state.activeTrack === 'rhythm') {
+      state.tracks.rhythm = state.tracks.rhythm.filter(h => !state.multiSelected.has(h));
+    } else {
+      state.tracks[state.activeTrack] = state.tracks[state.activeTrack].filter(n => !state.multiSelected.has(n));
+    }
+    state.multiSelected.clear();
+    render();
+  } else if (state.selected) {
+    deleteNote(state.selected.track, state.selected.index);
+  }
+}
+
+// Moves the current selection (multi- or single-) by dCol columns and dRow
+// semitones (pitch tracks) / rows (rhythm), trimming away any collision with
+// notes/hits NOT in the selection. Shared by arrow-key nudging.
+function nudgeSelection(dCol, dRow) {
+  if (state.multiSelected.size > 0) {
+    const sel = state.multiSelected;
+    if (state.activeTrack === 'rhythm') {
+      for (const h of sel) {
+        h.start = Math.max(0, Math.min(COLS - 1, h.start + dCol));
+        if (dRow) h.type = RHYTHM_ROWS[Math.max(0, Math.min(RHYTHM_ROWS.length - 1, RHYTHM_ROWS.indexOf(h.type) - dRow))];
+      }
+      state.tracks.rhythm = state.tracks.rhythm.filter(h => sel.has(h) || ![...sel].some(s => s.start === h.start));
+    } else {
+      const notes = state.tracks[state.activeTrack];
+      for (const n of sel) {
+        n.start = Math.max(0, Math.min(COLS - n.len, n.start + dCol));
+        if (dRow) {
+          const midi = Math.max(MIDI_MIN, Math.min(MIDI_MAX, freqToMidi(n.freq) + dRow));
+          n.freq = round2(midiToFreq(midi));
+        }
+      }
+      let rest = notes.filter(n => !sel.has(n));
+      for (const n of sel) rest = rest.filter(o => o.start + o.len <= n.start || o.start >= n.start + n.len);
+      state.tracks[state.activeTrack] = [...rest, ...sel];
+    }
+    render();
+    return;
+  }
+  if (!state.selected) return;
+  const { track, index } = state.selected;
+  const notes = state.tracks[track];
+  const note = notes[index];
+  note.start = Math.max(0, Math.min(COLS - note.len, note.start + dCol));
+  if (dRow) {
+    const midi = Math.max(MIDI_MIN, Math.min(MIDI_MAX, freqToMidi(note.freq) + dRow));
+    note.freq = round2(midiToFreq(midi));
+  }
+  const cleared = clearOverlaps(notes, note.start, note.len, notes.indexOf(note));
+  state.tracks[track] = cleared;
+  state.selected = { track, index: cleared.indexOf(note) };
+  render();
+}
+
+function copySelection() {
+  let items, track;
+  if (state.multiSelected.size > 0) {
+    items = [...state.multiSelected];
+    track = state.activeTrack;
+  } else if (state.selected) {
+    items = [state.tracks[state.selected.track][state.selected.index]];
+    track = state.selected.track;
+  } else {
+    return;
+  }
+  const minStart = Math.min(...items.map(n => n.start));
+  clipboard = { track, items: items.map(n => ({ ...n, start: n.start - minStart, arp: n.arp ? [...n.arp] : null })) };
+}
+
+// Pastes the clipboard into the active track, anchored so its earliest item
+// lands at the current playhead column. Only pastes into a track matching
+// the one it was copied from (a rhythm clipboard can't paste into a pitch
+// track and vice versa).
+function pasteClipboard() {
+  if (!clipboard || clipboard.track !== state.activeTrack) return;
+  const anchor = state.playhead;
+  if (state.activeTrack === 'rhythm') {
+    const pasted = clipboard.items.map(it => ({ start: Math.max(0, Math.min(COLS - 1, it.start + anchor)), type: it.type }));
+    const pastedCols = new Set(pasted.map(p => p.start));
+    state.tracks.rhythm = [...state.tracks.rhythm.filter(h => !pastedCols.has(h.start)), ...pasted];
+    state.multiSelected = new Set(pasted);
+  } else {
+    let notes = state.tracks[state.activeTrack];
+    const pasted = [];
+    for (const it of clipboard.items) {
+      const newStart = Math.max(0, Math.min(COLS - it.len, it.start + anchor));
+      notes = clearOverlaps(notes, newStart, it.len);
+      const newNote = { ...it, start: newStart, arp: it.arp ? [...it.arp] : null };
+      notes.push(newNote);
+      pasted.push(newNote);
+    }
+    state.tracks[state.activeTrack] = notes;
+    state.multiSelected = new Set(pasted);
+  }
+  state.selected = null;
   render();
 }
 
@@ -606,7 +935,7 @@ function startResize(e, track, idx) {
   const startX = e.clientX;
   const startLen = note.len;
   function onMove(ev) {
-    const deltaCols = Math.round((ev.clientX - startX) / 16);
+    const deltaCols = Math.round((ev.clientX - startX) / colPx);
     const newLen = Math.max(1, startLen + deltaCols);
     const others = notes.filter((_, i) => i !== idx);
     const maxLen = nextNoteStart(others, note.start) - note.start;
@@ -624,34 +953,39 @@ function startResize(e, track, idx) {
 // Grab tool: drag a note to move it (time + pitch). A click with no movement
 // counts as a selection instead, same as before the tools existed. Overlapping
 // neighbours in the same track are trimmed on release, the same rule used
-// when a new note is placed (clearOverlaps).
+// when a new note is placed (clearOverlaps). If the dragged note is part of a
+// multi-selection, the whole group moves together by the same delta.
 function startMoveNote(e, track, idx, subLaneCount) {
   e.preventDefault();
   e.stopPropagation();
   const notes = state.tracks[track];
   const note = notes[idx];
+  const group = (state.multiSelected.size > 1 && state.multiSelected.has(note)) ? [...state.multiSelected] : [note];
+  const startPositions = group.map(n => ({ n, start: n.start, midi: freqToMidi(n.freq) }));
   const startX = e.clientX, startY = e.clientY;
-  const startCol = note.start;
-  const startMidi = freqToMidi(note.freq);
   let moved = false;
   function onMove(ev) {
     const dx = ev.clientX - startX, dy = ev.clientY - startY;
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
     if (!moved) return;
-    const deltaCols = Math.round(dx / 16);
+    const deltaCols = Math.round(dx / colPx);
     const pitchRowDelta = Math.round(dy / (SUBLANE_PX * subLaneCount));
-    note.start = Math.max(0, Math.min(COLS - note.len, startCol + deltaCols));
-    const newMidi = Math.max(MIDI_MIN, Math.min(MIDI_MAX, startMidi - pitchRowDelta));
-    note.freq = round2(midiToFreq(newMidi));
+    for (const { n, start, midi } of startPositions) {
+      n.start = Math.max(0, Math.min(COLS - n.len, start + deltaCols));
+      const newMidi = Math.max(MIDI_MIN, Math.min(MIDI_MAX, midi - pitchRowDelta));
+      n.freq = round2(midiToFreq(newMidi));
+    }
     render();
   }
   function onUp() {
     window.removeEventListener('mousemove', onMove);
     window.removeEventListener('mouseup', onUp);
     if (!moved) { selectNote(track, idx); return; }
-    const cleared = clearOverlaps(notes, note.start, note.len, notes.indexOf(note));
-    state.tracks[track] = cleared;
-    state.selected = { track, index: cleared.indexOf(note) };
+    const groupSet = new Set(group);
+    let rest = notes.filter(n => !groupSet.has(n));
+    for (const n of group) rest = rest.filter(o => o.start + o.len <= n.start || o.start >= n.start + n.len);
+    state.tracks[track] = [...rest, ...group];
+    state.selected = { track, index: state.tracks[track].indexOf(note) };
     render();
   }
   window.addEventListener('mousemove', onMove);
@@ -660,24 +994,27 @@ function startMoveNote(e, track, idx, subLaneCount) {
 
 // Same idea for rhythm hits — just a start time + row (type) to move, no
 // length. The "one hit per column" rule (same as onRhythmCellClick) applies
-// on release.
+// on release, and a multi-selected group moves together like above.
 function startMoveHit(e, hit) {
   e.preventDefault();
   e.stopPropagation();
+  const group = (state.multiSelected.size > 1 && state.multiSelected.has(hit)) ? [...state.multiSelected] : [hit];
+  const startPositions = group.map(h => ({ h, start: h.start, row: RHYTHM_ROWS.indexOf(h.type) }));
   const startX = e.clientX, startY = e.clientY;
-  const startCol = hit.start;
-  const startRow = RHYTHM_ROWS.indexOf(hit.type);
   function onMove(ev) {
-    const deltaCols = Math.round((ev.clientX - startX) / 16);
+    const deltaCols = Math.round((ev.clientX - startX) / colPx);
     const deltaRows = Math.round((ev.clientY - startY) / 15);
-    hit.start = Math.max(0, Math.min(COLS - 1, startCol + deltaCols));
-    hit.type = RHYTHM_ROWS[Math.max(0, Math.min(RHYTHM_ROWS.length - 1, startRow + deltaRows))];
+    for (const { h, start, row } of startPositions) {
+      h.start = Math.max(0, Math.min(COLS - 1, start + deltaCols));
+      h.type = RHYTHM_ROWS[Math.max(0, Math.min(RHYTHM_ROWS.length - 1, row + deltaRows))];
+    }
     render();
   }
   function onUp() {
     window.removeEventListener('mousemove', onMove);
     window.removeEventListener('mouseup', onUp);
-    state.tracks.rhythm = state.tracks.rhythm.filter(h => h === hit || h.start !== hit.start);
+    const groupSet = new Set(group);
+    state.tracks.rhythm = state.tracks.rhythm.filter(h => groupSet.has(h) || !group.some(g => g.start === h.start));
     render();
   }
   window.addEventListener('mousemove', onMove);
@@ -848,6 +1185,7 @@ document.querySelectorAll('button[data-clear]').forEach(btn => {
     const track = btn.dataset.clear;
     state.tracks[track] = [];
     if (state.selected && state.selected.track === track) state.selected = null;
+    if (track === state.activeTrack) state.multiSelected.clear();
     render();
   });
 });
@@ -868,18 +1206,68 @@ document.querySelectorAll('.active-track-group button[data-active-track]').forEa
     document.querySelectorAll('.active-track-group button[data-active-track]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     state.activeTrack = btn.dataset.activeTrack;
+    state.multiSelected.clear(); // multi-selection only ever applies to the active track
     render();
   });
 });
 
+// ---------- Keyboard shortcuts ----------
+// Space = play/stop, 1/2/3 = tool select, Delete/Backspace = delete
+// selection, arrows = nudge selection, Ctrl/Cmd+C/V = copy/paste,
+// Escape = deselect (or close the help dialog if it's open). Ignored while
+// focus is in a text field so typing in the tempo/bend/arpeggio inputs isn't
+// hijacked.
+window.addEventListener('keydown', (e) => {
+  const tag = document.activeElement && document.activeElement.tagName;
+  if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+  if (helpDialog.open) {
+    if (e.key === 'Escape') helpDialog.close();
+    return;
+  }
+  if (e.key === ' ') {
+    e.preventDefault();
+    document.getElementById(playing ? 'stop' : 'play').click();
+    return;
+  }
+  if (e.key === '1' || e.key === '2' || e.key === '3') {
+    const tool = { 1: 'pen', 2: 'eraser', 3: 'grab' }[e.key];
+    document.querySelector(`.tool-group button[data-tool="${tool}"]`).click();
+    return;
+  }
+  if (e.key === 'Escape') { clearSelection(); return; }
+  if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); deleteSelection(); return; }
+  if (e.key === 'ArrowLeft')  { e.preventDefault(); nudgeSelection(-1, 0); return; }
+  if (e.key === 'ArrowRight') { e.preventDefault(); nudgeSelection(1, 0); return; }
+  if (e.key === 'ArrowUp')    { e.preventDefault(); nudgeSelection(0, 1); return; }
+  if (e.key === 'ArrowDown')  { e.preventDefault(); nudgeSelection(0, -1); return; }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') { e.preventDefault(); copySelection(); return; }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') { e.preventDefault(); pasteClipboard(); return; }
+});
+
 const tempoInput = document.getElementById('tempo');
-tempoInput.value = TEMPO_BPM;
+tempoInput.value = state.tempo;
 tempoInput.addEventListener('change', () => { state.tempo = parseInt(tempoInput.value, 10) || TEMPO_BPM; });
+
+document.getElementById('zoom-out').addEventListener('click', () => {
+  zoomIndex = Math.max(0, zoomIndex - 1);
+  applyZoom();
+});
+document.getElementById('zoom-in').addEventListener('click', () => {
+  zoomIndex = Math.min(ZOOM_LEVELS.length - 1, zoomIndex + 1);
+  applyZoom();
+});
 
 document.getElementById('reset').addEventListener('click', () => {
   state.tracks = loadFromGame();
   state.selected = null;
+  state.multiSelected.clear();
   render();
+});
+
+document.getElementById('loop-reset').addEventListener('click', () => {
+  state.loopStart = 0;
+  state.loopEnd = COLS;
+  updateLoopPositions();
 });
 
 // ---------- Save/load file (working format, separate from "Export code") ----------
@@ -919,6 +1307,7 @@ loadInput.addEventListener('change', async () => {
   state.tempo = typeof data.tempo === 'number' ? data.tempo : TEMPO_BPM;
   tempoInput.value = state.tempo;
   state.selected = null;
+  state.multiSelected.clear();
   render();
 });
 
@@ -1170,11 +1559,11 @@ function scheduleSnare(startAt) {
 // note can be merged with the note immediately following it (same rule as
 // AudioManager._scheduler in audio.js: only merges when the next note starts
 // exactly where this one ends, i.e. no gap/rest between them).
-function scheduleTrackNotes(notes, startAt, eighthSec, fromCol, oscType, durScale) {
+function scheduleTrackNotes(notes, startAt, eighthSec, fromCol, toCol, oscType, durScale) {
   const sorted = [...notes].sort((a, b) => a.start - b.start);
   for (let i = 0; i < sorted.length; i++) {
     const n = sorted[i];
-    if (n.start < fromCol) continue;
+    if (n.start < fromCol || n.start >= toCol) continue;
     const at = startAt + (n.start - fromCol) * eighthSec;
     if (n.porta) {
       const next = sorted[i + 1];
@@ -1188,12 +1577,12 @@ function scheduleTrackNotes(notes, startAt, eighthSec, fromCol, oscType, durScal
   }
 }
 
-function playOnce(startAt, eighthSec, fromCol) {
-  if (state.visible.lead) scheduleTrackNotes(state.tracks.lead, startAt, eighthSec, fromCol, 'square', 1);
-  if (state.visible.harmony) scheduleTrackNotes(state.tracks.harmony, startAt, eighthSec, fromCol, 'square', 0.9);
-  if (state.visible.bass) scheduleTrackNotes(state.tracks.bass, startAt, eighthSec, fromCol, 'triangle', 1);
+function playOnce(startAt, eighthSec, fromCol, toCol) {
+  if (state.visible.lead) scheduleTrackNotes(state.tracks.lead, startAt, eighthSec, fromCol, toCol, 'square', 1);
+  if (state.visible.harmony) scheduleTrackNotes(state.tracks.harmony, startAt, eighthSec, fromCol, toCol, 'square', 0.9);
+  if (state.visible.bass) scheduleTrackNotes(state.tracks.bass, startAt, eighthSec, fromCol, toCol, 'triangle', 1);
   if (state.visible.rhythm) {
-    for (const h of state.tracks.rhythm.filter(n => n.start >= fromCol)) {
+    for (const h of state.tracks.rhythm.filter(n => n.start >= fromCol && n.start < toCol)) {
       const at = startAt + (h.start - fromCol) * eighthSec;
       if (h.type === 'kick') scheduleKick(at);
       else if (h.type === 'snare') scheduleSnare(at);
@@ -1212,12 +1601,14 @@ function startPlaybackFrom(col) {
     if (!playing) return;
     const eighthSec = 60 / state.tempo / 2;
     const startAt = ctx.currentTime + 0.05;
-    playOnce(startAt, eighthSec, fromCol);
+    const looping = document.getElementById('loop').checked;
+    const toCol = looping ? state.loopEnd : COLS;
+    playOnce(startAt, eighthSec, fromCol, toCol);
     playStartCtxTime = startAt;
     playStartCol = fromCol;
-    const remainingDur = (COLS - fromCol) * eighthSec;
+    const remainingDur = Math.max(0.01, (toCol - fromCol) * eighthSec);
     loopTimer = setTimeout(() => {
-      if (document.getElementById('loop').checked) loop(0);
+      if (looping) loop(state.loopStart);
       else playing = false;
     }, remainingDur * 1000);
   }
@@ -1303,7 +1694,7 @@ document.getElementById('export').addEventListener('click', () => {
   box.select();
 });
 
-render();
+applyZoom();
 </script>
 </body>
 </html>
