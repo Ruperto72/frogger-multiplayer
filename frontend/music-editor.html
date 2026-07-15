@@ -1040,6 +1040,20 @@ document.getElementById('play').addEventListener('click', () => {
 document.getElementById('stop').addEventListener('click', () => {
   playing = false;
   clearTimeout(loopTimer);
+  if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+  // clearTimeout only stops the *next* batch from being scheduled — playOnce()
+  // already queued every note/hit in the current segment as absolutely-timed
+  // oscillators/buffer sources, which would otherwise keep playing out for up
+  // to a full loop. Closing the context kills all of that immediately. It's
+  // recreated (ensureCtx) on the next Play; caches tied to the old context
+  // (periodic waves are context-bound, unlike buffers, but both are cheap to
+  // rebuild) are cleared so nothing references the closed context.
+  if (ctx) {
+    ctx.close();
+    ctx = null;
+    noiseBuffer = null;
+    pulseWaves.clear();
+  }
   visualPlayhead = state.playhead;
   updatePlayheadPositions();
 });
