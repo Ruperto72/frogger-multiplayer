@@ -17,11 +17,16 @@
   </div>
   <button id="dl512">Ladda ner 512×512</button>
   <button id="dl192">Ladda ner 192×192</button>
+  <button id="dl512m">Ladda ner 512×512 maskable</button>
+  <button id="dl192m">Ladda ner 192×192 maskable</button>
 
   <script type="module">
     import { getGrid, getPalette } from './js/sprites.js';
 
-    function renderIcon(size) {
+    // fill: hur stor del av ytan spriten upptar. 0.8 för vanliga ikoner;
+    // 0.56 för maskable (Androids adaptiva masker beskär allt utanför den
+    // centrala säkerhetszonen, så spriten måste rymmas i en inskriven cirkel).
+    function renderIcon(size, fill = 0.8) {
       const canvas = document.createElement('canvas');
       canvas.width = size;
       canvas.height = size;
@@ -31,9 +36,9 @@
 
       const grid = getGrid('frog', 'up');
       const palette = getPalette('frog');
-      // Heltalsskala med ~10% marginal — bråkdels-pixlar ger annars tunna
+      // Heltalsskala — bråkdels-pixlar ger annars tunna
       // kantutjämningssömmar mellan cellerna.
-      const px = Math.floor((size * 0.8) / grid.length);
+      const px = Math.floor((size * fill) / grid.length);
       const margin = Math.floor((size - px * grid.length) / 2);
       for (let row = 0; row < grid.length; row++) {
         for (let col = 0; col < grid[row].length; col++) {
@@ -62,6 +67,12 @@
     });
     document.getElementById('dl192').addEventListener('click', () => {
       download(renderIcon(192), 'icon-192.png');
+    });
+    document.getElementById('dl512m').addEventListener('click', () => {
+      download(renderIcon(512, 0.56), 'icon-512-maskable.png');
+    });
+    document.getElementById('dl192m').addEventListener('click', () => {
+      download(renderIcon(192, 0.56), 'icon-192-maskable.png');
     });
   </script>
 </body>

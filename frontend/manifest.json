@@ -1,7 +1,9 @@
 {
+  "id": "./",
   "name": "Frog vs Toad",
   "short_name": "Frog vs Toad",
   "description": "Realtids-Frogger för två spelare — med turneringsläge.",
+  "lang": "sv",
   "start_url": "./",
   "scope": "./",
   "display": "fullscreen",
@@ -10,6 +12,8 @@
   "theme_color": "#111111",
   "icons": [
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-192-maskable.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }
