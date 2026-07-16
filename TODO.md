@@ -73,12 +73,14 @@ canvas. Kvar att göra:
 - Hold-to-repeat på knapparna (nu ger en tap ett drag)
 - Testa på riktiga enheter (iOS/Android) — knappstorlek och placering
   kan behöva justeras
-- PWA-manifest finns (`frontend/manifest.json`, display: fullscreen, ingen
-  service worker — medvetet, onlinespel behöver ingen offline-cache).
-  Ikon-wiring klar (`manifest.json`, `apple-touch-icon` i `index.html`,
-  `frontend/icon-generator.html`). Kvar: öppna `icon-generator.html` i en
-  webbläsare, ladda ner 192×192 + 512×512 PNG till `frontend/icons/` och
-  committa — utan filerna triggas inte Chromes installprompt
+- Installerbar som app på Android (WebAPK): `frontend/manifest.json`
+  (display: fullscreen, `id`, ikoner med både `any` och `maskable`) plus en
+  minimal service worker (`frontend/sw.js`, ren nätverks-passthrough utan
+  offline-cache — medvetet, onlinespel; SW:n finns enbart för Chromes
+  installbarhetskrav). Ikonerna i `frontend/icons/` (192/512 vanliga +
+  maskable, 16/32/48 favicons) och `frontend/favicon.ico` genereras från
+  grod-spriten via `icon-generator.html`. Kvar att göra: verifiera
+  installflödet på en riktig Android-enhet
 
 ## Övrigt
 

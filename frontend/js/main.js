@@ -48,6 +48,14 @@ soundToggle.addEventListener('click', () => {
 
 applyStatic();
 
+// Krävs för att spelet ska gå att installera som app på Android (WebAPK) —
+// sw.js är en ren nätverks-passthrough utan cache, se kommentaren där.
+// Sökvägen löses relativt sidan (index.html), så scopet blir appens rot
+// även under GitHub Pages underkatalog.
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => { /* install-stöd är best effort */ });
+}
+
 function loop() {
   startUi.update();
   lobbyUi.update();
