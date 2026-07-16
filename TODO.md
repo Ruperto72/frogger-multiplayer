@@ -75,10 +75,10 @@ canvas. Kvar att göra:
   kan behöva justeras
 - PWA-manifest finns (`frontend/manifest.json`, display: fullscreen, ingen
   service worker — medvetet, onlinespel behöver ingen offline-cache).
-  Ikon-wiring klar (`manifest.json`, `apple-touch-icon` i `index.html`,
-  `frontend/icon-generator.html`). Kvar: öppna `icon-generator.html` i en
-  webbläsare, ladda ner 192×192 + 512×512 PNG till `frontend/icons/` och
-  committa — utan filerna triggas inte Chromes installprompt
+  Ikonerna är på plats: `frontend/icons/` (192/512 för PWA/apple-touch,
+  16/32/48 favicons) plus `frontend/favicon.ico` i roten (täcker
+  webbläsarnas automatiska förfrågan även för dev-verktygssidorna), alla
+  genererade från grod-spriten via `icon-generator.html`
 
 ## Övrigt
 

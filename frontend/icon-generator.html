@@ -31,9 +31,10 @@
 
       const grid = getGrid('frog', 'up');
       const palette = getPalette('frog');
-      const margin = size * 0.1;
-      const cellSize = size - margin * 2;
-      const px = cellSize / grid.length;
+      // Heltalsskala med ~10% marginal — bråkdels-pixlar ger annars tunna
+      // kantutjämningssömmar mellan cellerna.
+      const px = Math.floor((size * 0.8) / grid.length);
+      const margin = Math.floor((size - px * grid.length) / 2);
       for (let row = 0; row < grid.length; row++) {
         for (let col = 0; col < grid[row].length; col++) {
           const v = grid[row][col];
