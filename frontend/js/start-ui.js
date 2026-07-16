@@ -11,6 +11,10 @@ export class StartUI {
     this._size   = document.getElementById('start-size');
     this._bestof = document.getElementById('start-bestof');
     this._error  = document.getElementById('start-error');
+    this._conn     = document.getElementById('start-conn');
+    this._connText = document.getElementById('start-conn-text');
+    this._buttons  = ['start-quick', 'start-create', 'start-join']
+      .map(id => document.getElementById(id));
 
     const savedName = typeof localStorage !== 'undefined' ? localStorage.getItem('name') : null;
     if (savedName) {
@@ -94,5 +98,19 @@ export class StartUI {
     if (!visible) return;
     const text = this._state.lastError ? t(`error.${this._state.lastError}`) : '';
     if (this._error.textContent !== text) this._error.textContent = text;
+
+    // Anslutningsindikator: backend (Render free tier) kan kallstarta i upp
+    // till en minut — visa tydligt när servern är uppe, och lås
+    // startknapparna tills dess (send() är ändå en no-op utan anslutning).
+    const online = this._state.connection === 'online';
+    const connText = t(online ? 'start.online' : 'start.connecting');
+    if (this._connText.textContent !== connText) {
+      this._connText.textContent = connText;
+      this._conn.classList.toggle('online', online);
+      this._conn.classList.toggle('connecting', !online);
+    }
+    for (const btn of this._buttons) {
+      if (btn.disabled === online) btn.disabled = !online;
+    }
   }
 }

@@ -4,6 +4,8 @@
 export const LANGS = {
   sv: {
     'start.namePlaceholder': 'Ditt namn',
+    'start.connecting': 'Ansluter till servern … (kan ta upp till en minut om den sover)',
+    'start.online': 'Servern är uppe — redo att spela!',
     'start.quick': 'Snabbmatch',
     'start.create': 'Skapa turnering',
     'start.join': 'Gå med',
@@ -61,6 +63,8 @@ export const LANGS = {
   },
   en: {
     'start.namePlaceholder': 'Your name',
+    'start.connecting': 'Connecting to the server … (may take up to a minute if it\'s asleep)',
+    'start.online': 'Server is up — ready to play!',
     'start.quick': 'Quick match',
     'start.create': 'Create tournament',
     'start.join': 'Join',

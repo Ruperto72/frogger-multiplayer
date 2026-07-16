@@ -12,6 +12,7 @@ export class Net {
     if (this._ws) {
       this._ws.close();
     }
+    this.state.connection = 'connecting';
     const url = location.hostname === 'localhost'
       ? 'ws://localhost:3000'
       : 'wss://frogger-multiplayer.onrender.com';
@@ -20,6 +21,7 @@ export class Net {
 
     this._ws.addEventListener('open', () => {
       this._wasOpen = true;
+      this.state.connection = 'online';
       console.log('Ansluten till server');
     });
 
@@ -29,6 +31,7 @@ export class Net {
     });
 
     this._ws.addEventListener('close', () => {
+      this.state.connection = 'connecting';
       if (this._wasOpen) {
         this._wasOpen = false;
         this.state.resetSession();

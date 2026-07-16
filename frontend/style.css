@@ -176,6 +176,37 @@ canvas {
   min-height: 1.2em;
 }
 
+/* Anslutningsindikator på startskärmen — visar när backend (Render-free-tier
+   kallstartar i upp till en minut) är uppe och spel går att starta. */
+.conn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+.conn-dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+.conn.connecting .conn-dot {
+  background: var(--arcade-amber);
+  box-shadow: 0 0 6px var(--arcade-amber-glow);
+  animation: conn-pulse 1.2s ease-in-out infinite;
+}
+.conn.connecting { color: var(--arcade-amber); }
+.conn.online .conn-dot {
+  background: var(--arcade-green);
+  box-shadow: 0 0 6px var(--arcade-green);
+}
+.conn.online { color: var(--arcade-green); }
+@keyframes conn-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
 .code-row strong {
   font-family: 'Press Start 2P', monospace;
   font-size: 1rem;
