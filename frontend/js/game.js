@@ -11,6 +11,7 @@ export class GameState {
   constructor(audio) {
     this._audio      = audio;
     this.mode        = null;   // null | 'quick' | 'tournament'
+    this.connection  = 'connecting'; // 'connecting' | 'online' — ägs av Net, rörs inte av resetSession
     this.profile     = { name: '' };
     this.tournament  = null;   // senaste tournament_state
     this.lastError   = null;
