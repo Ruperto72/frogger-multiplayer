@@ -43,6 +43,15 @@
   .track-toggle.rhythm  { color: var(--rhythm); }
   .tool-group, .active-track-group, .zoom-group, .history-group { display: flex; gap: 4px; align-items: center; }
   .zoom-group span { font-size: 12px; color: #bbb; min-width: 34px; text-align: center; }
+  .mixer { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .mixer .hint-label { font-size: 12px; color: #bbb; }
+  .mix-chan { display: flex; align-items: center; gap: 4px; font-size: 12px; }
+  .mix-chan input[type=range] { width: 72px; cursor: pointer; }
+  .mix-chan .mix-val { font-size: 11px; color: #bbb; min-width: 30px; text-align: right; }
+  .mix-chan[data-mix="lead"]    { color: var(--lead); }
+  .mix-chan[data-mix="harmony"] { color: var(--harmony); }
+  .mix-chan[data-mix="bass"]    { color: var(--bass); }
+  .mix-chan[data-mix="rhythm"]  { color: var(--rhythm); }
   button:disabled { opacity: 0.4; cursor: default; }
   .active-track-group .hint-label { font-size: 12px; color: #bbb; }
   .tool-group button.active { outline: 2px solid #fff; }
@@ -210,6 +219,13 @@
       range" to reset it to the whole song. The 🔍 buttons zoom the piano roll horizontally.
     </p>
     <p class="hint">
+      The <b>Mix</b> sliders set the relative volume of each channel (Lead/Harmony/Bass/Rhythm) —
+      the same numbers as the game's <code>MIX</code> constant. Drag while playing to rebalance
+      live (e.g. raise Rhythm if the beat is too quiet). "Export code" emits the matching
+      <code>export const MIX</code> line to paste into <code>audio.js</code>, and the mix is
+      saved with your <code>.json</code> file and autosave.
+    </p>
+    <p class="hint">
       "Save file" downloads what you're working on as a <code>.json</code> file, "Load file"
       reads such a file back in — separate from "Export code", which instead generates
       finished code to paste into
@@ -248,6 +264,13 @@
       <button data-active-track="rhythm">Rhythm</button>
     </div>
     <label>Tempo <input id="tempo" type="number" min="40" max="300" step="1"></label>
+    <div class="mixer" id="mixer">
+      <span class="hint-label">Mix:</span>
+      <label class="mix-chan" data-mix="lead">Lead <input type="range" data-mix-slider="lead" min="0" max="2" step="0.05"><span class="mix-val"></span></label>
+      <label class="mix-chan" data-mix="harmony">Harm <input type="range" data-mix-slider="harmony" min="0" max="2" step="0.05"><span class="mix-val"></span></label>
+      <label class="mix-chan" data-mix="bass">Bass <input type="range" data-mix-slider="bass" min="0" max="2" step="0.05"><span class="mix-val"></span></label>
+      <label class="mix-chan" data-mix="rhythm">Rhythm <input type="range" data-mix-slider="rhythm" min="0" max="2" step="0.05"><span class="mix-val"></span></label>
+    </div>
     <div class="zoom-group">
       <button id="zoom-out" title="Zoom out">🔍−</button>
       <span id="zoom-level">100%</span>
@@ -288,9 +311,19 @@
   <textarea id="exportBox" style="display:none" readonly></textarea>
 
 <script type="module">
-import { LEAD, HARMONY, BASS, RHYTHM, TEMPO_BPM } from './js/audio.js';
+import { LEAD, HARMONY, BASS, RHYTHM, TEMPO_BPM, MIX } from './js/audio.js';
 
-const COLS = 64;                 // 8 bars × 8 eighth-notes
+// Loop length in columns (eighth-notes), derived from the loaded song so the
+// editor follows the game — the tune is 32 bars (256 columns) now, but a
+// loaded file or an older draft may differ. Always a multiple of 8 (whole bars).
+let COLS = 64;
+const seqLength = (seq) => seq.reduce((s, n) => s + n.d, 0);
+function derivedCols(tracks) {
+  let max = 0;
+  for (const t of ['lead', 'harmony', 'bass']) for (const n of tracks[t] || []) max = Math.max(max, n.start + n.len);
+  for (const h of tracks.rhythm || []) max = Math.max(max, h.start + 1);
+  return Math.max(64, Math.ceil(max / 8) * 8);
+}
 const MIDI_MIN = 45, MIDI_MAX = 93; // ~4 octaves, comfortably covers the current range
 const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 const PITCH_TRACKS = ['lead', 'harmony', 'bass'];
@@ -377,6 +410,7 @@ function fromColumnHits(hits) {
 }
 
 function loadFromGame() {
+  COLS = Math.max(seqLength(LEAD), seqLength(HARMONY), seqLength(BASS), seqLength(RHYTHM));
   return {
     lead: toColumnNotes(LEAD),
     harmony: toColumnNotes(HARMONY),
@@ -395,7 +429,7 @@ function autosave() {
   clearTimeout(autosaveTimer);
   autosaveTimer = setTimeout(() => {
     try {
-      localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({ tempo: state.tempo, tracks: state.tracks }));
+      localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({ tempo: state.tempo, gains: state.gains, tracks: state.tracks }));
     } catch { /* storage disabled/full — autosave is best-effort */ }
   }, 400);
 }
@@ -414,6 +448,7 @@ function loadAutosaveIfPresent() {
 const state = {
   tracks: loadFromGame(),
   tempo: TEMPO_BPM,
+  gains: { ...MIX }, // relative per-channel volume (the game's MIX); editable via the mixer sliders
   visible: { lead: true, harmony: true, bass: true, rhythm: true },
   activeTrack: 'lead',  // 'lead' | 'harmony' | 'bass' | 'rhythm' — what the tools below affect
   tool: 'pen',           // 'pen' | 'eraser' | 'grab'
@@ -428,6 +463,11 @@ const autosaveDraft = loadAutosaveIfPresent();
 if (autosaveDraft && confirm('Found an unsaved draft from a previous session. Restore it?\n\n(Cancel discards it and loads the game\'s current song instead.)')) {
   state.tracks = autosaveDraft.tracks;
   state.tempo = typeof autosaveDraft.tempo === 'number' ? autosaveDraft.tempo : TEMPO_BPM;
+  if (autosaveDraft.gains && typeof autosaveDraft.gains === 'object') {
+    for (const ch of ['lead', 'harmony', 'bass', 'rhythm']) {
+      if (typeof autosaveDraft.gains[ch] === 'number') state.gains[ch] = autosaveDraft.gains[ch];
+    }
+  }
 } else if (autosaveDraft) {
   try { localStorage.removeItem(AUTOSAVE_KEY); } catch { /* ignore */ }
 }
@@ -675,6 +715,7 @@ function renderPitchRoll() {
   if (tracks.length === 0) { pitchPlayheadEl = null; pitchLoopEls = null; return; }
 
   const pitchCount = MIDI_MAX - MIDI_MIN + 1;
+  roll.style.gridTemplateColumns = `44px repeat(${COLS}, ${colPx}px)`;
   roll.style.gridTemplateRows = `${RULER_H}px repeat(${pitchCount * tracks.length}, ${SUBLANE_PX}px)`;
   buildRuler(roll);
   pitchLoopEls = buildLoopRegion(roll);
@@ -764,6 +805,7 @@ function renderRhythmRoll() {
   if (!state.visible.rhythm) { rhythmWrap.style.display = 'none'; rhythmPlayheadEl = null; rhythmLoopEls = null; return; }
   rhythmWrap.style.display = '';
   rhythmRoll.innerHTML = '';
+  rhythmRoll.style.gridTemplateColumns = `44px repeat(${COLS}, ${colPx}px)`;
   rhythmRoll.style.gridTemplateRows = `${RULER_H}px repeat(${RHYTHM_ROWS.length}, 15px)`;
   buildRuler(rhythmRoll);
   rhythmLoopEls = buildLoopRegion(rhythmRoll);
@@ -1365,6 +1407,30 @@ const tempoInput = document.getElementById('tempo');
 tempoInput.value = state.tempo;
 tempoInput.addEventListener('change', () => { state.tempo = parseInt(tempoInput.value, 10) || TEMPO_BPM; });
 
+// ---------- Mixer (per-channel volume) ----------
+// Sliders set state.gains[ch] (same numbers as the game's MIX). applyGains()
+// pushes the values live to the running channel gain nodes, so dragging while
+// playing changes the balance immediately — handy for the too-quiet rhythm.
+const mixSliders = {};
+function syncMixerUI() {
+  for (const ch of ['lead', 'harmony', 'bass', 'rhythm']) {
+    const slider = mixSliders[ch];
+    if (!slider) continue;
+    slider.value = state.gains[ch];
+    slider.parentElement.querySelector('.mix-val').textContent = Number(state.gains[ch]).toFixed(2);
+  }
+}
+for (const slider of document.querySelectorAll('[data-mix-slider]')) {
+  const ch = slider.dataset.mixSlider;
+  mixSliders[ch] = slider;
+  slider.addEventListener('input', () => {
+    state.gains[ch] = parseFloat(slider.value);
+    slider.parentElement.querySelector('.mix-val').textContent = state.gains[ch].toFixed(2);
+    applyGains();
+  });
+}
+syncMixerUI();
+
 document.getElementById('zoom-out').addEventListener('click', () => {
   zoomIndex = Math.max(0, zoomIndex - 1);
   applyZoom();
@@ -1376,6 +1442,9 @@ document.getElementById('zoom-in').addEventListener('click', () => {
 
 document.getElementById('reset').addEventListener('click', () => {
   state.tracks = loadFromGame();
+  state.gains = { ...MIX };
+  syncMixerUI();
+  applyGains();
   state.selected = null;
   state.multiSelected.clear();
   render();
@@ -1392,7 +1461,7 @@ document.getElementById('loop-reset').addEventListener('click', () => {
 // with internally) + tempo as JSON — lets you keep editing a song in progress
 // later, unlike the export box, which generates the finished code for audio.js.
 document.getElementById('save-file').addEventListener('click', () => {
-  const data = { version: 1, tempo: state.tempo, tracks: state.tracks };
+  const data = { version: 1, tempo: state.tempo, gains: state.gains, tracks: state.tracks };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1423,6 +1492,13 @@ loadInput.addEventListener('change', async () => {
   state.tracks = t;
   state.tempo = typeof data.tempo === 'number' ? data.tempo : TEMPO_BPM;
   tempoInput.value = state.tempo;
+  if (data.gains && typeof data.gains === 'object') {
+    for (const ch of ['lead', 'harmony', 'bass', 'rhythm']) {
+      if (typeof data.gains[ch] === 'number') state.gains[ch] = data.gains[ch];
+    }
+    syncMixerUI();
+    applyGains();
+  }
   state.selected = null;
   state.multiSelected.clear();
   render();
@@ -1431,9 +1507,33 @@ loadInput.addEventListener('change', async () => {
 // ---------- Playback (a simple one-shot scheduler, not the game's lookahead loop) ----------
 let ctx = null, loopTimer = null, playing = false;
 
+// Per-channel gain nodes mirroring the game's mix tree: notes/hits route
+// through their channel's gain into a master, so the mixer sliders set the
+// relative balance (and it matches the game's MIX). A conservative master
+// keeps headroom now that four channels can sound at once with boosted gains.
+let masterGain = null;
+const chanGain = { lead: null, harmony: null, bass: null, rhythm: null };
+
 function ensureCtx() {
   if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+  if (!masterGain) {
+    masterGain = ctx.createGain();
+    masterGain.gain.value = 0.45;
+    masterGain.connect(ctx.destination);
+    for (const ch of ['lead', 'harmony', 'bass', 'rhythm']) {
+      chanGain[ch] = ctx.createGain();
+      chanGain[ch].gain.value = state.gains[ch];
+      chanGain[ch].connect(masterGain);
+    }
+  }
   return ctx;
+}
+
+// Live-uppdatera kanalgainen medan man drar i ett reglage under uppspelning.
+function applyGains() {
+  for (const ch of ['lead', 'harmony', 'bass', 'rhythm']) {
+    if (chanGain[ch]) chanGain[ch].gain.value = state.gains[ch];
+  }
 }
 
 const pulseWaves = new Map();
@@ -1471,7 +1571,7 @@ function ensureDelay() {
     delay.connect(delayFeedback).connect(delay);
     delayWet = ctx.createGain();
     delayWet.gain.value = 0.5;
-    delay.connect(delayWet).connect(ctx.destination);
+    delay.connect(delayWet).connect(masterGain);
   }
   // Uppdateras varje anrop, inte bara vid skapandet — annars behåller ekot
   // det gamla tempots rytm efter ett tempobyte inom samma AudioContext.
@@ -1479,10 +1579,10 @@ function ensureDelay() {
   return delay;
 }
 
-// Routes a note's envelope gain to the destination (dry) and, if flagged, to
-// the bitcrush shaper and/or the shared echo bus. Shared by scheduleTone and
+// Routes a note's envelope gain to its channel (dry) and, if flagged, to the
+// bitcrush shaper and/or the shared echo bus. Shared by scheduleTone and
 // schedulePortamentoTone.
-function connectVoiceOutput(gain, note) {
+function connectVoiceOutput(gain, note, destGain) {
   let outputNode = gain;
   if (note.crush) {
     const shaper = ctx.createWaveShaper();
@@ -1490,11 +1590,11 @@ function connectVoiceOutput(gain, note) {
     gain.connect(shaper);
     outputNode = shaper;
   }
-  outputNode.connect(ctx.destination);
+  outputNode.connect(destGain);
   if (note.echo) outputNode.connect(ensureDelay());
 }
 
-function scheduleTone(note, startAt, dur, oscType) {
+function scheduleTone(note, startAt, dur, oscType, destGain) {
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
 
@@ -1547,7 +1647,7 @@ function scheduleTone(note, startAt, dur, oscType) {
     lfo.start(startAt); lfo.stop(startAt + dur);
   }
 
-  connectVoiceOutput(gain, note);
+  connectVoiceOutput(gain, note, destGain);
 
   osc.connect(gain);
   osc.start(startAt);
@@ -1564,7 +1664,7 @@ function scheduleTone(note, startAt, dur, oscType) {
 // note.freq to nextNote.freq across the boundary between the two notes,
 // mirroring AudioManager._schedulePortamentoTone in audio.js. The absorbed
 // next note's own effect flags are ignored, same rule as the game.
-function schedulePortamentoTone(note, nextNote, startAt, dur, nextDur, oscType, durScale = 1) {
+function schedulePortamentoTone(note, nextNote, startAt, dur, nextDur, oscType, destGain, durScale = 1) {
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
   const totalDur = (dur + nextDur) * durScale;
@@ -1599,7 +1699,7 @@ function schedulePortamentoTone(note, nextNote, startAt, dur, nextDur, oscType, 
     lfo.start(startAt); lfo.stop(startAt + totalDur);
   }
 
-  connectVoiceOutput(gain, note);
+  connectVoiceOutput(gain, note, destGain);
 
   osc.connect(gain);
   osc.start(startAt);
@@ -1614,7 +1714,7 @@ function scheduleKick(startAt) {
   gain.gain.setValueAtTime(0.0001, startAt);
   gain.gain.exponentialRampToValueAtTime(0.7, startAt + 0.008);
   gain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.12);
-  osc.connect(gain).connect(ctx.destination);
+  osc.connect(gain).connect(chanGain.rhythm);
   osc.start(startAt); osc.stop(startAt + 0.13);
 }
 
@@ -1632,7 +1732,7 @@ function scheduleHihat(startAt) {
   gain.gain.setValueAtTime(0.0001, startAt);
   gain.gain.exponentialRampToValueAtTime(0.6, startAt + 0.004);
   gain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.035);
-  src.connect(filter).connect(gain).connect(ctx.destination);
+  src.connect(filter).connect(gain).connect(chanGain.rhythm);
   src.start(startAt); src.stop(startAt + 0.04);
 }
 
@@ -1644,7 +1744,7 @@ function schedulePuka(startAt) {
   gain.gain.setValueAtTime(0.0001, startAt);
   gain.gain.exponentialRampToValueAtTime(1, startAt + 0.01);
   gain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.28);
-  osc.connect(gain).connect(ctx.destination);
+  osc.connect(gain).connect(chanGain.rhythm);
   osc.start(startAt); osc.stop(startAt + 0.3);
 }
 
@@ -1661,7 +1761,7 @@ function scheduleSnare(startAt) {
   noiseGain.gain.setValueAtTime(0.0001, startAt);
   noiseGain.gain.exponentialRampToValueAtTime(1, startAt + 0.004);
   noiseGain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.09);
-  src.connect(filter).connect(noiseGain).connect(ctx.destination);
+  src.connect(filter).connect(noiseGain).connect(chanGain.rhythm);
   src.start(startAt); src.stop(startAt + 0.1);
 
   const osc = ctx.createOscillator(), oscGain = ctx.createGain();
@@ -1671,7 +1771,7 @@ function scheduleSnare(startAt) {
   oscGain.gain.setValueAtTime(0.0001, startAt);
   oscGain.gain.exponentialRampToValueAtTime(0.5, startAt + 0.004);
   oscGain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.08);
-  osc.connect(oscGain).connect(ctx.destination);
+  osc.connect(oscGain).connect(chanGain.rhythm);
   osc.start(startAt); osc.stop(startAt + 0.09);
 }
 
@@ -1679,7 +1779,7 @@ function scheduleSnare(startAt) {
 // note can be merged with the note immediately following it (same rule as
 // AudioManager._scheduler in audio.js: only merges when the next note starts
 // exactly where this one ends, i.e. no gap/rest between them).
-function scheduleTrackNotes(notes, startAt, eighthSec, fromCol, toCol, oscType, durScale) {
+function scheduleTrackNotes(notes, startAt, eighthSec, fromCol, toCol, oscType, durScale, destGain) {
   const sorted = [...notes].sort((a, b) => a.start - b.start);
   for (let i = 0; i < sorted.length; i++) {
     const n = sorted[i];
@@ -1690,19 +1790,19 @@ function scheduleTrackNotes(notes, startAt, eighthSec, fromCol, toCol, oscType, 
       // next.start < toCol: a porta note just before the loop end must not
       // absorb a note beyond it and play past the loop boundary.
       if (next && next.start === n.start + n.len && next.start < toCol) {
-        schedulePortamentoTone(n, next, at, n.len * eighthSec, next.len * eighthSec, oscType, durScale);
+        schedulePortamentoTone(n, next, at, n.len * eighthSec, next.len * eighthSec, oscType, destGain, durScale);
         i++; // absorbed into the portamento tone above, don't schedule separately
         continue;
       }
     }
-    scheduleTone(n, at, n.len * eighthSec * durScale, oscType);
+    scheduleTone(n, at, n.len * eighthSec * durScale, oscType, destGain);
   }
 }
 
 function playOnce(startAt, eighthSec, fromCol, toCol) {
-  if (state.visible.lead) scheduleTrackNotes(state.tracks.lead, startAt, eighthSec, fromCol, toCol, 'square', 1);
-  if (state.visible.harmony) scheduleTrackNotes(state.tracks.harmony, startAt, eighthSec, fromCol, toCol, 'square', 0.9);
-  if (state.visible.bass) scheduleTrackNotes(state.tracks.bass, startAt, eighthSec, fromCol, toCol, 'triangle', 1);
+  if (state.visible.lead) scheduleTrackNotes(state.tracks.lead, startAt, eighthSec, fromCol, toCol, 'square', 1, chanGain.lead);
+  if (state.visible.harmony) scheduleTrackNotes(state.tracks.harmony, startAt, eighthSec, fromCol, toCol, 'square', 0.9, chanGain.harmony);
+  if (state.visible.bass) scheduleTrackNotes(state.tracks.bass, startAt, eighthSec, fromCol, toCol, 'triangle', 1, chanGain.bass);
   if (state.visible.rhythm) {
     for (const h of state.tracks.rhythm.filter(n => n.start >= fromCol && n.start < toCol)) {
       const at = startAt + (h.start - fromCol) * eighthSec;
@@ -1810,7 +1910,8 @@ document.getElementById('export').addEventListener('click', () => {
     exportTrack('BASS', fromColumnNotes(state.tracks.bass), false),
     exportTrack('RHYTHM', fromColumnHits(state.tracks.rhythm), true)
   ].join('\n\n');
-  box.value = `// Tempo: ${state.tempo} BPM — also update TEMPO_BPM in audio.js if it changed.\n\n${code}`;
+  const mix = `export const MIX = { lead: ${state.gains.lead}, harmony: ${state.gains.harmony}, bass: ${state.gains.bass}, rhythm: ${state.gains.rhythm} };`;
+  box.value = `// Tempo: ${state.tempo} BPM — also update TEMPO_BPM in audio.js if it changed.\n\n${mix}\n\n${code}`;
   box.style.display = 'block';
   box.focus();
   box.select();
