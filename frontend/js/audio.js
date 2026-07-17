@@ -11,118 +11,184 @@ const SCHEDULE_AHEAD = 0.1;  // hur långt fram (sek) den lägger noter i kön
 
 // Not-frekvenser (Hz), G-dur — F blir F# via förtecknet.
 const B3 = 246.94;
-const D4 = 293.66, E4 = 329.63, Fs4 = 369.99, G4 = 392.00, A4 = 440.00, B4 = 493.88;
+const C4 = 261.63, D4 = 293.66, E4 = 329.63, Fs4 = 369.99, G4 = 392.00, A4 = 440.00, B4 = 493.88;
 const C5 = 523.25, D5 = 587.33, E5 = 659.25, Fs5 = 739.99, G5 = 783.99, A5 = 880.00, B5 = 987.77;
-const G3 = 196.00, A3 = 220.00, D3 = 146.83;
-const D6 = 1174.66;
+const C3 = 130.81, D3 = 146.83, E3 = 164.81, Fs3 = 185.00, G3 = 196.00, A3 = 220.00;
+const C6 = 1046.50, D6 = 1174.66;
 const REST = 0;
 
-// "Froggy Hop" — 8 takter, finslipade i ABC-notation och förhandslyssnade
-// innan de skrevs om till frekvens/notvärde-par här. d = längd i åttondelar.
+// Relativ kanalvolym (mix). Samma tal används av spelet (AudioManager,
+// gånger musicGain-mastern) och av music-editor.html — så balansen är
+// densamma på båda ställena. Rytmen är lyft (1.4) så trummorna hörs
+// tydligt under den täta melodin. Redigerbar via reglagen i editorn.
+export const MIX = { lead: 0.9, harmony: 0.5, bass: 0.7, rhythm: 1.4 };
+
+// "Froggy Hop" — 32 takter (4× originalet), komponerad i fyra delar som
+// byggs upp allt eftersom: del 1 (takt 1-8) = originaltemat med glest
+// ackompanjemang (stämma tyst, gles bas/rytm); del 2 (9-16) fylligare med
+// nya ackordfärger (C, Em, Am) och tjockare puls; del 3 (17-24) drivande
+// utveckling i moll-färg som når styckets högsta toner (C6/D6) med mest grus;
+// del 4 (25-32) klimax där alla effekter staplas, följt av en nedtrappning
+// och en tunn dominant-turnaround i takt 32 som leder mjukt tillbaka in i
+// takt 1 (loopen). d = längd i åttondelar; 8 per takt, 256 totalt per spår.
 // Valfria effektflaggor per not (se _scheduleTone/_schedulePortamentoTone):
 // `bend` glider tonhöjden mot målfrekvensen under notens sista hälft;
 // `vib` = vibrato (tonhöjds-LFO); `trem` = tremolo (volym-LFO); `duty` =
-// pulsbredd 0–1 för fyrkantsröster (0.5 = vanlig "square"); `arp` = lista med
+// pulsbredd 0-1 för fyrkantsröster (0.5 = vanlig "square"); `arp` = lista med
 // halvtonsoffset som notens grundton snabbt växlar med (chip-ackord);
 // `porta` = portamento, en obruten legato-glidning in i nästa nots attack
-// utan ny retrigger (skild från `bend`, som glider mot ett mål och sedan
-// släpper som vanligt inom samma not — utesluter bend/arp på samma not);
-// `crush` = bitcrush (kvantiserar amplituden via en WaveShaperNode för ett
-// råare, nedsamplat ljud); `echo` = skickar noten till en delad eko-buss
-// (feedback-DelayNode); `chorus` = en andra, lätt feldstämd oscillator läggs
-// ovanpå för ett tjockare ljud (hoppas över vid arpeggio). Bara använt på
-// enstaka, utvalda noter så det känns som kryddor, inte ett genomgående
-// effektlager.
+// utan ny retrigger (skild från `bend`); `crush` = bitcrush (WaveShaperNode);
+// `echo` = skickar noten till en delad eko-buss (feedback-DelayNode);
+// `chorus` = en andra, lätt feldstämd oscillator ovanpå. Effekterna används
+// som kryddor på utvalda noter, tätare och mer intensivt ju längre in i
+// styckets uppbyggnad man kommer.
 export const LEAD = [
-  // Takt 1 — tremolo på den hållna avslutningstonen
-  { f: G4,  d: 1 }, { f: B4,  d: 1 }, { f: D5,  d: 1 }, { f: B4,  d: 1 },
-  { f: G4,  d: 1 }, { f: B4,  d: 1 }, { f: D5,  d: 2, trem: true },
-  // Takt 2 — scoop upp i höjdpunkten (D5→G5), tunnare puls + bitcrush-grus
-  // på toppnoten, chorus tjockar till den hållna sluttonen (speglar takt 6)
-  { f: G4,  d: 1 }, { f: B4,  d: 1 }, { f: D5,  d: 1, bend: G5 }, { f: G5,  d: 1, duty: 0.25, crush: true },
-  { f: E5,  d: 1 }, { f: D5,  d: 1 }, { f: B4,  d: 2, chorus: true },
-  // Takt 3 — sista steget glider legato (portamento, ingen ny attack) ner i
-  // den hållna sluttonen, med vibrato över hela den sammanslagna tonen
-  { f: Fs5, d: 1 }, { f: E5,  d: 1 }, { f: D5,  d: 1 }, { f: B4,  d: 1 },
-  { f: A4,  d: 1 }, { f: G4,  d: 1, vib: true, porta: true }, { f: Fs4, d: 2 },
-  // Takt 4 — halvkadens, groda som väntar — vibrato på väntetonerna och eko
-  // som studsar in i pauserna efter dem
-  { f: D4,   d: 2, vib: true, echo: true }, { f: REST, d: 2 },
-  { f: B4,   d: 2, vib: true, echo: true }, { f: REST, d: 2 },
-  // Takt 5 — tremolo på den hållna avslutningstonen, speglar takt 1
-  { f: D5,  d: 1 }, { f: Fs5, d: 1 }, { f: A5,  d: 1 }, { f: Fs5, d: 1 },
-  { f: D5,  d: 1 }, { f: Fs5, d: 1 }, { f: A5,  d: 2, trem: true },
-  // Takt 6 — scoop upp mot styckets högsta ton (A5→B5), tunnare puls +
-  // bitcrush-grus på toppen, chorus på sluttonen (speglar takt 2)
-  { f: D5,  d: 1 }, { f: Fs5, d: 1 }, { f: A5,  d: 1, bend: B5 }, { f: B5,  d: 1, duty: 0.25, crush: true },
-  { f: G5,  d: 1 }, { f: Fs5, d: 1 }, { f: D5,  d: 2, chorus: true },
-  // Takt 7 — sista steget glider legato ner i sluttonen (speglar takt 3)
-  { f: A5,  d: 1 }, { f: G5,  d: 1 }, { f: Fs5, d: 1 }, { f: D5,  d: 1 },
-  { f: B4,  d: 1 }, { f: A4,  d: 1, vib: true, porta: true }, { f: G4, d: 2 },
-  // Takt 8 — final: ekot fyller pausen efter grundtonen, kort chip-ackord
-  // (D-durtreklang) med bitcrush-grus leder in i sista tonen, som glider
-  // upp mot kvinten med chorus-tjocklek inför loopens omtag
-  { f: G4,   d: 2, echo: true }, { f: REST, d: 2 },
-  { f: D4,   d: 2, arp: [4, 7], crush: true }, { f: G4,  d: 2, bend: D5, chorus: true }
+  { f: G4, d: 1 }, { f: B4, d: 1 }, { f: D5, d: 1 }, { f: B4, d: 1 }, { f: G4, d: 1 }, { f: B4, d: 1 }, { f: D5, d: 2, trem: true }, // takt 1
+  { f: G4, d: 1 }, { f: B4, d: 1 }, { f: D5, d: 1, bend: G5 }, { f: G5, d: 1, duty: 0.25, crush: true }, { f: E5, d: 1 }, { f: D5, d: 1 }, { f: B4, d: 2, chorus: true }, // takt 2
+  { f: Fs5, d: 1 }, { f: E5, d: 1 }, { f: D5, d: 1 }, { f: B4, d: 1 }, { f: A4, d: 1 }, { f: G4, d: 1, vib: true, porta: true }, { f: Fs4, d: 2 }, // takt 3
+  { f: D4, d: 2, vib: true, echo: true }, { f: REST, d: 2 }, { f: B4, d: 2, vib: true, echo: true }, { f: REST, d: 2 }, // takt 4
+  { f: D5, d: 1 }, { f: Fs5, d: 1 }, { f: A5, d: 1 }, { f: Fs5, d: 1 }, { f: D5, d: 1 }, { f: Fs5, d: 1 }, { f: A5, d: 2, trem: true }, // takt 5
+  { f: D5, d: 1 }, { f: Fs5, d: 1 }, { f: A5, d: 1, bend: B5 }, { f: B5, d: 1, duty: 0.25, crush: true }, { f: G5, d: 1 }, { f: Fs5, d: 1 }, { f: D5, d: 2, chorus: true }, // takt 6
+  { f: A5, d: 1 }, { f: G5, d: 1 }, { f: Fs5, d: 1 }, { f: D5, d: 1 }, { f: B4, d: 1 }, { f: A4, d: 1, vib: true, porta: true }, { f: G4, d: 2 }, // takt 7
+  { f: G4, d: 2, echo: true }, { f: REST, d: 2 }, { f: D4, d: 2, arp: [4, 7], crush: true }, { f: G4, d: 2, bend: D5, chorus: true }, // takt 8
+  { f: B4, d: 1 }, { f: D5, d: 1 }, { f: G5, d: 1 }, { f: D5, d: 1 }, { f: B4, d: 1 }, { f: D5, d: 1 }, { f: G5, d: 2, duty: 0.5, chorus: true }, // takt 9
+  { f: E5, d: 1 }, { f: D5, d: 1 }, { f: B4, d: 1 }, { f: G4, d: 1 }, { f: A4, d: 1 }, { f: B4, d: 1 }, { f: E5, d: 2, vib: true }, // takt 10
+  { f: C5, d: 1 }, { f: E5, d: 1 }, { f: G5, d: 1 }, { f: E5, d: 1 }, { f: C5, d: 1 }, { f: E5, d: 1 }, { f: G5, d: 2, duty: 0.5 }, // takt 11
+  { f: D5, d: 1 }, { f: B4, d: 1 }, { f: G4, d: 1 }, { f: B4, d: 1 }, { f: D5, d: 1 }, { f: G5, d: 1 }, { f: D5, d: 2, chorus: true }, // takt 12
+  { f: A4, d: 1 }, { f: C5, d: 1 }, { f: E5, d: 1 }, { f: C5, d: 1 }, { f: A4, d: 1 }, { f: C5, d: 1 }, { f: E5, d: 2, vib: true }, // takt 13
+  { f: Fs5, d: 1 }, { f: E5, d: 1 }, { f: D5, d: 1 }, { f: A4, d: 1 }, { f: D5, d: 1 }, { f: Fs5, d: 1 }, { f: A5, d: 2, trem: true }, // takt 14
+  { f: G5, d: 1 }, { f: Fs5, d: 1 }, { f: E5, d: 1 }, { f: D5, d: 1 }, { f: B4, d: 1 }, { f: G4, d: 1 }, { f: D5, d: 2 }, // takt 15
+  { f: A4, d: 1 }, { f: B4, d: 1 }, { f: D5, d: 1 }, { f: E5, d: 1 }, { f: Fs5, d: 1 }, { f: G5, d: 1 }, { f: A5, d: 2, bend: B5, crush: true }, // takt 16
+  { f: E5, d: 1 }, { f: G5, d: 1 }, { f: B5, d: 1 }, { f: G5, d: 1 }, { f: E5, d: 1 }, { f: G5, d: 1 }, { f: B5, d: 2, duty: 0.25, crush: true }, // takt 17
+  { f: B5, d: 1 }, { f: A5, d: 1 }, { f: G5, d: 1 }, { f: Fs5, d: 1 }, { f: E5, d: 1 }, { f: D5, d: 1 }, { f: E5, d: 2, vib: true }, // takt 18
+  { f: C5, d: 1 }, { f: E5, d: 1 }, { f: G5, d: 1 }, { f: B5, d: 1 }, { f: C6, d: 1, crush: true }, { f: G5, d: 1 }, { f: E5, d: 2 }, // takt 19
+  { f: D5, d: 1 }, { f: Fs5, d: 1 }, { f: A5, d: 1 }, { f: D6, d: 1, trem: true, crush: true }, { f: A5, d: 1 }, { f: Fs5, d: 1 }, { f: D5, d: 2 }, // takt 20
+  { f: G5, d: 1 }, { f: D5, d: 1 }, { f: B4, d: 1 }, { f: G4, d: 1 }, { f: B4, d: 1 }, { f: D5, d: 1 }, { f: G5, d: 2, chorus: true }, // takt 21
+  { f: E5, d: 1 }, { f: D5, d: 1 }, { f: B4, d: 1 }, { f: A4, d: 1 }, { f: G4, d: 1 }, { f: A4, d: 1 }, { f: B4, d: 2, vib: true }, // takt 22
+  { f: A4, d: 1 }, { f: C5, d: 1 }, { f: E5, d: 1 }, { f: A5, d: 1 }, { f: E5, d: 1 }, { f: C5, d: 1 }, { f: A4, d: 2, porta: true }, // takt 23
+  { f: D5, d: 2 }, { f: A4, d: 1 }, { f: Fs4, d: 1 }, { f: A4, d: 1 }, { f: D5, d: 1 }, { f: A5, d: 2, bend: B5, echo: true }, // takt 24
+  { f: G5, d: 1 }, { f: A5, d: 1 }, { f: B5, d: 1 }, { f: D6, d: 2, trem: true, crush: true, chorus: true }, { f: B5, d: 1 }, { f: A5, d: 1 }, { f: G5, d: 1 }, // takt 25
+  { f: C6, d: 2, trem: true, chorus: true }, { f: B5, d: 1 }, { f: A5, d: 1 }, { f: G5, d: 1 }, { f: E5, d: 1 }, { f: G5, d: 2 }, // takt 26
+  { f: D5, d: 1 }, { f: G5, d: 1 }, { f: D5, d: 1 }, { f: B4, d: 1 }, { f: G4, d: 1 }, { f: B4, d: 1 }, { f: D5, d: 2, echo: true }, // takt 27
+  { f: E5, d: 1 }, { f: D5, d: 1 }, { f: B4, d: 1 }, { f: G4, d: 1 }, { f: E4, d: 1 }, { f: G4, d: 1 }, { f: B4, d: 2, vib: true }, // takt 28
+  { f: C5, d: 1 }, { f: E5, d: 1 }, { f: D5, d: 1 }, { f: C5, d: 1 }, { f: A4, d: 1 }, { f: C5, d: 1 }, { f: E5, d: 2 }, // takt 29
+  { f: D5, d: 1 }, { f: B4, d: 1 }, { f: G4, d: 1 }, { f: D4, d: 1 }, { f: G4, d: 1 }, { f: B4, d: 1 }, { f: D5, d: 2, chorus: true }, // takt 30
+  { f: A4, d: 1 }, { f: Fs4, d: 1 }, { f: D4, d: 1 }, { f: Fs4, d: 1 }, { f: A4, d: 1 }, { f: D5, d: 1 }, { f: Fs5, d: 2, arp: [4, 7] }, // takt 31
+  { f: G4, d: 2, echo: true }, { f: REST, d: 2 }, { f: A4, d: 1 }, { f: B4, d: 1 }, { f: D5, d: 2, chorus: true }, // takt 32
 ];
 
-// Stämma — parallell diatonisk ters under LEAD (G→E, A→F#, B→G, D→B, E→C,
-// F#→D), samma rytm som LEAD not för not.
+// Stämma — diatonisk ters under LEAD (tyst under den glesa intron, takt
+// 1-4). Odekorerad, precis som originalet.
 export const HARMONY = [
-  { f: E4,  d: 1 }, { f: G4,  d: 1 }, { f: B4,  d: 1 }, { f: G4,  d: 1 },
-  { f: E4,  d: 1 }, { f: G4,  d: 1 }, { f: B4,  d: 2 },
-
-  { f: E4,  d: 1 }, { f: G4,  d: 1 }, { f: B4,  d: 1 }, { f: E5,  d: 1 },
-  { f: C5,  d: 1 }, { f: B4,  d: 1 }, { f: G4,  d: 2 },
-
-  { f: D5,  d: 1 }, { f: C5,  d: 1 }, { f: B4,  d: 1 }, { f: G4,  d: 1 },
-  { f: Fs4, d: 1 }, { f: E4,  d: 1 }, { f: D4,  d: 2 },
-
-  { f: B3,   d: 2 }, { f: REST, d: 2 }, { f: G4,  d: 2 }, { f: REST, d: 2 },
-
-  { f: B4,  d: 1 }, { f: D5,  d: 1 }, { f: Fs5, d: 1 }, { f: D5,  d: 1 },
-  { f: B4,  d: 1 }, { f: D5,  d: 1 }, { f: Fs5, d: 2 },
-
-  { f: B4,  d: 1 }, { f: D5,  d: 1 }, { f: Fs5, d: 1 }, { f: G5,  d: 1 },
-  { f: E5,  d: 1 }, { f: D5,  d: 1 }, { f: B4,  d: 2 },
-
-  { f: Fs5, d: 1 }, { f: E5,  d: 1 }, { f: D5,  d: 1 }, { f: B4,  d: 1 },
-  { f: G4,  d: 1 }, { f: Fs4, d: 1 }, { f: E4,  d: 2 },
-
-  { f: E4,   d: 2 }, { f: REST, d: 2 }, { f: B3,  d: 2 }, { f: E4,  d: 2 }
+  { f: REST, d: 8 }, // takt 1
+  { f: REST, d: 8 }, // takt 2
+  { f: REST, d: 8 }, // takt 3
+  { f: REST, d: 8 }, // takt 4
+  { f: B4, d: 1 }, { f: D5, d: 1 }, { f: Fs5, d: 1 }, { f: D5, d: 1 }, { f: B4, d: 1 }, { f: D5, d: 1 }, { f: Fs5, d: 2 }, // takt 5
+  { f: B4, d: 1 }, { f: D5, d: 1 }, { f: Fs5, d: 1 }, { f: G5, d: 1 }, { f: E5, d: 1 }, { f: D5, d: 1 }, { f: B4, d: 2 }, // takt 6
+  { f: Fs5, d: 1 }, { f: E5, d: 1 }, { f: D5, d: 1 }, { f: B4, d: 1 }, { f: G4, d: 1 }, { f: Fs4, d: 1 }, { f: E4, d: 2 }, // takt 7
+  { f: E4, d: 2 }, { f: REST, d: 2 }, { f: B3, d: 2 }, { f: E4, d: 2 }, // takt 8
+  { f: G4, d: 1 }, { f: B4, d: 1 }, { f: E5, d: 1 }, { f: B4, d: 1 }, { f: G4, d: 1 }, { f: B4, d: 1 }, { f: E5, d: 2 }, // takt 9
+  { f: C5, d: 1 }, { f: B4, d: 1 }, { f: G4, d: 1 }, { f: E4, d: 1 }, { f: Fs4, d: 1 }, { f: G4, d: 1 }, { f: C5, d: 2 }, // takt 10
+  { f: A4, d: 1 }, { f: C5, d: 1 }, { f: E5, d: 1 }, { f: C5, d: 1 }, { f: A4, d: 1 }, { f: C5, d: 1 }, { f: E5, d: 2 }, // takt 11
+  { f: B4, d: 1 }, { f: G4, d: 1 }, { f: E4, d: 1 }, { f: G4, d: 1 }, { f: B4, d: 1 }, { f: E5, d: 1 }, { f: B4, d: 2 }, // takt 12
+  { f: Fs4, d: 1 }, { f: A4, d: 1 }, { f: C5, d: 1 }, { f: A4, d: 1 }, { f: Fs4, d: 1 }, { f: A4, d: 1 }, { f: C5, d: 2 }, // takt 13
+  { f: D5, d: 1 }, { f: C5, d: 1 }, { f: B4, d: 1 }, { f: Fs4, d: 1 }, { f: B4, d: 1 }, { f: D5, d: 1 }, { f: Fs5, d: 2 }, // takt 14
+  { f: E5, d: 1 }, { f: D5, d: 1 }, { f: C5, d: 1 }, { f: B4, d: 1 }, { f: G4, d: 1 }, { f: E4, d: 1 }, { f: B4, d: 2 }, // takt 15
+  { f: Fs4, d: 1 }, { f: G4, d: 1 }, { f: B4, d: 1 }, { f: C5, d: 1 }, { f: D5, d: 1 }, { f: E5, d: 1 }, { f: Fs5, d: 2 }, // takt 16
+  { f: C5, d: 1 }, { f: E5, d: 1 }, { f: G5, d: 1 }, { f: E5, d: 1 }, { f: C5, d: 1 }, { f: E5, d: 1 }, { f: G5, d: 2 }, // takt 17
+  { f: G5, d: 1 }, { f: Fs5, d: 1 }, { f: E5, d: 1 }, { f: D5, d: 1 }, { f: C5, d: 1 }, { f: B4, d: 1 }, { f: C5, d: 2 }, // takt 18
+  { f: A4, d: 1 }, { f: C5, d: 1 }, { f: E5, d: 1 }, { f: G5, d: 1 }, { f: A5, d: 1 }, { f: E5, d: 1 }, { f: C5, d: 2 }, // takt 19
+  { f: B4, d: 1 }, { f: D5, d: 1 }, { f: Fs5, d: 1 }, { f: B5, d: 1 }, { f: Fs5, d: 1 }, { f: D5, d: 1 }, { f: B4, d: 2 }, // takt 20
+  { f: E5, d: 1 }, { f: B4, d: 1 }, { f: G4, d: 1 }, { f: E4, d: 1 }, { f: G4, d: 1 }, { f: B4, d: 1 }, { f: E5, d: 2 }, // takt 21
+  { f: C5, d: 1 }, { f: B4, d: 1 }, { f: G4, d: 1 }, { f: Fs4, d: 1 }, { f: E4, d: 1 }, { f: Fs4, d: 1 }, { f: G4, d: 2 }, // takt 22
+  { f: Fs4, d: 1 }, { f: A4, d: 1 }, { f: C5, d: 1 }, { f: Fs5, d: 1 }, { f: C5, d: 1 }, { f: A4, d: 1 }, { f: Fs4, d: 2 }, // takt 23
+  { f: B4, d: 2 }, { f: Fs4, d: 1 }, { f: D4, d: 1 }, { f: Fs4, d: 1 }, { f: B4, d: 1 }, { f: Fs5, d: 2 }, // takt 24
+  { f: E5, d: 1 }, { f: Fs5, d: 1 }, { f: G5, d: 1 }, { f: B5, d: 2 }, { f: G5, d: 1 }, { f: Fs5, d: 1 }, { f: E5, d: 1 }, // takt 25
+  { f: A5, d: 2 }, { f: G5, d: 1 }, { f: Fs5, d: 1 }, { f: E5, d: 1 }, { f: C5, d: 1 }, { f: E5, d: 2 }, // takt 26
+  { f: B4, d: 1 }, { f: E5, d: 1 }, { f: B4, d: 1 }, { f: G4, d: 1 }, { f: E4, d: 1 }, { f: G4, d: 1 }, { f: B4, d: 2 }, // takt 27
+  { f: C5, d: 1 }, { f: B4, d: 1 }, { f: G4, d: 1 }, { f: E4, d: 1 }, { f: C4, d: 1 }, { f: E4, d: 1 }, { f: G4, d: 2 }, // takt 28
+  { f: A4, d: 1 }, { f: C5, d: 1 }, { f: B4, d: 1 }, { f: A4, d: 1 }, { f: Fs4, d: 1 }, { f: A4, d: 1 }, { f: C5, d: 2 }, // takt 29
+  { f: B4, d: 1 }, { f: G4, d: 1 }, { f: E4, d: 1 }, { f: B3, d: 1 }, { f: E4, d: 1 }, { f: G4, d: 1 }, { f: B4, d: 2 }, // takt 30
+  { f: Fs4, d: 1 }, { f: D4, d: 1 }, { f: B3, d: 1 }, { f: D4, d: 1 }, { f: Fs4, d: 1 }, { f: B4, d: 1 }, { f: D5, d: 2 }, // takt 31
+  { f: E4, d: 2 }, { f: REST, d: 2 }, { f: Fs4, d: 1 }, { f: G4, d: 1 }, { f: B4, d: 2 }, // takt 32
 ];
 
-// Basgång — "oom-pah" (grundton/kvint) som följer ackorden G–G–D–G,
-// två gånger. Ackordvalet matchar tonerna i LEAD/HARMONY (ingen C-ackord
-// behövs — E/C som dyker upp i stämman blir naturliga genomgångstoner
-// ovanpå G-basen istället, se designspecen).
+// Basgång (triangel) — glest plockad rot i intron (takt 1-4), oom-pah
+// (rot/kvint) i mittpartierna, drivande åttondelsbas i utvecklingen
+// (17-24), och en tunn dominant (D) i takt 32 som resolverar till G i loopen.
 export const BASS = [
-  { f: G3, d: 2 }, { f: D4, d: 2 }, { f: G3, d: 2 }, { f: D4, d: 2 }, // takt 1 (G)
-  { f: G3, d: 2 }, { f: D4, d: 2 }, { f: G3, d: 2 }, { f: D4, d: 2 }, // takt 2 (G)
-  { f: D3, d: 2 }, { f: A3, d: 2 }, { f: D3, d: 2 }, { f: A3, d: 2 }, // takt 3 (D)
-  { f: G3, d: 2 }, { f: REST, d: 2 }, { f: G3, d: 2 }, { f: REST, d: 2 }, // takt 4 (G, väntar)
-  { f: G3, d: 2 }, { f: D4, d: 2 }, { f: G3, d: 2 }, { f: D4, d: 2 }, // takt 5 (G)
-  { f: G3, d: 2 }, { f: D4, d: 2 }, { f: G3, d: 2 }, { f: D4, d: 2 }, // takt 6 (G)
-  { f: D3, d: 2 }, { f: A3, d: 2 }, { f: D3, d: 2 }, { f: A3, d: 2 }, // takt 7 (D)
-  { f: G3, d: 2 }, { f: REST, d: 2 }, { f: G3, d: 2 }, { f: G3, d: 2 }  // takt 8 (G, final)
+  { f: G3, d: 2 }, { f: REST, d: 6 }, // takt 1
+  { f: G3, d: 2 }, { f: REST, d: 6 }, // takt 2
+  { f: D3, d: 2 }, { f: REST, d: 6 }, // takt 3
+  { f: G3, d: 2 }, { f: REST, d: 6 }, // takt 4
+  { f: G3, d: 2 }, { f: D4, d: 2 }, { f: G3, d: 2 }, { f: D4, d: 2 }, // takt 5
+  { f: G3, d: 2 }, { f: D4, d: 2 }, { f: G3, d: 2 }, { f: D4, d: 2 }, // takt 6
+  { f: D3, d: 2 }, { f: A3, d: 2 }, { f: D3, d: 2 }, { f: A3, d: 2 }, // takt 7
+  { f: G3, d: 2 }, { f: REST, d: 2 }, { f: G3, d: 2 }, { f: G3, d: 2 }, // takt 8
+  { f: G3, d: 2 }, { f: D4, d: 2 }, { f: G3, d: 2 }, { f: D4, d: 2 }, // takt 9
+  { f: E3, d: 2 }, { f: B3, d: 2 }, { f: E3, d: 2 }, { f: B3, d: 2 }, // takt 10
+  { f: C3, d: 2 }, { f: G3, d: 2 }, { f: C3, d: 2 }, { f: G3, d: 2 }, // takt 11
+  { f: G3, d: 2 }, { f: D4, d: 2 }, { f: G3, d: 2 }, { f: D4, d: 2 }, // takt 12
+  { f: A3, d: 2 }, { f: E4, d: 2 }, { f: A3, d: 2 }, { f: E4, d: 2 }, // takt 13
+  { f: D3, d: 2 }, { f: A3, d: 2 }, { f: D3, d: 2 }, { f: A3, d: 2 }, // takt 14
+  { f: G3, d: 2 }, { f: D4, d: 2 }, { f: G3, d: 2 }, { f: D4, d: 2 }, // takt 15
+  { f: D3, d: 2 }, { f: A3, d: 2 }, { f: D3, d: 2 }, { f: A3, d: 2 }, // takt 16
+  { f: E3, d: 1 }, { f: B3, d: 1 }, { f: E3, d: 1 }, { f: B3, d: 1 }, { f: E3, d: 1 }, { f: B3, d: 1 }, { f: E3, d: 1 }, { f: B3, d: 1 }, // takt 17
+  { f: E3, d: 1 }, { f: B3, d: 1 }, { f: E3, d: 1 }, { f: B3, d: 1 }, { f: E3, d: 1 }, { f: B3, d: 1 }, { f: E3, d: 1 }, { f: B3, d: 1 }, // takt 18
+  { f: C3, d: 1 }, { f: G3, d: 1 }, { f: C3, d: 1 }, { f: G3, d: 1 }, { f: C3, d: 1 }, { f: G3, d: 1 }, { f: C3, d: 1 }, { f: G3, d: 1 }, // takt 19
+  { f: D3, d: 1 }, { f: A3, d: 1 }, { f: D3, d: 1 }, { f: A3, d: 1 }, { f: D3, d: 1 }, { f: A3, d: 1 }, { f: D3, d: 1 }, { f: A3, d: 1 }, // takt 20
+  { f: G3, d: 1 }, { f: D4, d: 1 }, { f: G3, d: 1 }, { f: D4, d: 1 }, { f: G3, d: 1 }, { f: D4, d: 1 }, { f: G3, d: 1 }, { f: D4, d: 1 }, // takt 21
+  { f: E3, d: 1 }, { f: B3, d: 1 }, { f: E3, d: 1 }, { f: B3, d: 1 }, { f: E3, d: 1 }, { f: B3, d: 1 }, { f: E3, d: 1 }, { f: B3, d: 1 }, // takt 22
+  { f: A3, d: 1 }, { f: E4, d: 1 }, { f: A3, d: 1 }, { f: E4, d: 1 }, { f: A3, d: 1 }, { f: E4, d: 1 }, { f: A3, d: 1 }, { f: E4, d: 1 }, // takt 23
+  { f: D3, d: 1 }, { f: A3, d: 1 }, { f: D3, d: 1 }, { f: A3, d: 1 }, { f: D3, d: 1 }, { f: A3, d: 1 }, { f: D3, d: 1 }, { f: A3, d: 1 }, // takt 24
+  { f: G3, d: 2 }, { f: D4, d: 2 }, { f: G3, d: 2 }, { f: D4, d: 2 }, // takt 25
+  { f: C3, d: 2 }, { f: G3, d: 2 }, { f: C3, d: 2 }, { f: G3, d: 2 }, // takt 26
+  { f: G3, d: 2 }, { f: D4, d: 2 }, { f: G3, d: 2 }, { f: D4, d: 2 }, // takt 27
+  { f: E3, d: 2 }, { f: B3, d: 2 }, { f: E3, d: 2 }, { f: B3, d: 2 }, // takt 28
+  { f: C3, d: 2 }, { f: G3, d: 2 }, { f: C3, d: 2 }, { f: G3, d: 2 }, // takt 29
+  { f: G3, d: 2 }, { f: D4, d: 2 }, { f: G3, d: 2 }, { f: D4, d: 2 }, // takt 30
+  { f: D3, d: 2 }, { f: A3, d: 2 }, { f: D3, d: 2 }, { f: A3, d: 2 }, // takt 31
+  { f: D3, d: 4 }, { f: REST, d: 4 }, // takt 32
 ];
 
-// Rytm — kick på ettan, hi-hat på slag 2/4 som grundpuls i alla 8 takter.
-// Snare (klassisk "backbeat" på slag 3) och puka sprinklade in på samma
-// speglade ställen som LEAD:s egna kryddor — takt 1/5 (tremolo-tonen) får
-// backbeat, takt 4/8 (väntetakten/loopens omtag) får en liten pukafyllning
-// — istället för på varje takt, så det känns som kryddor snarare än ett
-// genomgående mönster. `type` kan vara 'kick', 'snare', 'hihat' eller 'tom'
-// (pukan), se _scheduler()/_scheduleSnare()/_schedulePuka() nedan.
+// Rytm — byggs upp: bara kick i takt 1-2, kick+hi-hat 3-4, full groove med
+// backbeat-snare från takt 5, drivande åttondels-hi-hats i utvecklingen
+// (17-24), fills vid klimaxen, och en nedåtgående tom-fill i takt 32 som
+// leder tillbaka in i den glesa intron. `type` = kick|snare|hihat|tom.
 export const RHYTHM = [
-  { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'snare', d: 2 }, { type: 'hihat', d: 2 }, // takt 1
-  { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'hihat', d: 2 }, { type: 'hihat', d: 2 }, // takt 2
-  { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'hihat', d: 2 }, { type: 'hihat', d: 2 }, // takt 3
-  { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'hihat', d: 2 }, { type: 'tom',   d: 2 }, // takt 4
+  { type: 'kick', d: 8 }, // takt 1
+  { type: 'kick', d: 8 }, // takt 2
+  { type: 'kick', d: 4 }, { type: 'hihat', d: 4 }, // takt 3
+  { type: 'kick', d: 4 }, { type: 'hihat', d: 4 }, // takt 4
   { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'snare', d: 2 }, { type: 'hihat', d: 2 }, // takt 5
   { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'hihat', d: 2 }, { type: 'hihat', d: 2 }, // takt 6
-  { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'hihat', d: 2 }, { type: 'hihat', d: 2 }, // takt 7
-  { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'snare', d: 2 }, { type: 'tom',   d: 2 }  // takt 8
+  { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'snare', d: 2 }, { type: 'hihat', d: 2 }, // takt 7
+  { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'hihat', d: 2 }, { type: 'tom', d: 2 }, // takt 8
+  { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'snare', d: 2 }, { type: 'hihat', d: 2 }, // takt 9
+  { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'hihat', d: 2 }, { type: 'hihat', d: 2 }, // takt 10
+  { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'snare', d: 2 }, { type: 'hihat', d: 2 }, // takt 11
+  { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'hihat', d: 2 }, { type: 'tom', d: 2 }, // takt 12
+  { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'snare', d: 2 }, { type: 'hihat', d: 2 }, // takt 13
+  { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'hihat', d: 2 }, { type: 'hihat', d: 2 }, // takt 14
+  { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'snare', d: 2 }, { type: 'hihat', d: 2 }, // takt 15
+  { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'snare', d: 2 }, { type: 'tom', d: 2 }, // takt 16
+  { type: 'kick', d: 1 }, { type: 'hihat', d: 1 }, { type: 'hihat', d: 1 }, { type: 'hihat', d: 1 }, { type: 'snare', d: 1 }, { type: 'hihat', d: 1 }, { type: 'hihat', d: 1 }, { type: 'hihat', d: 1 }, // takt 17
+  { type: 'kick', d: 1 }, { type: 'hihat', d: 1 }, { type: 'hihat', d: 1 }, { type: 'hihat', d: 1 }, { type: 'snare', d: 1 }, { type: 'hihat', d: 1 }, { type: 'hihat', d: 1 }, { type: 'hihat', d: 1 }, // takt 18
+  { type: 'kick', d: 1 }, { type: 'hihat', d: 1 }, { type: 'hihat', d: 1 }, { type: 'hihat', d: 1 }, { type: 'snare', d: 1 }, { type: 'hihat', d: 1 }, { type: 'hihat', d: 1 }, { type: 'hihat', d: 1 }, // takt 19
+  { type: 'kick', d: 1 }, { type: 'hihat', d: 1 }, { type: 'hihat', d: 1 }, { type: 'hihat', d: 1 }, { type: 'snare', d: 1 }, { type: 'hihat', d: 1 }, { type: 'hihat', d: 1 }, { type: 'hihat', d: 1 }, // takt 20
+  { type: 'kick', d: 1 }, { type: 'hihat', d: 1 }, { type: 'hihat', d: 1 }, { type: 'hihat', d: 1 }, { type: 'snare', d: 1 }, { type: 'hihat', d: 1 }, { type: 'hihat', d: 1 }, { type: 'hihat', d: 1 }, // takt 21
+  { type: 'kick', d: 1 }, { type: 'hihat', d: 1 }, { type: 'hihat', d: 1 }, { type: 'hihat', d: 1 }, { type: 'snare', d: 1 }, { type: 'hihat', d: 1 }, { type: 'hihat', d: 1 }, { type: 'hihat', d: 1 }, // takt 22
+  { type: 'kick', d: 1 }, { type: 'hihat', d: 1 }, { type: 'hihat', d: 1 }, { type: 'hihat', d: 1 }, { type: 'snare', d: 1 }, { type: 'hihat', d: 1 }, { type: 'hihat', d: 1 }, { type: 'hihat', d: 1 }, // takt 23
+  { type: 'kick', d: 1 }, { type: 'hihat', d: 1 }, { type: 'snare', d: 1 }, { type: 'hihat', d: 1 }, { type: 'tom', d: 1 }, { type: 'tom', d: 1 }, { type: 'snare', d: 1 }, { type: 'tom', d: 1 }, // takt 24
+  { type: 'kick', d: 1 }, { type: 'hihat', d: 1 }, { type: 'snare', d: 1 }, { type: 'hihat', d: 1 }, { type: 'kick', d: 1 }, { type: 'hihat', d: 1 }, { type: 'snare', d: 1 }, { type: 'tom', d: 1 }, // takt 25
+  { type: 'kick', d: 1 }, { type: 'hihat', d: 1 }, { type: 'snare', d: 1 }, { type: 'hihat', d: 1 }, { type: 'kick', d: 1 }, { type: 'tom', d: 1 }, { type: 'snare', d: 1 }, { type: 'tom', d: 1 }, // takt 26
+  { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'snare', d: 2 }, { type: 'hihat', d: 2 }, // takt 27
+  { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'snare', d: 2 }, { type: 'hihat', d: 2 }, // takt 28
+  { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'snare', d: 2 }, { type: 'hihat', d: 2 }, // takt 29
+  { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'snare', d: 2 }, { type: 'hihat', d: 2 }, // takt 30
+  { type: 'kick', d: 2 }, { type: 'hihat', d: 2 }, { type: 'snare', d: 2 }, { type: 'tom', d: 2 }, // takt 31
+  { type: 'tom', d: 2 }, { type: 'tom', d: 2 }, { type: 'snare', d: 2 }, { type: 'kick', d: 2 }, // takt 32
 ];
 
 export class AudioManager {
@@ -160,19 +226,19 @@ export class AudioManager {
     this._musicGain.connect(this._master);
 
     this._leadGain = this._ctx.createGain();
-    this._leadGain.gain.value = 0.9;
+    this._leadGain.gain.value = MIX.lead;
     this._leadGain.connect(this._musicGain);
 
     this._harmonyGain = this._ctx.createGain();
-    this._harmonyGain.gain.value = 0.5;
+    this._harmonyGain.gain.value = MIX.harmony;
     this._harmonyGain.connect(this._musicGain);
 
     this._bassGain = this._ctx.createGain();
-    this._bassGain.gain.value = 0.7;
+    this._bassGain.gain.value = MIX.bass;
     this._bassGain.connect(this._musicGain);
 
     this._rhythmGain = this._ctx.createGain();
-    this._rhythmGain.gain.value = 1.0;
+    this._rhythmGain.gain.value = MIX.rhythm;
     this._rhythmGain.connect(this._musicGain);
 
     this._sfxGain = this._ctx.createGain();
