@@ -36,6 +36,9 @@
   .tool-group, .zoom-group, .history-group, .transport-group, .file-group { display: flex; gap: 4px; align-items: center; }
   .sep { width: 1px; align-self: stretch; background: #34343c; margin: 0 2px; }
   .zoom-group span { font-size: 12px; color: var(--muted); min-width: 34px; text-align: center; }
+  .master-vol { display: flex; align-items: center; gap: 6px; color: var(--ink) !important; font-size: 12px; }
+  .master-vol input[type=range] { width: 96px; cursor: pointer; accent-color: #cfcfe0; }
+  .master-vol #master-vol-val { color: var(--muted); min-width: 30px; text-align: right; font-variant-numeric: tabular-nums; }
   button:disabled { opacity: 0.4; cursor: default; }
   .tool-group button.active { outline: 2px solid #fff; }
   button, input[type=number], select {
@@ -241,7 +244,10 @@
     <p class="hint">
       Each track's <b>volume</b> slider sets the relative channel level (the same numbers as the
       game's <code>MIX</code> constant) — drag while playing to rebalance live. <b>Mute</b>
-      silences a track; <b>Solo</b> silences every track except the soloed one(s). "Export code"
+      silences a track; <b>Solo</b> silences every track except the soloed one(s). The
+      <b>🔊 Master</b> slider in the toolbar sets the overall preview loudness (editor only —
+      it isn't part of the game's audio). During playback the view auto-scrolls to follow the
+      playhead so it never runs off the right edge. "Export code"
       emits the matching <code>export const MIX</code> line plus the note arrays for
       <code>audio.js</code>; the mix, mute and solo state are saved with your <code>.json</code>
       file and the autosave.
@@ -274,6 +280,11 @@
       <label><input id="loop" type="checkbox" checked> Loop</label>
       <button id="loop-reset" title="Reset the loop range to the full song">Full range</button>
     </div>
+    <div class="sep"></div>
+    <label class="master-vol" title="Master preview volume (editor only)">🔊 Master
+      <input id="master-vol" type="range" min="0" max="1" step="0.02">
+      <span id="master-vol-val"></span>
+    </label>
     <div class="sep"></div>
     <div class="file-group">
       <button id="reset">Reset to game's song</button>
@@ -400,7 +411,7 @@ function autosave() {
   autosaveTimer = setTimeout(() => {
     try {
       localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({
-        tempo: state.tempo, gains: state.gains, mute: state.mute, solo: state.solo, tracks: state.tracks
+        tempo: state.tempo, gains: state.gains, masterVol: state.masterVol, mute: state.mute, solo: state.solo, tracks: state.tracks
       }));
     } catch { /* best-effort */ }
   }, 400);
@@ -420,6 +431,7 @@ const state = {
   tracks: loadFromGame(),
   tempo: TEMPO_BPM,
   gains: { ...MIX },                                             // relative per-channel volume (the game's MIX)
+  masterVol: 0.45,                                               // editor preview master level (not part of the game)
   mute:  { lead: false, harmony: false, bass: false, rhythm: false },
   solo:  { lead: false, harmony: false, bass: false, rhythm: false },
   activeTrack: 'lead',
@@ -438,6 +450,7 @@ if (autosaveDraft && confirm('Found an unsaved draft from a previous session. Re
   if (autosaveDraft.gains && typeof autosaveDraft.gains === 'object') {
     for (const ch of ALL_TRACKS) if (typeof autosaveDraft.gains[ch] === 'number') state.gains[ch] = autosaveDraft.gains[ch];
   }
+  if (typeof autosaveDraft.masterVol === 'number') state.masterVol = autosaveDraft.masterVol;
   for (const key of ['mute', 'solo']) {
     if (autosaveDraft[key] && typeof autosaveDraft[key] === 'object') {
       for (const ch of ALL_TRACKS) state[key][ch] = !!autosaveDraft[key][ch];
@@ -1239,6 +1252,18 @@ const tempoInput = document.getElementById('tempo');
 tempoInput.value = state.tempo;
 tempoInput.addEventListener('change', () => { state.tempo = parseInt(tempoInput.value, 10) || TEMPO_BPM; });
 
+// ---------- Master preview volume ----------
+const masterVolInput = document.getElementById('master-vol');
+const masterVolVal = document.getElementById('master-vol-val');
+function syncMasterVolUI() { masterVolInput.value = state.masterVol; masterVolVal.textContent = Number(state.masterVol).toFixed(2); }
+masterVolInput.addEventListener('input', () => {
+  state.masterVol = parseFloat(masterVolInput.value);
+  masterVolVal.textContent = state.masterVol.toFixed(2);
+  if (masterGain) masterGain.gain.value = state.masterVol;
+  autosave();
+});
+syncMasterVolUI();
+
 function applyZoom() {
   colPx = ZOOM_LEVELS[zoomIndex];
   document.getElementById('zoom-level').textContent = Math.round(colPx / 16 * 100) + '%';
@@ -1250,6 +1275,9 @@ document.getElementById('zoom-in').addEventListener('click', () => { zoomIndex =
 document.getElementById('reset').addEventListener('click', () => {
   state.tracks = loadFromGame();
   state.gains = { ...MIX };
+  state.masterVol = 0.45;
+  syncMasterVolUI();
+  if (masterGain) masterGain.gain.value = state.masterVol;
   for (const ch of ALL_TRACKS) { state.mute[ch] = false; state.solo[ch] = false; }
   applyGains();
   state.selected = null;
@@ -1264,7 +1292,7 @@ document.getElementById('loop-reset').addEventListener('click', () => {
 
 // ---------- Save/load file ----------
 document.getElementById('save-file').addEventListener('click', () => {
-  const data = { version: 2, tempo: state.tempo, gains: state.gains, mute: state.mute, solo: state.solo, tracks: state.tracks };
+  const data = { version: 2, tempo: state.tempo, gains: state.gains, masterVol: state.masterVol, mute: state.mute, solo: state.solo, tracks: state.tracks };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1291,6 +1319,7 @@ loadInput.addEventListener('change', async () => {
   if (data.gains && typeof data.gains === 'object') {
     for (const ch of ALL_TRACKS) if (typeof data.gains[ch] === 'number') state.gains[ch] = data.gains[ch];
   }
+  if (typeof data.masterVol === 'number') { state.masterVol = data.masterVol; syncMasterVolUI(); if (masterGain) masterGain.gain.value = state.masterVol; }
   for (const key of ['mute', 'solo']) {
     if (data[key] && typeof data[key] === 'object') for (const ch of ALL_TRACKS) state[key][ch] = !!data[key][ch];
     else for (const ch of ALL_TRACKS) state[key][ch] = false;
@@ -1310,7 +1339,7 @@ function ensureCtx() {
   if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
   if (!masterGain) {
     masterGain = ctx.createGain();
-    masterGain.gain.value = 0.45;
+    masterGain.gain.value = state.masterVol;
     masterGain.connect(ctx.destination);
     for (const ch of ALL_TRACKS) {
       chanGain[ch] = ctx.createGain();
@@ -1587,9 +1616,22 @@ function animatePlayhead() {
     const col = playStartCol + (ctx.currentTime - playStartCtxTime) / eighthSec;
     visualPlayhead = Math.min(col, COLS - 0.001);
     updatePlayheadPositions();
+    followPlayhead();
     rafId = requestAnimationFrame(tick);
   }
   rafId = requestAnimationFrame(tick);
+}
+
+// Keep the moving playhead within the visible lane area during playback so the
+// marker never runs off the right edge. The leftmost LANE_ORIGIN px are covered
+// by the sticky headers/gutters, so the usable view starts at scrollLeft + LANE_ORIGIN.
+function followPlayhead() {
+  const x = LANE_ORIGIN + visualPlayhead * colPx;      // playhead position in .daw content coords
+  const viewLeft = daw.scrollLeft + LANE_ORIGIN;
+  const viewRight = daw.scrollLeft + daw.clientWidth;
+  const margin = Math.min(80, colPx * 4);
+  if (x > viewRight - margin) daw.scrollLeft = x - daw.clientWidth + margin;
+  else if (x < viewLeft) daw.scrollLeft = Math.max(0, x - LANE_ORIGIN - margin); // e.g. after a loop wrap back to the start
 }
 document.getElementById('play').addEventListener('click', () => {
   ensureCtx();
