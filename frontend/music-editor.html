@@ -246,12 +246,41 @@
   .loop-handle::after { content: ''; position: absolute; left: 4px; top: 0; width: 2px; height: 22px; background: #3bff8f; }
 
   .inspector {
-    background: var(--panel); padding: 12px; border-radius: 8px; border: 1px solid #2c2c33;
-    font-size: 12px; display: flex; flex-direction: column; gap: 10px; align-items: stretch;
-    width: 230px; flex: 0 0 230px;
+    background: linear-gradient(#1b1b20, #141418); padding: 8px; border-radius: 8px;
+    border: 1px solid #34343c; box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+    font-size: 12px; display: flex; flex-direction: column; gap: 8px; align-items: stretch;
+    width: 244px; flex: 0 0 244px;
   }
-  .inspector.empty { color: #666; }
-  .inspector .insp-title { font-weight: 700; font-size: 12px; }
+  .inspector.empty { color: #7a7a86; padding: 16px; font-size: 12px; line-height: 1.6; }
+  .insp-panel {
+    background: #0d0d10; border: 1px solid #050507; border-radius: 6px;
+    padding: 5px 8px 8px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .insp-cap { font-size: 8px; letter-spacing: 1.2px; text-transform: uppercase; color: #6b6b78; font-weight: 700; }
+  .insp-head { display: flex; align-items: center; gap: 8px; }
+  .insp-badge { font-weight: 700; font-size: 11px; padding: 3px 9px; border-radius: 4px; color: #04140a; }
+  .insp-note {
+    font-family: "Menlo", "Consolas", monospace; color: #4dff9b; background: #041008;
+    border: 1px solid #04240f; border-radius: 4px; padding: 3px 7px; font-size: 12px;
+    text-shadow: 0 0 6px rgba(77,255,155,0.4); flex: 1; text-align: center; font-variant-numeric: tabular-nums;
+  }
+  .insp-sub { font-size: 10px; color: var(--muted); text-align: center; }
+  .fx-row { display: flex; flex-wrap: wrap; gap: 5px; }
+  .fx-toggle {
+    flex: 1 1 auto; min-width: 62px; text-align: center; padding: 7px 8px; border-radius: 5px;
+    background: #22222a; border: 1px solid #101014; color: #b8b8c2; font-size: 11px; cursor: pointer;
+  }
+  .fx-toggle:hover { border-color: #55555f; }
+  .fx-toggle.on { background: #3a6bd6; color: #fff; border-color: #2a55b5; box-shadow: 0 0 6px rgba(58,107,214,0.4); }
+  .insp-field { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+  .insp-field > span { color: var(--muted); font-size: 11px; }
+  .insp-field input[type=text] { width: 84px; text-align: center; }
+  .insp-field select { padding: 6px 6px; }
+  .arp-presets { display: flex; gap: 5px; }
+  .arp-presets button { flex: 1; font-size: 11px; padding: 6px 4px; }
+  .insp-del { background: #3a1414; border-color: #5a1e1e; color: #ff9a9a; }
+  .insp-del:hover { border-color: #a33; }
   textarea {
     width: 100%; height: 260px; margin-top: 10px; background: #111; color: #9f9;
     font-family: monospace; font-size: 12px; border: 1px solid #444; border-radius: 6px; padding: 8px;
@@ -417,6 +446,7 @@ const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 const PITCH_TRACKS = ['lead', 'harmony', 'bass'];
 const ALL_TRACKS = ['lead', 'harmony', 'bass', 'rhythm'];
 const TRACK_LABELS = { lead: 'Lead', harmony: 'Harmony', bass: 'Bass', rhythm: 'Rhythm' };
+const TRACK_COLORS = { lead: '#2ff3ff', harmony: '#ff2fb0', bass: '#ffb347', rhythm: '#39ff6a' };
 const TRACK_OSC = { lead: 'square', harmony: 'square', bass: 'triangle', rhythm: 'kit' };
 const RHYTHM_ROWS = ['kick', 'snare', 'hihat', 'tom'];
 const RHYTHM_LABELS = { kick: 'Kick', snare: 'Snare', hihat: 'Hi-hat', tom: 'Tom' };
@@ -1226,32 +1256,50 @@ function renderInspector() {
   inspector.className = 'inspector';
   inspector.innerHTML = '';
 
-  const title = el('span', 'insp-title');
-  title.textContent = TRACK_LABELS[track];
-  inspector.appendChild(title);
-
-  const info = el('span');
-  info.textContent = `${midiToName(freqToMidi(note.freq))} (${note.freq} Hz), length ${note.len}/8th`;
-  inspector.appendChild(info);
-
-  const addToggle = (labelText, key, extra) => {
-    const label = document.createElement('label');
-    const box = document.createElement('input');
-    box.type = 'checkbox';
-    box.checked = note[key];
-    box.addEventListener('change', () => { note[key] = box.checked; if (extra) extra(box.checked); render(); });
-    label.append(box, ' ' + labelText);
-    inspector.appendChild(label);
-    return box;
+  const panel = (cap) => {
+    const p = el('div', 'insp-panel');
+    const c = el('div', 'insp-cap'); c.textContent = cap;
+    p.appendChild(c);
+    inspector.appendChild(p);
+    return p;
+  };
+  // Pill toggle button (replaces the old checkboxes) — lights up when active.
+  const addFxToggle = (container, labelText, key, title, extra) => {
+    const btn = el('button', 'fx-toggle' + (note[key] ? ' on' : ''));
+    btn.textContent = labelText;
+    if (title) btn.title = title;
+    btn.addEventListener('click', () => { note[key] = !note[key]; if (extra) extra(note[key]); render(); });
+    container.appendChild(btn);
+    return btn;
   };
 
-  addToggle('Vibrato', 'vib');
-  addToggle('Tremolo', 'trem');
-  const portaBox = addToggle('Portamento', 'porta', (on) => { if (on) { note.bend = null; note.arp = null; } });
-  portaBox.title = 'Glides unbroken into the next note in this track, without a new attack.';
+  // --- Header: track badge + note readout ---
+  const head = panel('Selected note');
+  const row = el('div', 'insp-head');
+  const badge = el('span', 'insp-badge');
+  badge.textContent = TRACK_LABELS[track];
+  badge.style.background = TRACK_COLORS[track];
+  const noteLcd = el('span', 'insp-note');
+  noteLcd.textContent = `${midiToName(freqToMidi(note.freq))} · ${note.freq}Hz`;
+  row.append(badge, noteLcd);
+  head.appendChild(row);
+  const sub = el('div', 'insp-sub');
+  sub.textContent = `length ${note.len}/8th`;
+  head.appendChild(sub);
 
-  const bendLabel = document.createElement('label');
-  bendLabel.textContent = ' Bend (semitones): ';
+  // --- Modulation ---
+  const mod = panel('Modulation');
+  const modRow = el('div', 'fx-row');
+  addFxToggle(modRow, 'Vibrato', 'vib');
+  addFxToggle(modRow, 'Tremolo', 'trem');
+  addFxToggle(modRow, 'Portamento', 'porta', 'Glides unbroken into the next note in this track, without a new attack.',
+    (on) => { if (on) { note.bend = null; note.arp = null; } });
+  mod.appendChild(modRow);
+
+  // --- Pitch ---
+  const pitch = panel('Pitch');
+  const bendField = el('div', 'insp-field');
+  const bendLbl = el('span'); bendLbl.textContent = 'Bend (semitones)';
   const bendInput = document.createElement('input');
   bendInput.type = 'number'; bendInput.min = -24; bendInput.max = 24; bendInput.step = 1;
   bendInput.value = note.bend ? Math.round(12 * Math.log2(note.bend / note.freq)) : 0;
@@ -1261,12 +1309,12 @@ function renderInspector() {
     if (note.bend) { note.arp = null; note.porta = false; }
     render();
   });
-  bendLabel.appendChild(bendInput);
-  inspector.appendChild(bendLabel);
+  bendField.append(bendLbl, bendInput);
+  pitch.appendChild(bendField);
 
   if (track !== 'bass') {
-    const dutyLabel = document.createElement('label');
-    dutyLabel.textContent = ' Duty cycle: ';
+    const dutyField = el('div', 'insp-field');
+    const dutyLbl = el('span'); dutyLbl.textContent = 'Duty cycle';
     const dutySelect = document.createElement('select');
     [[null, 'Standard (50%)'], [0.125, '12.5%'], [0.25, '25%'], [0.5, '50%'], [0.75, '75%']].forEach(([v, label]) => {
       const opt = document.createElement('option');
@@ -1276,14 +1324,15 @@ function renderInspector() {
       dutySelect.appendChild(opt);
     });
     dutySelect.addEventListener('change', () => { note.duty = dutySelect.value === '' ? null : parseFloat(dutySelect.value); render(); });
-    dutyLabel.appendChild(dutySelect);
-    inspector.appendChild(dutyLabel);
+    dutyField.append(dutyLbl, dutySelect);
+    pitch.appendChild(dutyField);
   }
 
-  const arpLabel = document.createElement('label');
-  arpLabel.textContent = ' Arpeggio (semitones, comma-separated): ';
+  const arpField = el('div', 'insp-field');
+  const arpLbl = el('span'); arpLbl.textContent = 'Arpeggio';
   const arpInput = document.createElement('input');
-  arpInput.type = 'text'; arpInput.style.width = '70px'; arpInput.placeholder = 'e.g. 4,7';
+  arpInput.type = 'text'; arpInput.placeholder = 'e.g. 4,7';
+  arpInput.title = 'Extra semitones above the root, comma-separated.';
   arpInput.value = note.arp ? note.arp.join(',') : '';
   arpInput.addEventListener('change', () => {
     const parsed = arpInput.value.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
@@ -1291,24 +1340,29 @@ function renderInspector() {
     if (note.arp) { note.bend = null; note.porta = false; }
     render();
   });
-  arpLabel.appendChild(arpInput);
-  inspector.appendChild(arpLabel);
+  arpField.append(arpLbl, arpInput);
+  pitch.appendChild(arpField);
 
+  const presets = el('div', 'arp-presets');
   const arpMajor = document.createElement('button');
   arpMajor.textContent = 'Major triad';
   arpMajor.addEventListener('click', () => { note.arp = [4, 7]; note.bend = null; note.porta = false; render(); });
-  inspector.appendChild(arpMajor);
   const arpMinor = document.createElement('button');
   arpMinor.textContent = 'Minor triad';
   arpMinor.addEventListener('click', () => { note.arp = [3, 7]; note.bend = null; note.porta = false; render(); });
-  inspector.appendChild(arpMinor);
+  presets.append(arpMajor, arpMinor);
+  pitch.appendChild(presets);
 
-  addToggle('Bitcrush', 'crush');
-  addToggle('Echo', 'echo');
-  addToggle('Chorus', 'chorus');
+  // --- Texture / FX ---
+  const fx = panel('Texture / FX');
+  const fxRow = el('div', 'fx-row');
+  addFxToggle(fxRow, 'Bitcrush', 'crush');
+  addFxToggle(fxRow, 'Echo', 'echo');
+  addFxToggle(fxRow, 'Chorus', 'chorus');
+  fx.appendChild(fxRow);
 
-  const del = document.createElement('button');
-  del.textContent = 'Delete note';
+  const del = el('button', 'insp-del');
+  del.textContent = '🗑 Delete note';
   del.addEventListener('click', () => {
     state.tracks[track] = state.tracks[track].filter((_, i) => i !== index);
     state.selected = null;
