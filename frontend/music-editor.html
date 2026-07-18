@@ -1570,19 +1570,26 @@ function bitcrushCurve() {
   crushCurve = curve;
   return curve;
 }
-let delay = null, delayFeedback = null, delayWet = null;
-function ensureDelay() {
-  if (!delay) {
-    delay = ctx.createDelay(1.0);
-    delayFeedback = ctx.createGain();
-    delayFeedback.gain.value = 0.35;
-    delay.connect(delayFeedback).connect(delay);
-    delayWet = ctx.createGain();
-    delayWet.gain.value = 0.5;
-    delay.connect(delayWet).connect(masterGain);
+// One echo/delay bus per channel, whose wet return flows back through that
+// channel's gain node — so Mute/Solo (and the volume slider) also silence a
+// track's echo tail, not just its dry signal. (A single shared bus tapped
+// pre-fader would keep ringing after muting an echo-heavy track like the lead.)
+const chanDelays = new Map(); // destGain node -> { delay }
+function ensureDelay(destGain) {
+  let d = chanDelays.get(destGain);
+  if (!d) {
+    const delay = ctx.createDelay(1.0);
+    const feedback = ctx.createGain();
+    feedback.gain.value = 0.35;
+    delay.connect(feedback).connect(delay);
+    const wet = ctx.createGain();
+    wet.gain.value = 0.5;
+    delay.connect(wet).connect(destGain); // wet returns through the channel gain
+    d = { delay };
+    chanDelays.set(destGain, d);
   }
-  delay.delayTime.value = (60 / state.tempo / 2) * 1.5;
-  return delay;
+  d.delay.delayTime.value = (60 / state.tempo / 2) * 1.5;
+  return d.delay;
 }
 function connectVoiceOutput(gain, note, destGain) {
   let outputNode = gain;
@@ -1593,7 +1600,7 @@ function connectVoiceOutput(gain, note, destGain) {
     outputNode = shaper;
   }
   outputNode.connect(destGain);
-  if (note.echo) outputNode.connect(ensureDelay());
+  if (note.echo) outputNode.connect(ensureDelay(destGain));
 }
 function scheduleTone(note, startAt, dur, oscType, destGain) {
   const osc = ctx.createOscillator();
@@ -1848,7 +1855,7 @@ document.getElementById('stop').addEventListener('click', () => {
     noiseBuffer = null;
     pulseWaves.clear();
     crushCurve = null;
-    delay = null; delayFeedback = null; delayWet = null;
+    chanDelays.clear();
   }
   visualPlayhead = state.playhead;
   updatePlayheadPositions();
