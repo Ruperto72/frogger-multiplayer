@@ -130,10 +130,6 @@
     background: #101014; padding: 6px 4px; align-self: stretch; display: flex; align-items: center; justify-content: center; }
   #len-bars { min-width: 54px; }
 
-  /* Master */
-  #master-panel .panel-body { min-width: 150px; }
-  #master-panel input[type=range] { flex: 1; min-width: 80px; cursor: pointer; accent-color: #cfcfe0; }
-  #master-vol-val { color: var(--muted); min-width: 30px; text-align: right; font-size: 11px; font-variant-numeric: tabular-nums; }
   .mv-ico { font-size: 13px; }
 
   body[data-tool="pen"] .cell { cursor: crosshair; }
@@ -210,6 +206,11 @@
   .track[data-track="bass"]    .th-vol input[type=range] { accent-color: var(--bass); }
   .track[data-track="rhythm"]  .th-vol input[type=range] { accent-color: var(--rhythm); }
   .track.silent .lane { opacity: 0.32; }
+
+  /* Master track: header-only strip docked under Rhythm, no lane/gutter of its own. */
+  .master-header { width: calc(var(--header-w) + var(--gutter-w)); border-left-color: #cfcfe0; cursor: default; }
+  .master-header .th-name { color: #cfcfe0; }
+  .master-header .th-vol input[type=range] { accent-color: #cfcfe0; }
 
   .gutter {
     position: sticky; left: var(--header-w); z-index: 6; flex: 0 0 auto;
@@ -487,16 +488,6 @@
           <span id="zoom-level">100%</span>
           <button id="zoom-in" title="Zoom in">🔍+</button>
         </div>
-      </div>
-    </div>
-
-    <!-- Master -->
-    <div class="panel" id="master-panel">
-      <div class="panel-cap">Master</div>
-      <div class="panel-body">
-        <span class="mv-ico">🔊</span>
-        <input id="master-vol" type="range" min="0" max="1" step="0.02" title="Master preview volume (editor only)">
-        <span id="master-vol-val"></span>
       </div>
     </div>
 
@@ -868,6 +859,7 @@ function renderTracks() {
   laneRolls.length = 0;
   for (const track of PITCH_TRACKS) renderPitchTrack(track);
   renderRhythmTrack();
+  renderMasterTrack();
 }
 
 function buildHeader(track) {
@@ -1037,6 +1029,34 @@ function renderRhythmTrack() {
   row.appendChild(rollEl);
   tracksEl.appendChild(row);
   laneRolls.push({ track, rollEl });
+}
+
+// Master has no notes of its own, so it's a header-only strip (no gutter/lane)
+// docked under Rhythm, rebuilt fresh from state.masterVol on every render.
+function renderMasterTrack() {
+  const row = el('div', 'track');
+  const header = el('div', 'track-header master-header');
+  const top = el('div', 'th-top');
+  const name = el('span', 'th-name'); name.textContent = 'Master';
+  top.appendChild(name);
+
+  const vol = el('div', 'th-vol');
+  const icon = el('span', 'mv-ico'); icon.textContent = '🔊';
+  const slider = document.createElement('input');
+  slider.type = 'range'; slider.min = 0; slider.max = 1; slider.step = 0.02; slider.value = state.masterVol;
+  slider.title = 'Master preview volume (editor only)';
+  const val = el('span', 'vol-val'); val.textContent = Number(state.masterVol).toFixed(2);
+  slider.addEventListener('input', () => {
+    state.masterVol = parseFloat(slider.value);
+    val.textContent = state.masterVol.toFixed(2);
+    if (masterGain) masterGain.gain.value = state.masterVol;
+    autosave();
+  });
+  vol.append(icon, slider, val);
+
+  header.append(top, vol);
+  row.appendChild(header);
+  tracksEl.appendChild(row);
 }
 
 function renderMarquee(rollEl, track, heightPx) {
@@ -1576,18 +1596,6 @@ const tempoInput = document.getElementById('tempo');
 tempoInput.value = state.tempo;
 tempoInput.addEventListener('change', () => { state.tempo = parseInt(tempoInput.value, 10) || TEMPO_BPM; });
 
-// ---------- Master preview volume ----------
-const masterVolInput = document.getElementById('master-vol');
-const masterVolVal = document.getElementById('master-vol-val');
-function syncMasterVolUI() { masterVolInput.value = state.masterVol; masterVolVal.textContent = Number(state.masterVol).toFixed(2); }
-masterVolInput.addEventListener('input', () => {
-  state.masterVol = parseFloat(masterVolInput.value);
-  masterVolVal.textContent = state.masterVol.toFixed(2);
-  if (masterGain) masterGain.gain.value = state.masterVol;
-  autosave();
-});
-syncMasterVolUI();
-
 function applyZoom() {
   colPx = ZOOM_LEVELS[zoomIndex];
   document.getElementById('zoom-level').textContent = Math.round(colPx / 16 * 100) + '%';
@@ -1631,7 +1639,6 @@ document.getElementById('reset').addEventListener('click', () => {
   state.tracks = loadFromGame(); // recomputes COLS from the game song
   state.gains = { ...MIX };
   state.masterVol = 0.45;
-  syncMasterVolUI();
   if (masterGain) masterGain.gain.value = state.masterVol;
   for (const ch of ALL_TRACKS) { state.mute[ch] = false; state.solo[ch] = false; }
   applyGains();
@@ -1678,7 +1685,6 @@ loadInput.addEventListener('change', async () => {
   state.loopStart = 0; state.loopEnd = COLS;
   state.playhead = Math.min(state.playhead, COLS - 1); visualPlayhead = state.playhead;
   applySavedMix(data);
-  syncMasterVolUI();
   if (masterGain) masterGain.gain.value = state.masterVol;
   applyGains();
   state.selected = null;
