@@ -6,180 +6,205 @@
 <style>
   :root {
     --lead: #2ff3ff; --harmony: #ff2fb0; --bass: #ffb347; --rhythm: #39ff6a;
-    --bg: #161616; --panel: #1f1f1f; --grid: #2a2a2a; --bar: #3a3a3a;
+    --bg: #131316; --panel: #1c1c20; --panel2: #24242a; --grid: #2a2a30; --bar: #45454f;
+    --strip: #202027; --strip2: #191920; --ink: #e8e8ee; --muted: #9a9aa6;
+    --header-w: 176px; --gutter-w: 42px;
   }
   * { box-sizing: border-box; }
   body {
-    background: var(--bg); color: #eee; font-family: monospace;
-    padding: 16px; margin: 0;
+    background: var(--bg); color: var(--ink);
+    font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+    padding: 14px; margin: 0;
   }
-  h1 { font-size: 18px; margin: 0; }
-  .header-row {
-    display: flex; align-items: center; gap: 10px; margin: 0 0 12px;
-  }
+  h1 { font-size: 17px; margin: 0; font-weight: 600; letter-spacing: 0.2px; }
+  .header-row { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; }
   p.hint { color: #ccc; font-size: 12px; margin: 0; line-height: 1.6; }
   dialog#help-dialog {
     background: var(--panel); color: #eee; border: 1px solid #444; border-radius: 8px;
-    max-width: 640px; padding: 20px;
+    max-width: 660px; padding: 20px;
   }
   dialog#help-dialog::backdrop { background: rgba(0,0,0,0.6); }
   dialog#help-dialog h2 { margin: 0 0 10px; font-size: 16px; }
   dialog#help-dialog #help-close { margin-top: 14px; }
+
   .toolbar {
     display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
-    background: var(--panel); padding: 10px; border-radius: 6px; margin-bottom: 10px;
+    background: var(--panel); padding: 10px; border-radius: 8px; margin-bottom: 10px;
+    border: 1px solid #2c2c33;
   }
-  .toolbar label { font-size: 12px; color: #bbb; }
-  .track-toggles { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-  .track-toggle {
-    display: flex; align-items: center; gap: 4px; font-size: 12px;
-    padding: 4px 8px; border-radius: 4px; background: #2a2a2a; border: 1px solid #444;
-    cursor: pointer;
-  }
-  .track-toggle input { cursor: pointer; }
-  .track-toggle.lead    { color: var(--lead); }
-  .track-toggle.harmony { color: var(--harmony); }
-  .track-toggle.bass    { color: var(--bass); }
-  .track-toggle.rhythm  { color: var(--rhythm); }
-  .tool-group, .active-track-group, .zoom-group, .history-group { display: flex; gap: 4px; align-items: center; }
-  .zoom-group span { font-size: 12px; color: #bbb; min-width: 34px; text-align: center; }
-  .mixer { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  .mixer .hint-label { font-size: 12px; color: #bbb; }
-  .mix-chan { display: flex; align-items: center; gap: 4px; font-size: 12px; }
-  .mix-chan input[type=range] { width: 72px; cursor: pointer; }
-  .mix-chan .mix-val { font-size: 11px; color: #bbb; min-width: 30px; text-align: right; }
-  .mix-chan[data-mix="lead"]    { color: var(--lead); }
-  .mix-chan[data-mix="harmony"] { color: var(--harmony); }
-  .mix-chan[data-mix="bass"]    { color: var(--bass); }
-  .mix-chan[data-mix="rhythm"]  { color: var(--rhythm); }
+  .toolbar label { font-size: 12px; color: var(--muted); }
+  .tool-group, .zoom-group, .history-group, .transport-group, .file-group { display: flex; gap: 4px; align-items: center; }
+  .sep { width: 1px; align-self: stretch; background: #34343c; margin: 0 2px; }
+  .zoom-group span { font-size: 12px; color: var(--muted); min-width: 34px; text-align: center; }
   button:disabled { opacity: 0.4; cursor: default; }
-  .active-track-group .hint-label { font-size: 12px; color: #bbb; }
   .tool-group button.active { outline: 2px solid #fff; }
-  .active-track-group button.active { outline: 2px solid #fff; color: #111; }
-  .active-track-group button[data-active-track="lead"].active    { background: var(--lead); }
-  .active-track-group button[data-active-track="harmony"].active { background: var(--harmony); }
-  .active-track-group button[data-active-track="bass"].active    { background: var(--bass); }
-  .active-track-group button[data-active-track="rhythm"].active  { background: var(--rhythm); }
-  body[data-tool="pen"] .cell:not(.inactive) { cursor: crosshair; }
-  body[data-tool="eraser"] .note:not(.inactive), body[data-tool="eraser"] .hit:not(.inactive) { cursor: not-allowed; }
-  body[data-tool="grab"] .note:not(.inactive), body[data-tool="grab"] .hit:not(.inactive) { cursor: grab; }
-  button, input[type=number] {
+  button, input[type=number], select {
     font: inherit; font-size: 12px; padding: 6px 10px; cursor: pointer;
-    background: #2a2a2a; color: #eee; border: 1px solid #444; border-radius: 4px;
+    background: var(--panel2); color: var(--ink); border: 1px solid #3a3a42; border-radius: 5px;
   }
+  button:hover:not(:disabled) { border-color: #55555f; }
   input[type=number] { width: 56px; cursor: text; }
   input[type=checkbox] { cursor: pointer; }
-  .roll-wrap { overflow-x: auto; background: var(--panel); border-radius: 6px; padding: 10px; }
-  #rhythmWrap { margin-top: 10px; }
-  .roll {
-    display: grid;
-    grid-template-columns: 44px repeat(64, var(--col-px, 16px));
-    position: relative;
-    width: max-content;
+  body[data-tool="pen"] .cell { cursor: crosshair; }
+  body[data-tool="eraser"] .note, body[data-tool="eraser"] .hit { cursor: not-allowed; }
+  body[data-tool="grab"] .note, body[data-tool="grab"] .hit { cursor: grab; }
+
+  .editor-layout { display: flex; gap: 10px; align-items: flex-start; }
+  .rolls-column { flex: 1; min-width: 0; }
+
+  /* ---- The DAW surface: one horizontally-scrolling area holding the timeline
+         and every track lane, so headers pin to the left and lanes scroll as one. ---- */
+  .daw {
+    position: relative; overflow-x: auto; background: var(--panel);
+    border-radius: 8px; border: 1px solid #2c2c33; padding-bottom: 4px;
   }
-  .cell {
-    border-right: 1px solid var(--grid);
-    border-bottom: 1px solid var(--grid);
+
+  .timeline { display: flex; height: 22px; width: max-content; }
+  .tl-corner {
+    position: sticky; left: 0; z-index: 7; flex: 0 0 auto;
+    width: calc(var(--header-w) + var(--gutter-w));
+    background: var(--strip2); border-right: 1px solid #34343c;
+    border-bottom: 1px solid #34343c;
+    display: flex; align-items: center; padding-left: 10px;
+    font-size: 10px; color: var(--muted); letter-spacing: 0.5px;
+  }
+  .tl-ruler { display: grid; }
+  .ruler-cell {
+    border-right: 1px solid var(--grid); background: #26262c; cursor: pointer;
+    border-bottom: 1px solid #34343c; position: relative;
+  }
+  .ruler-cell.bar-start { border-left: 1px solid var(--bar); }
+  .ruler-cell .barnum {
+    position: absolute; left: 3px; top: 3px; font-size: 9px; color: #8f8f9b; pointer-events: none;
+  }
+
+  .track { display: flex; width: max-content; border-bottom: 1px solid #101014; }
+  .track-header {
+    position: sticky; left: 0; z-index: 6; flex: 0 0 auto; width: var(--header-w);
+    background: linear-gradient(var(--strip), var(--strip2));
+    border-right: 1px solid #34343c;
+    padding: 6px 8px; display: flex; flex-direction: column; gap: 6px;
+    border-left: 4px solid #555;
     cursor: pointer;
   }
-  .cell.bar-start { border-left: 2px solid var(--bar); }
-  .cell.black { background: #1a1a1a; }
-  .label {
-    font-size: 9px; color: #888; display: flex; align-items: center;
-    justify-content: flex-end; padding-right: 4px; border-bottom: 1px solid var(--grid);
-    position: sticky; left: 0; background: var(--panel);
+  .track.active .track-header { background: linear-gradient(#2b2b34, #23232b); }
+  .track.active .track-header::after {
+    content: ''; position: absolute; inset: 0; border: 1px solid rgba(255,255,255,0.35);
+    pointer-events: none;
   }
+  .th-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+  .th-name { font-size: 13px; font-weight: 700; letter-spacing: 0.3px; line-height: 1.2; }
+  .th-osc { display: block; font-size: 9px; color: var(--muted); font-weight: 400; }
+  .th-btns { display: flex; gap: 4px; }
+  .th-btns button {
+    width: 22px; height: 20px; padding: 0; font-size: 11px; font-weight: 700;
+    border-radius: 4px; background: #2c2c33; color: #b8b8c2; line-height: 1;
+  }
+  .th-btns button.m.on { background: #ff6a3b; color: #150a05; border-color: #ff6a3b; }
+  .th-btns button.s.on { background: #ffd23b; color: #241d03; border-color: #ffd23b; }
+  .th-vol { display: flex; align-items: center; gap: 6px; }
+  .th-vol input[type=range] { flex: 1; min-width: 0; cursor: pointer; accent-color: #888; }
+  .th-vol .vol-val { font-size: 10px; color: var(--muted); min-width: 30px; text-align: right; font-variant-numeric: tabular-nums; }
+  .track[data-track="lead"]    .track-header { border-left-color: var(--lead); }
+  .track[data-track="harmony"] .track-header { border-left-color: var(--harmony); }
+  .track[data-track="bass"]    .track-header { border-left-color: var(--bass); }
+  .track[data-track="rhythm"]  .track-header { border-left-color: var(--rhythm); }
+  .track[data-track="lead"]    .th-name { color: var(--lead); }
+  .track[data-track="harmony"] .th-name { color: var(--harmony); }
+  .track[data-track="bass"]    .th-name { color: var(--bass); }
+  .track[data-track="rhythm"]  .th-name { color: var(--rhythm); }
+  .track[data-track="lead"]    .th-vol input[type=range] { accent-color: var(--lead); }
+  .track[data-track="harmony"] .th-vol input[type=range] { accent-color: var(--harmony); }
+  .track[data-track="bass"]    .th-vol input[type=range] { accent-color: var(--bass); }
+  .track[data-track="rhythm"]  .th-vol input[type=range] { accent-color: var(--rhythm); }
+  .track.silent .lane { opacity: 0.32; }
+
+  .gutter {
+    position: sticky; left: var(--header-w); z-index: 6; flex: 0 0 auto;
+    width: var(--gutter-w); display: grid; background: var(--strip2);
+    border-right: 1px solid #34343c;
+  }
+  .gutter .glabel {
+    font-size: 8px; color: #7d7d88; display: flex; align-items: center;
+    justify-content: flex-end; padding-right: 5px;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+  }
+  .gutter .glabel.c { color: #b7b7c4; }
+  .gutter .glabel.rhy { font-size: 10px; color: #a7a7b3; }
+
+  .lane { display: grid; position: relative; }
+  .cell {
+    border-right: 1px solid var(--grid); border-bottom: 1px solid rgba(255,255,255,0.02);
+  }
+  .cell.bar-start { border-left: 1px solid var(--bar); }
+  .cell.black { background: rgba(0,0,0,0.28); }
+  .cell.beat { border-right-color: #34343c; }
+
   .note {
-    border-radius: 3px; cursor: pointer; position: relative;
-    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.4);
+    border-radius: 3px; cursor: pointer; position: relative; align-self: stretch;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.45); z-index: 2;
   }
   .note.lead    { background: var(--lead); }
   .note.harmony { background: var(--harmony); }
   .note.bass    { background: var(--bass); }
-  .note.selected { outline: 2px solid #fff; }
-  .note.multi-selected, .hit.multi-selected { outline: 2px dashed #ffcc00; }
+  .note.selected { outline: 2px solid #fff; z-index: 3; }
+  .note.multi-selected, .hit.multi-selected { outline: 2px dashed #ffcc00; z-index: 3; }
   .marquee {
     position: absolute; top: 0; background: rgba(255, 204, 0, 0.12);
     border: 1px dashed #ffcc00; pointer-events: none; z-index: 4;
   }
   .note .handle {
     position: absolute; right: 0; top: 0; width: 5px; height: 100%;
-    cursor: ew-resize; background: rgba(0,0,0,0.25);
+    cursor: ew-resize; background: rgba(0,0,0,0.28);
   }
-  .note.bend::after {
-    content: "↝"; position: absolute; right: 2px; top: -2px; font-size: 10px; color: #111;
-  }
-  .note.vib::before {
-    content: "~"; position: absolute; left: 2px; top: -3px; font-size: 10px; color: #111;
-  }
+  .note.bend::after { content: "↝"; position: absolute; right: 2px; top: -2px; font-size: 10px; color: #111; }
+  .note.vib::before { content: "~"; position: absolute; left: 2px; top: -3px; font-size: 10px; color: #111; }
   .note.trem { background-image: repeating-linear-gradient(90deg, rgba(0,0,0,0.25) 0 2px, transparent 2px 4px); }
-  .note.porta::after {
-    content: "⌒"; position: absolute; right: 2px; top: -2px; font-size: 10px; color: #111;
-  }
-  .note.crush {
-    background-image: radial-gradient(circle, rgba(0,0,0,0.45) 1px, transparent 1.3px);
-    background-size: 4px 4px;
-  }
+  .note.porta::after { content: "⌒"; position: absolute; right: 2px; top: -2px; font-size: 10px; color: #111; }
+  .note.crush { background-image: radial-gradient(circle, rgba(0,0,0,0.45) 1px, transparent 1.3px); background-size: 4px 4px; }
   .note.echo { box-shadow: inset 0 0 0 1px rgba(0,0,0,0.4), -4px 0 3px -1px rgba(255,255,255,0.35); }
   .note.chorus { box-shadow: inset 0 0 0 1px rgba(0,0,0,0.4), 0 0 0 1.5px rgba(255,255,255,0.4); }
-  .note .arp-badge {
-    position: absolute; right: 2px; bottom: -3px; font-size: 9px; color: #111; pointer-events: none;
-  }
-  .note.inactive, .hit.inactive { opacity: 0.35; pointer-events: none; }
-  .cell.inactive { pointer-events: none; opacity: 0.5; }
+  .note .arp-badge { position: absolute; right: 2px; bottom: -3px; font-size: 9px; color: #111; pointer-events: none; }
+
   .hit {
-    background: var(--rhythm); border-radius: 3px; cursor: pointer;
-    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.4);
+    background: var(--rhythm); border-radius: 3px; cursor: pointer; align-self: center;
+    height: 12px; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.4); z-index: 2;
   }
   .hit.snare { background: #ffdf3b; }
   .hit.hihat { background: #1fae54; }
   .hit.tom   { background: #ff6a3b; }
-  .ruler-cell {
-    border-right: 1px solid var(--grid); background: #232323; cursor: pointer;
+
+  .playhead { position: absolute; top: 0; width: 2px; background: #ff3b3b; z-index: 5; pointer-events: none; }
+  .playhead-grip {
+    position: absolute; top: 0; width: 12px; height: 22px; margin-left: -6px; z-index: 8; cursor: ew-resize;
   }
-  .ruler-cell.bar-start { border-left: 2px solid var(--bar); }
-  .playhead {
-    position: absolute; top: 0; width: 2px; background: #ff3b3b;
-    cursor: ew-resize; z-index: 5;
-  }
-  .playhead::before {
-    content: ''; position: absolute; top: -1px; left: -4px;
+  .playhead-grip::before {
+    content: ''; position: absolute; top: 0; left: 1px;
     border: 5px solid transparent; border-top-color: #ff3b3b;
   }
   .loop-region {
-    position: absolute; top: 0; height: 16px; background: rgba(59, 255, 143, 0.12);
-    border-top: 2px solid #3bff8f; pointer-events: none; z-index: 2;
+    position: absolute; top: 0; height: 22px; background: rgba(59, 255, 143, 0.14);
+    border-top: 2px solid #3bff8f; pointer-events: none; z-index: 4;
   }
-  .loop-handle {
-    position: absolute; top: 0; width: 8px; height: 16px; margin-left: -4px;
-    cursor: ew-resize; z-index: 3;
-  }
-  .loop-handle::after {
-    content: ''; position: absolute; left: 3px; top: 0; width: 2px; height: 16px; background: #3bff8f;
-  }
-  .editor-layout { display: flex; gap: 10px; align-items: flex-start; }
-  .rolls-column { flex: 1; min-width: 0; }
+  .loop-handle { position: absolute; top: 0; width: 10px; height: 22px; margin-left: -5px; cursor: ew-resize; z-index: 8; }
+  .loop-handle::after { content: ''; position: absolute; left: 4px; top: 0; width: 2px; height: 22px; background: #3bff8f; }
+
   .inspector {
-    margin-top: 0; background: var(--panel); padding: 10px; border-radius: 6px;
+    background: var(--panel); padding: 12px; border-radius: 8px; border: 1px solid #2c2c33;
     font-size: 12px; display: flex; flex-direction: column; gap: 10px; align-items: stretch;
-    width: 220px; flex: 0 0 220px;
+    width: 230px; flex: 0 0 230px;
   }
   .inspector.empty { color: #666; }
+  .inspector .insp-title { font-weight: 700; font-size: 12px; }
   textarea {
     width: 100%; height: 260px; margin-top: 10px; background: #111; color: #9f9;
     font-family: monospace; font-size: 12px; border: 1px solid #444; border-radius: 6px; padding: 8px;
   }
-  .legend { display: flex; gap: 12px; font-size: 11px; color: #999; margin-top: 8px; }
-  .legend span::before { content: "■ "; }
-  .legend .lead::before    { color: var(--lead); }
-  .legend .harmony::before { color: var(--harmony); }
-  .legend .bass::before    { color: var(--bass); }
-  .legend .rhythm::before  { color: var(--rhythm); }
 </style>
 </head>
 <body>
   <div class="header-row">
-    <h1>Frog vs Toad — Music Editor</h1>
+    <h1>🎛️ Frog vs Toad — Music Studio</h1>
     <button id="help-btn" title="Show help">❓ Help</button>
   </div>
 
@@ -187,125 +212,86 @@
     <h2>Help</h2>
     <p class="hint">
       Dev tool for composing the "Froggy Hop" loop. Loads the current song from
-      <code>js/audio.js</code>. All four tracks are shown at once in the piano roll — the
-      checkboxes in the toolbar control both visibility and which tracks are audible when
-      playing, while "Active track" controls which track the tools below draw/erase/move in
-      (other tracks are shown dimmed and can't be clicked).
+      <code>js/audio.js</code>. The four instruments are now laid out as separate
+      <b>tracks</b> stacked vertically, like a music studio (Pro&nbsp;Tools style): one lane
+      each for <b>Lead</b>, <b>Harmony</b>, <b>Bass</b> and <b>Rhythm</b>. Each track has a
+      <b>channel strip</b> on the left with its name, <b>M</b>ute / <b>S</b>olo buttons and a
+      <b>volume</b> slider. Click a track's strip (or click into its lane) to make it the
+      <i>active</i> track that the Pen/Eraser/Grab tools edit.
+    </p>
+    <p class="hint">
+      Each pitch lane auto-fits to the range of notes it contains, so tracks stay compact.
+      The shared timeline at the top and the red playhead run across every lane at once.
     </p>
     <p class="hint">
       Three tools: <b>Pen</b> adds a new note/hit in an empty cell, <b>Eraser</b> removes a
-      note/hit you click on (or a whole marquee-selected group, see below), <b>Grab</b> moves a
-      note/hit by dragging it (drag its right edge instead to change its length). In Grab,
-      dragging on empty space marquee-selects every note/hit in the active track whose start
-      falls within the dragged time range — the group then moves together, and Ctrl/Cmd+C /
-      Ctrl/Cmd+V copies and pastes it (anchored at the playhead). Select a single note (with
-      Pen or Grab) to edit vibrato/tremolo/bend/duty cycle/arpeggio/portamento/bitcrush/echo/
-      chorus in the panel on the right. Portamento glides unbroken into the very next note in
-      the same track (no gap between them) instead of retriggering; it can't be combined with
-      bend or arpeggio on the same note. The rhythm strip has four rows (Kick/Snare/Hi-hat/Tom).
+      note/hit you click on (or a whole marquee-selected group), <b>Grab</b> moves a note/hit by
+      dragging it (drag its right edge to change its length). In Grab, dragging empty space
+      marquee-selects every note/hit in the active track whose start falls in the dragged range;
+      the group then moves together, and Ctrl/Cmd+C / Ctrl/Cmd+V copies and pastes it (anchored at
+      the playhead). Select a single note to edit vibrato/tremolo/bend/duty/arpeggio/portamento/
+      bitcrush/echo/chorus in the panel on the right.
     </p>
     <p class="hint">
-      Keyboard shortcuts (ignored while typing in a field): <b>Space</b> play/stop,
-      <b>1/2/3</b> select Pen/Eraser/Grab, <b>Delete</b>/<b>Backspace</b> delete the selection,
-      arrow keys nudge it by one column/semitone, <b>Ctrl/Cmd+C/V</b> copy/paste,
-      <b>Ctrl/Cmd+Z</b> undo, <b>Ctrl/Cmd+Shift+Z</b> or <b>Ctrl/Cmd+Y</b> redo,
-      <b>Escape</b> deselect (or close this dialog). Undo history covers the song data
-      (notes/hits/tempo), one step per gesture; the ↶/↷ toolbar buttons do the same.
+      Keyboard (ignored while typing in a field): <b>Space</b> play/stop, <b>1/2/3</b>
+      Pen/Eraser/Grab, <b>Delete</b>/<b>Backspace</b> delete selection, arrow keys nudge it,
+      <b>Ctrl/Cmd+C/V</b> copy/paste, <b>Ctrl/Cmd+Z</b> undo, <b>Ctrl/Cmd+Shift+Z</b>/<b>Ctrl/Cmd+Y</b>
+      redo, <b>Escape</b> deselect. Undo covers song data (notes/hits/tempo).
     </p>
     <p class="hint">
-      The red line above the grids is a playhead — drag it, or click in the ruler row, to
-      choose where playback starts; it moves along with the music during playback. The green
-      band in the ruler is the loop range — drag its ends to loop just a section, or "Full loop
-      range" to reset it to the whole song. The 🔍 buttons zoom the piano roll horizontally.
-    </p>
-    <p class="hint">
-      The <b>Mix</b> sliders set the relative volume of each channel (Lead/Harmony/Bass/Rhythm) —
-      the same numbers as the game's <code>MIX</code> constant. Drag while playing to rebalance
-      live (e.g. raise Rhythm if the beat is too quiet). "Export code" emits the matching
-      <code>export const MIX</code> line to paste into <code>audio.js</code>, and the mix is
-      saved with your <code>.json</code> file and autosave.
-    </p>
-    <p class="hint">
-      "Save file" downloads what you're working on as a <code>.json</code> file, "Load file"
-      reads such a file back in — separate from "Export code", which instead generates
-      finished code to paste into
-      <code>LEAD</code>/<code>HARMONY</code>/<code>BASS</code>/<code>RHYTHM</code> in
-      <code>audio.js</code>. Your work is also autosaved to this browser continuously as a
-      safety net against an accidental reload.
+      Each track's <b>volume</b> slider sets the relative channel level (the same numbers as the
+      game's <code>MIX</code> constant) — drag while playing to rebalance live. <b>Mute</b>
+      silences a track; <b>Solo</b> silences every track except the soloed one(s). "Export code"
+      emits the matching <code>export const MIX</code> line plus the note arrays for
+      <code>audio.js</code>; the mix, mute and solo state are saved with your <code>.json</code>
+      file and the autosave.
     </p>
     <button id="help-close">Close</button>
   </dialog>
 
   <div class="toolbar">
-    <div class="track-toggles">
-      <label class="track-toggle lead"><input type="checkbox" data-track="lead" checked> Lead</label>
-      <button data-clear="lead">Clear</button>
-      <label class="track-toggle harmony"><input type="checkbox" data-track="harmony" checked> Harmony</label>
-      <button data-clear="harmony">Clear</button>
-      <label class="track-toggle bass"><input type="checkbox" data-track="bass" checked> Bass</label>
-      <button data-clear="bass">Clear</button>
-      <label class="track-toggle rhythm"><input type="checkbox" data-track="rhythm" checked> Rhythm</label>
-      <button data-clear="rhythm">Clear</button>
-    </div>
     <div class="tool-group">
       <button data-tool="pen" class="active" title="Pen: click an empty cell to add a note/hit">✏️ Pen</button>
       <button data-tool="eraser" title="Eraser: click a note/hit to remove it">🧽 Eraser</button>
-      <button data-tool="grab" title="Grab: drag a note/hit to move it, drag its right edge to change its length">✋ Grab</button>
+      <button data-tool="grab" title="Grab: drag a note/hit to move it, drag its right edge to resize">✋ Grab</button>
     </div>
+    <div class="sep"></div>
     <div class="history-group">
       <button id="undo-btn" title="Undo (Ctrl+Z)" disabled>↶ Undo</button>
       <button id="redo-btn" title="Redo (Ctrl+Y / Ctrl+Shift+Z)" disabled>↷ Redo</button>
     </div>
-    <div class="active-track-group">
-      <span class="hint-label">Active track:</span>
-      <button data-active-track="lead" class="active">Lead</button>
-      <button data-active-track="harmony">Harmony</button>
-      <button data-active-track="bass">Bass</button>
-      <button data-active-track="rhythm">Rhythm</button>
-    </div>
+    <div class="sep"></div>
     <label>Tempo <input id="tempo" type="number" min="40" max="300" step="1"></label>
-    <div class="mixer" id="mixer">
-      <span class="hint-label">Mix:</span>
-      <label class="mix-chan" data-mix="lead">Lead <input type="range" data-mix-slider="lead" min="0" max="2" step="0.05"><span class="mix-val"></span></label>
-      <label class="mix-chan" data-mix="harmony">Harm <input type="range" data-mix-slider="harmony" min="0" max="2" step="0.05"><span class="mix-val"></span></label>
-      <label class="mix-chan" data-mix="bass">Bass <input type="range" data-mix-slider="bass" min="0" max="2" step="0.05"><span class="mix-val"></span></label>
-      <label class="mix-chan" data-mix="rhythm">Rhythm <input type="range" data-mix-slider="rhythm" min="0" max="2" step="0.05"><span class="mix-val"></span></label>
-    </div>
     <div class="zoom-group">
       <button id="zoom-out" title="Zoom out">🔍−</button>
       <span id="zoom-level">100%</span>
       <button id="zoom-in" title="Zoom in">🔍+</button>
     </div>
-    <button id="play">▶ Play</button>
-    <button id="stop">■ Stop</button>
-    <label><input id="loop" type="checkbox" checked> Loop</label>
-    <button id="loop-reset" title="Reset the loop range to the full song">Full loop range</button>
-    <button id="reset">Reset to game's song</button>
-    <button id="save-file">💾 Save file</button>
-    <button id="load-file">📂 Load file</button>
-    <input type="file" id="load-file-input" accept="application/json,.json" style="display:none">
-    <button id="export">Export code</button>
+    <div class="sep"></div>
+    <div class="transport-group">
+      <button id="play">▶ Play</button>
+      <button id="stop">■ Stop</button>
+      <label><input id="loop" type="checkbox" checked> Loop</label>
+      <button id="loop-reset" title="Reset the loop range to the full song">Full range</button>
+    </div>
+    <div class="sep"></div>
+    <div class="file-group">
+      <button id="reset">Reset to game's song</button>
+      <button id="save-file">💾 Save</button>
+      <button id="load-file">📂 Load</button>
+      <input type="file" id="load-file-input" accept="application/json,.json" style="display:none">
+      <button id="export">Export code</button>
+    </div>
   </div>
 
   <div class="editor-layout">
     <div class="rolls-column">
-      <div class="roll-wrap">
-        <div class="roll" id="roll"></div>
-      </div>
-
-      <div class="roll-wrap" id="rhythmWrap">
-        <div class="roll" id="rhythmRoll"></div>
+      <div class="daw" id="daw">
+        <div class="timeline" id="timeline"></div>
+        <div id="tracks"></div>
       </div>
     </div>
-
     <div class="inspector empty" id="inspector">No note selected.</div>
-  </div>
-
-  <div class="legend">
-    <span class="lead">Lead (square)</span>
-    <span class="harmony">Harmony (square)</span>
-    <span class="bass">Bass (triangle)</span>
-    <span class="rhythm">Rhythm (kick/snare/hi-hat/tom)</span>
   </div>
 
   <textarea id="exportBox" style="display:none" readonly></textarea>
@@ -313,41 +299,35 @@
 <script type="module">
 import { LEAD, HARMONY, BASS, RHYTHM, TEMPO_BPM, MIX } from './js/audio.js';
 
-// Loop length in columns (eighth-notes), derived from the loaded song so the
-// editor follows the game — the tune is 32 bars (256 columns) now, but a
-// loaded file or an older draft may differ. Always a multiple of 8 (whole bars).
+// ---- Song length in columns (eighth-notes), derived from the loaded song. ----
 let COLS = 64;
 const seqLength = (seq) => seq.reduce((s, n) => s + n.d, 0);
-function derivedCols(tracks) {
-  let max = 0;
-  for (const t of ['lead', 'harmony', 'bass']) for (const n of tracks[t] || []) max = Math.max(max, n.start + n.len);
-  for (const h of tracks.rhythm || []) max = Math.max(max, h.start + 1);
-  return Math.max(64, Math.ceil(max / 8) * 8);
-}
-const MIDI_MIN = 45, MIDI_MAX = 93; // ~4 octaves, comfortably covers the current range
+
+const MIDI_MIN = 33, MIDI_MAX = 96;
 const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 const PITCH_TRACKS = ['lead', 'harmony', 'bass'];
+const ALL_TRACKS = ['lead', 'harmony', 'bass', 'rhythm'];
 const TRACK_LABELS = { lead: 'Lead', harmony: 'Harmony', bass: 'Bass', rhythm: 'Rhythm' };
-const SUBLANE_PX = 10;
-const ZOOM_LEVELS = [8, 12, 16, 24, 32]; // column width in px
+const TRACK_OSC = { lead: 'square', harmony: 'square', bass: 'triangle', rhythm: 'kit' };
+const RHYTHM_ROWS = ['kick', 'snare', 'hihat', 'tom'];
+const RHYTHM_LABELS = { kick: 'Kick', snare: 'Snare', hihat: 'Hi-hat', tom: 'Tom' };
+
+const ROW_H = 11;       // px per semitone in a pitch lane
+const RHY_H = 17;       // px per rhythm row
+const TL_H = 22;        // timeline height
+const MIN_SPAN = 15;    // minimum pitch-window span (semitones) so lanes have room to draw
+
+const ZOOM_LEVELS = [8, 12, 16, 24, 32];
 let zoomIndex = ZOOM_LEVELS.indexOf(16);
 let colPx = ZOOM_LEVELS[zoomIndex];
-
-function applyZoom() {
-  colPx = ZOOM_LEVELS[zoomIndex];
-  roll.style.setProperty('--col-px', colPx + 'px');
-  rhythmRoll.style.setProperty('--col-px', colPx + 'px');
-  document.getElementById('zoom-level').textContent = Math.round(colPx / 16 * 100) + '%';
-  render();
-}
 
 const midiToFreq = (m) => 440 * Math.pow(2, (m - 69) / 12);
 const midiToName = (m) => NOTE_NAMES[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1);
 const freqToMidi  = (f) => Math.round(12 * Math.log2(f / 440) + 69);
 const round2 = (n) => Math.round(n * 100) / 100;
+const el = (tag, cls) => { const e = document.createElement(tag); if (cls) e.className = cls; return e; };
 
-// --- Convert the sequential {f,d,bend,vib,trem,duty,arp} format (as used in
-// audio.js) into the column-based notes the editor works with. ---
+// --- Sequential {f,d,...} format (audio.js) <-> column-based editor notes. ---
 function toColumnNotes(seq) {
   const notes = [];
   let col = 0;
@@ -362,18 +342,12 @@ function toColumnNotes(seq) {
   }
   return notes;
 }
-
 function toColumnHits(seq) {
   const hits = [];
   let col = 0;
-  for (const n of seq) {
-    hits.push({ start: col, type: n.type });
-    col += n.d;
-  }
+  for (const n of seq) { hits.push({ start: col, type: n.type }); col += n.d; }
   return hits;
 }
-
-// --- Back to the sequential format before exporting (fills in rests). ---
 function fromColumnNotes(notes) {
   const sorted = [...notes].sort((a, b) => a.start - b.start);
   const out = [];
@@ -397,7 +371,6 @@ function fromColumnNotes(notes) {
   if (col < COLS) out.push({ f: 0, d: COLS - col });
   return out;
 }
-
 function fromColumnHits(hits) {
   const sorted = [...hits].sort((a, b) => a.start - b.start);
   if (sorted.length === 0) return [];
@@ -420,20 +393,18 @@ function loadFromGame() {
 }
 
 // ---------- Autosave (localStorage) ----------
-// A safety net against an accidental reload, separate from the explicit
-// Save/Load-file flow. Debounced so a drag (which re-renders on every
-// mousemove) doesn't hammer localStorage.
 const AUTOSAVE_KEY = 'frogger-music-editor-autosave';
 let autosaveTimer = null;
 function autosave() {
   clearTimeout(autosaveTimer);
   autosaveTimer = setTimeout(() => {
     try {
-      localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({ tempo: state.tempo, gains: state.gains, tracks: state.tracks }));
-    } catch { /* storage disabled/full — autosave is best-effort */ }
+      localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({
+        tempo: state.tempo, gains: state.gains, mute: state.mute, solo: state.solo, tracks: state.tracks
+      }));
+    } catch { /* best-effort */ }
   }, 400);
 }
-
 function loadAutosaveIfPresent() {
   let raw;
   try { raw = localStorage.getItem(AUTOSAVE_KEY); } catch { return null; }
@@ -448,15 +419,16 @@ function loadAutosaveIfPresent() {
 const state = {
   tracks: loadFromGame(),
   tempo: TEMPO_BPM,
-  gains: { ...MIX }, // relative per-channel volume (the game's MIX); editable via the mixer sliders
-  visible: { lead: true, harmony: true, bass: true, rhythm: true },
-  activeTrack: 'lead',  // 'lead' | 'harmony' | 'bass' | 'rhythm' — what the tools below affect
-  tool: 'pen',           // 'pen' | 'eraser' | 'grab'
-  selected: null, // { track, index } | null — single note, drives the inspector
-  multiSelected: new Set(), // Set of note/hit object refs in state.activeTrack — marquee-selected group
+  gains: { ...MIX },                                             // relative per-channel volume (the game's MIX)
+  mute:  { lead: false, harmony: false, bass: false, rhythm: false },
+  solo:  { lead: false, harmony: false, bass: false, rhythm: false },
+  activeTrack: 'lead',
+  tool: 'pen',
+  selected: null,            // { track, index } — single note, drives the inspector
+  multiSelected: new Set(),  // marquee-selected group in state.activeTrack
   playhead: 0,
-  loopStart: 0, loopEnd: COLS, // playback loops within this range when Loop is checked
-  marquee: null // { col0, col1 } while a marquee-select drag is in progress
+  loopStart: 0, loopEnd: COLS,
+  marquee: null              // { col0, col1, track } while marquee-selecting
 };
 
 const autosaveDraft = loadAutosaveIfPresent();
@@ -464,8 +436,11 @@ if (autosaveDraft && confirm('Found an unsaved draft from a previous session. Re
   state.tracks = autosaveDraft.tracks;
   state.tempo = typeof autosaveDraft.tempo === 'number' ? autosaveDraft.tempo : TEMPO_BPM;
   if (autosaveDraft.gains && typeof autosaveDraft.gains === 'object') {
-    for (const ch of ['lead', 'harmony', 'bass', 'rhythm']) {
-      if (typeof autosaveDraft.gains[ch] === 'number') state.gains[ch] = autosaveDraft.gains[ch];
+    for (const ch of ALL_TRACKS) if (typeof autosaveDraft.gains[ch] === 'number') state.gains[ch] = autosaveDraft.gains[ch];
+  }
+  for (const key of ['mute', 'solo']) {
+    if (autosaveDraft[key] && typeof autosaveDraft[key] === 'object') {
+      for (const ch of ALL_TRACKS) state[key][ch] = !!autosaveDraft[key][ch];
     }
   }
 } else if (autosaveDraft) {
@@ -473,27 +448,13 @@ if (autosaveDraft && confirm('Found an unsaved draft from a previous session. Re
 }
 
 // ---------- Undo/redo ----------
-// Debounced checkpointing piggybacked on render(): when the serialized
-// {tempo, tracks} settles into a new value (400 ms without further changes),
-// the previous value becomes an undo step. A drag that re-renders on every
-// mousemove therefore collapses into a single step — history granularity
-// matches gestures, not mousemoves. Selection/zoom/loop-range are deliberately
-// NOT part of history (they're view state, not song data).
 const HISTORY_LIMIT = 100;
 const undoStack = [];
 const redoStack = [];
 let historyTimer = null;
 let lastCommitted = JSON.stringify({ tempo: state.tempo, tracks: state.tracks });
-
-function snapshotSong() {
-  return JSON.stringify({ tempo: state.tempo, tracks: state.tracks });
-}
-
-function checkpointHistory() {
-  clearTimeout(historyTimer);
-  historyTimer = setTimeout(commitHistory, 400);
-}
-
+const snapshotSong = () => JSON.stringify({ tempo: state.tempo, tracks: state.tracks });
+function checkpointHistory() { clearTimeout(historyTimer); historyTimer = setTimeout(commitHistory, 400); }
 function commitHistory() {
   clearTimeout(historyTimer);
   historyTimer = null;
@@ -501,30 +462,27 @@ function commitHistory() {
   if (s === lastCommitted) return;
   undoStack.push(lastCommitted);
   if (undoStack.length > HISTORY_LIMIT) undoStack.shift();
-  redoStack.length = 0; // a new edit invalidates the redo branch
+  redoStack.length = 0;
   lastCommitted = s;
   updateHistoryButtons();
 }
-
 function restoreSnapshot(s) {
   const data = JSON.parse(s);
   state.tracks = data.tracks;
   state.tempo = data.tempo;
   tempoInput.value = state.tempo;
   state.selected = null;
-  state.multiSelected.clear(); // old object refs don't exist in the restored tracks
+  state.multiSelected.clear();
   render();
 }
-
 function undo() {
-  commitHistory(); // fold any pending, not-yet-debounced change into a step first
+  commitHistory();
   if (undoStack.length === 0) return;
   redoStack.push(lastCommitted);
   lastCommitted = undoStack.pop();
   restoreSnapshot(lastCommitted);
   updateHistoryButtons();
 }
-
 function redo() {
   commitHistory();
   if (redoStack.length === 0) return;
@@ -533,27 +491,43 @@ function redo() {
   restoreSnapshot(lastCommitted);
   updateHistoryButtons();
 }
-
 function updateHistoryButtons() {
   document.getElementById('undo-btn').disabled = undoStack.length === 0;
   document.getElementById('redo-btn').disabled = redoStack.length === 0;
 }
 
-const RHYTHM_ROWS = ['kick', 'snare', 'hihat', 'tom'];
-const RHYTHM_LABELS = { kick: 'Kick', snare: 'Snare', hihat: 'Hi-hat', tom: 'Tom' };
-const RULER_H = 16;
-
-// ---------- Rendering ----------
-const roll = document.getElementById('roll');
-const rhythmRoll = document.getElementById('rhythmRoll');
-const rhythmWrap = document.getElementById('rhythmWrap');
+// ---------- Element refs / layout constants ----------
+const daw = document.getElementById('daw');
+const timelineEl = document.getElementById('timeline');
+const tracksEl = document.getElementById('tracks');
 const inspector = document.getElementById('inspector');
-let pitchPlayheadEl = null, rhythmPlayheadEl = null;
-let pitchLoopEls = null, rhythmLoopEls = null;
-let visualPlayhead = 0;
+const HEADER_W = 176, GUTTER_W = 42;
+const LANE_ORIGIN = HEADER_W + GUTTER_W; // x (within .daw content) where lane columns begin
 
-function visiblePitchTracks() {
-  return PITCH_TRACKS.filter(t => state.visible[t]);
+let playheadEl = null, playheadGrip = null, loopEls = null, rulerGridEl = null;
+let visualPlayhead = 0;
+const laneRolls = [];       // [{ track, rollEl }] for the current render — used by marquee/positioning
+let interacting = false;    // freezes pitch-window auto-fit during a drag so lanes don't jump
+
+// Pitch auto-fit window per pitch track. Cached; frozen while `interacting`.
+const winCache = {};
+function pitchWindow(track) {
+  if (interacting && winCache[track]) return winCache[track];
+  const notes = state.tracks[track];
+  let lo, hi;
+  if (!notes.length) { lo = 57; hi = 79; }
+  else {
+    lo = Infinity; hi = -Infinity;
+    for (const n of notes) { const m = freqToMidi(n.freq); if (m < lo) lo = m; if (m > hi) hi = m; }
+  }
+  lo -= 3; hi += 3;
+  const span = hi - lo;
+  if (span < MIN_SPAN) { const g = Math.ceil((MIN_SPAN - span) / 2); lo -= g; hi += g; }
+  lo = Math.max(MIDI_MIN, lo); hi = Math.min(MIDI_MAX, hi);
+  if (hi - lo < MIN_SPAN) { if (lo <= MIDI_MIN) hi = Math.min(MIDI_MAX, lo + MIN_SPAN); else lo = Math.max(MIDI_MIN, hi - MIN_SPAN); }
+  const w = { min: lo, max: hi };
+  winCache[track] = w;
+  return w;
 }
 
 function clearOverlaps(notes, start, len, exceptIdx = -1) {
@@ -565,308 +539,256 @@ function clearOverlaps(notes, start, len, exceptIdx = -1) {
   });
 }
 
+// ---------- Mute/solo audibility ----------
+function anySolo() { return ALL_TRACKS.some(t => state.solo[t]); }
+function audible(track) {
+  if (state.mute[track]) return false;
+  return anySolo() ? state.solo[track] : true;
+}
+
+// ---------- Rendering ----------
 function render() {
-  renderPitchRoll();
-  renderRhythmRoll();
-  updatePlayheadPositions();
-  updateLoopPositions();
-  renderMarquee();
+  renderTimeline();
+  renderTracks();
+  positionOverlays();
   renderInspector();
   autosave();
   checkpointHistory();
 }
 
-// A translucent band shown while marquee-selecting (dragging on empty grid
-// space with Grab). Purely visual — the selection itself is computed once on
-// mouseup by selectRange().
-function renderMarquee() {
-  if (!state.marquee) return;
-  const { col0, col1 } = state.marquee;
-  for (const rollEl of [roll, rhythmRoll]) {
-    if (!rollEl.firstChild) continue;
-    const el = document.createElement('div');
-    el.className = 'marquee';
-    el.style.left = (44 + col0 * colPx) + 'px';
-    el.style.width = ((col1 - col0) * colPx) + 'px';
-    el.style.height = rollEl.scrollHeight + 'px';
-    rollEl.appendChild(el);
-  }
-}
-
-// Drag on an empty cell in Grab tool: marquee-selects every note/hit in the
-// active track whose start column falls within the dragged range. A click
-// with no movement clears the current selection instead.
-function startMarquee(e, rollEl) {
-  e.preventDefault();
-  const rollRect = rollEl.getBoundingClientRect();
-  const startCol = Math.max(0, Math.min(COLS, Math.round((e.clientX - rollRect.left - 44) / colPx)));
-  let moved = false;
-  function setRange(a, b) {
-    state.marquee = { col0: Math.min(a, b), col1: Math.max(a, b) };
-    render();
-  }
-  setRange(startCol, startCol);
-  function onMove(ev) {
-    const col = Math.max(0, Math.min(COLS, Math.round((ev.clientX - rollRect.left - 44) / colPx)));
-    if (col !== startCol) moved = true;
-    setRange(startCol, col);
-  }
-  function onUp() {
-    window.removeEventListener('mousemove', onMove);
-    window.removeEventListener('mouseup', onUp);
-    const range = state.marquee;
-    state.marquee = null;
-    if (!moved) { clearSelection(); return; }
-    selectRange(range.col0, range.col1);
-  }
-  window.addEventListener('mousemove', onMove);
-  window.addEventListener('mouseup', onUp);
-}
-
-function selectRange(lo, hi) {
-  state.multiSelected.clear();
-  const items = state.activeTrack === 'rhythm' ? state.tracks.rhythm : state.tracks[state.activeTrack];
-  for (const item of items) {
-    if (item.start >= lo && item.start < hi) state.multiSelected.add(item);
-  }
-  state.selected = null;
-  render();
-}
-
-// A highlighted band in the ruler row (row 1) marking [loopStart, loopEnd) —
-// draggable handles at each end. When Loop is checked, playback repeats
-// within this range instead of always looping the whole 64-column song.
-function buildLoopRegion(rollEl) {
-  const region = document.createElement('div');
-  region.className = 'loop-region';
-  rollEl.appendChild(region);
-  const startHandle = document.createElement('div');
-  startHandle.className = 'loop-handle';
-  startHandle.addEventListener('mousedown', (e) => startLoopDrag(e, rollEl, 'start'));
-  rollEl.appendChild(startHandle);
-  const endHandle = document.createElement('div');
-  endHandle.className = 'loop-handle';
-  endHandle.addEventListener('mousedown', (e) => startLoopDrag(e, rollEl, 'end'));
-  rollEl.appendChild(endHandle);
-  return { region, startHandle, endHandle };
-}
-
-function updateLoopPositions() {
-  const left = 44 + state.loopStart * colPx;
-  const width = (state.loopEnd - state.loopStart) * colPx;
-  for (const els of [pitchLoopEls, rhythmLoopEls]) {
-    if (!els) continue;
-    els.region.style.left = left + 'px';
-    els.region.style.width = width + 'px';
-    els.startHandle.style.left = left + 'px';
-    els.endHandle.style.left = (left + width) + 'px';
-  }
-}
-
-function startLoopDrag(e, rollEl, which) {
-  e.preventDefault();
-  e.stopPropagation();
-  const rollRect = rollEl.getBoundingClientRect();
-  function move(ev) {
-    const col = Math.max(0, Math.min(COLS, Math.round((ev.clientX - rollRect.left - 44) / colPx)));
-    if (which === 'start') state.loopStart = Math.min(col, state.loopEnd - 1);
-    else state.loopEnd = Math.max(col, state.loopStart + 1);
-    updateLoopPositions();
-  }
-  move(e);
-  function up() {
-    window.removeEventListener('mousemove', move);
-    window.removeEventListener('mouseup', up);
-  }
-  window.addEventListener('mousemove', move);
-  window.addEventListener('mouseup', up);
-}
-
-// A ruler row (row 1, RULER_H tall) above a grid — receives click/drag to
-// move the playhead. Shared between the piano roll and the rhythm strip.
-function buildRuler(rollEl) {
-  const corner = document.createElement('div');
-  corner.className = 'label';
-  corner.style.gridRow = 1;
-  corner.style.gridColumn = 1;
-  rollEl.appendChild(corner);
+function renderTimeline() {
+  timelineEl.innerHTML = '';
+  const corner = el('div', 'tl-corner');
+  corner.textContent = 'BARS';
+  timelineEl.appendChild(corner);
+  const ruler = el('div', 'tl-ruler');
+  ruler.style.gridTemplateColumns = `repeat(${COLS}, ${colPx}px)`;
   for (let c = 0; c < COLS; c++) {
-    const rc = document.createElement('div');
-    rc.className = 'ruler-cell' + (c % 8 === 0 ? ' bar-start' : '');
-    rc.style.gridRow = 1;
-    rc.style.gridColumn = c + 2;
-    rc.addEventListener('mousedown', (e) => startScrub(e, rollEl));
-    rollEl.appendChild(rc);
+    const rc = el('div', 'ruler-cell' + (c % 8 === 0 ? ' bar-start' : ''));
+    rc.style.gridColumn = c + 1;
+    if (c % 8 === 0) { const bn = el('span', 'barnum'); bn.textContent = (c / 8) + 1; rc.appendChild(bn); }
+    rc.addEventListener('mousedown', (e) => startScrub(e));
+    ruler.appendChild(rc);
   }
+  timelineEl.appendChild(ruler);
+  rulerGridEl = ruler;
+
+  // Loop region + handles live over the timeline.
+  const region = el('div', 'loop-region');
+  const startHandle = el('div', 'loop-handle');
+  const endHandle = el('div', 'loop-handle');
+  startHandle.addEventListener('mousedown', (e) => startLoopDrag(e, 'start'));
+  endHandle.addEventListener('mousedown', (e) => startLoopDrag(e, 'end'));
+  daw.appendChild(region); daw.appendChild(startHandle); daw.appendChild(endHandle);
+  loopEls = { region, startHandle, endHandle };
 }
 
-function buildPlayhead(rollEl, totalRowsPx) {
-  const el = document.createElement('div');
-  el.className = 'playhead';
-  el.style.height = (RULER_H + totalRowsPx) + 'px';
-  el.addEventListener('mousedown', (e) => startScrub(e, rollEl));
-  rollEl.appendChild(el);
-  return el;
+function renderTracks() {
+  tracksEl.innerHTML = '';
+  laneRolls.length = 0;
+  for (const track of PITCH_TRACKS) renderPitchTrack(track);
+  renderRhythmTrack();
+
+  // Single continuous playhead spanning the whole stack (child of .daw).
+  playheadEl = el('div', 'playhead');
+  playheadGrip = el('div', 'playhead-grip');
+  playheadGrip.addEventListener('mousedown', (e) => startScrub(e));
+  daw.appendChild(playheadEl); daw.appendChild(playheadGrip);
+  playheadEl.style.height = (TL_H + tracksEl.offsetHeight) + 'px';
 }
 
-function renderPitchRoll() {
-  roll.innerHTML = '';
-  const tracks = visiblePitchTracks();
-  if (tracks.length === 0) { pitchPlayheadEl = null; pitchLoopEls = null; return; }
+function buildHeader(track) {
+  const header = el('div', 'track-header');
+  const top = el('div', 'th-top');
+  const nameWrap = el('div');
+  const name = el('span', 'th-name'); name.textContent = TRACK_LABELS[track];
+  const osc = el('span', 'th-osc'); osc.textContent = TRACK_OSC[track];
+  nameWrap.append(name, osc);
+  const btns = el('div', 'th-btns');
+  const mBtn = el('button', 'm' + (state.mute[track] ? ' on' : '')); mBtn.textContent = 'M'; mBtn.title = 'Mute';
+  const sBtn = el('button', 's' + (state.solo[track] ? ' on' : '')); sBtn.textContent = 'S'; sBtn.title = 'Solo';
+  mBtn.addEventListener('click', (e) => { e.stopPropagation(); state.mute[track] = !state.mute[track]; applyGains(); render(); autosave(); });
+  sBtn.addEventListener('click', (e) => { e.stopPropagation(); state.solo[track] = !state.solo[track]; applyGains(); render(); autosave(); });
+  btns.append(mBtn, sBtn);
+  top.append(nameWrap, btns);
 
-  const pitchCount = MIDI_MAX - MIDI_MIN + 1;
-  roll.style.gridTemplateColumns = `44px repeat(${COLS}, ${colPx}px)`;
-  roll.style.gridTemplateRows = `${RULER_H}px repeat(${pitchCount * tracks.length}, ${SUBLANE_PX}px)`;
-  buildRuler(roll);
-  pitchLoopEls = buildLoopRegion(roll);
+  const vol = el('div', 'th-vol');
+  const slider = document.createElement('input');
+  slider.type = 'range'; slider.min = 0; slider.max = 2; slider.step = 0.05; slider.value = state.gains[track];
+  slider.title = 'Channel volume (MIX ' + track + ')';
+  const val = el('span', 'vol-val'); val.textContent = Number(state.gains[track]).toFixed(2);
+  slider.addEventListener('mousedown', (e) => e.stopPropagation());
+  slider.addEventListener('input', () => {
+    state.gains[track] = parseFloat(slider.value);
+    val.textContent = state.gains[track].toFixed(2);
+    applyGains(); autosave();
+  });
+  vol.append(slider, val);
+
+  header.append(top, vol);
+  header.addEventListener('mousedown', () => setActive(track, true));
+  return header;
+}
+
+function buildGutterCell(text, cls) {
+  const g = el('div', 'glabel' + (cls ? ' ' + cls : ''));
+  g.textContent = text;
+  return g;
+}
+
+function renderPitchTrack(track) {
+  const win = pitchWindow(track);
+  const pitchCount = win.max - win.min + 1;
+  const active = state.activeTrack === track;
+  const row = el('div', 'track' + (active ? ' active' : '') + (audible(track) ? '' : ' silent'));
+  row.dataset.track = track;
+  row.appendChild(buildHeader(track));
+
+  const gutter = el('div', 'gutter');
+  gutter.style.gridTemplateRows = `repeat(${pitchCount}, ${ROW_H}px)`;
+  for (let p = 0; p < pitchCount; p++) {
+    const midi = win.max - p;
+    const isC = midi % 12 === 0;
+    const isBlack = NOTE_NAMES[((midi % 12) + 12) % 12].includes('#');
+    gutter.appendChild(buildGutterCell(isBlack ? '' : midiToName(midi), isC ? 'c' : ''));
+  }
+  row.appendChild(gutter);
+
+  const rollEl = el('div', 'lane');
+  rollEl.style.gridTemplateColumns = `repeat(${COLS}, ${colPx}px)`;
+  rollEl.style.gridTemplateRows = `repeat(${pitchCount}, ${ROW_H}px)`;
+  rollEl.dataset.track = track;
 
   for (let p = 0; p < pitchCount; p++) {
-    const midi = MIDI_MAX - p;
+    const midi = win.max - p;
     const isBlack = NOTE_NAMES[((midi % 12) + 12) % 12].includes('#');
-    const firstSubRow = p * tracks.length + 2;
-
-    const label = document.createElement('div');
-    label.className = 'label';
-    label.style.gridRow = `${firstSubRow} / span ${tracks.length}`;
-    label.style.gridColumn = 1;
-    label.textContent = midiToName(midi);
-    roll.appendChild(label);
-
-    tracks.forEach((track, subIdx) => {
-      const gridRow = firstSubRow + subIdx;
-      const inactive = track !== state.activeTrack;
-      for (let c = 0; c < COLS; c++) {
-        const cell = document.createElement('div');
-        cell.className = 'cell' + (c % 8 === 0 ? ' bar-start' : '') + (isBlack ? ' black' : '') +
-          (inactive ? ' inactive' : '');
-        cell.style.gridRow = gridRow;
-        cell.style.gridColumn = c + 2;
-        cell.addEventListener('click', () => {
-          if (inactive || state.tool !== 'pen') return;
-          onCellClick(track, midi, c);
-        });
-        cell.addEventListener('mousedown', (e) => {
-          if (inactive || state.tool !== 'grab') return;
-          startMarquee(e, roll);
-        });
-        roll.appendChild(cell);
-      }
-    });
+    for (let c = 0; c < COLS; c++) {
+      const cell = el('div', 'cell' + (c % 8 === 0 ? ' bar-start' : (c % 4 === 0 ? ' beat' : '')) + (isBlack ? ' black' : ''));
+      cell.style.gridRow = p + 1;
+      cell.style.gridColumn = c + 1;
+      cell.addEventListener('click', () => { if (state.tool !== 'pen') return; setActive(track); onCellClick(track, midi, c); });
+      cell.addEventListener('mousedown', (e) => { if (state.tool !== 'grab') return; setActive(track); startMarquee(e, rollEl, track); });
+      rollEl.appendChild(cell);
+    }
   }
 
-  tracks.forEach((track, subIdx) => {
-    const inactive = track !== state.activeTrack;
-    state.tracks[track].forEach((note, idx) => {
-      const pitchIdx = MIDI_MAX - freqToMidi(note.freq);
-      const gridRow = pitchIdx * tracks.length + subIdx + 2;
-      const div = document.createElement('div');
-      const isSelected = state.selected && state.selected.track === track && state.selected.index === idx;
-      div.className = 'note ' + track +
-        (note.bend ? ' bend' : '') + (note.vib ? ' vib' : '') + (note.trem ? ' trem' : '') +
-        (note.porta ? ' porta' : '') + (note.crush ? ' crush' : '') +
-        (note.echo ? ' echo' : '') + (note.chorus ? ' chorus' : '') +
-        (isSelected ? ' selected' : '') + (inactive ? ' inactive' : '') +
-        (state.multiSelected.has(note) ? ' multi-selected' : '');
-      div.style.gridRow = gridRow;
-      div.style.gridColumn = `${note.start + 2} / span ${note.len}`;
-      div.addEventListener('mousedown', (e) => {
-        if (inactive || state.tool !== 'grab') return;
-        startMoveNote(e, track, idx, tracks.length);
-      });
-      div.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (inactive) return;
-        if (state.tool === 'eraser') {
-          if (state.multiSelected.size > 1 && state.multiSelected.has(note)) deleteSelection();
-          else deleteNote(track, idx);
-        } else if (state.tool === 'pen') selectNote(track, idx);
-        // grab: handled entirely via mousedown/mouseup in startMoveNote
-      });
-      if (note.arp && note.arp.length) {
-        const badge = document.createElement('span');
-        badge.className = 'arp-badge';
-        badge.textContent = '♪';
-        div.appendChild(badge);
-      }
-      if (!inactive && state.tool === 'grab') {
-        const handle = document.createElement('div');
-        handle.className = 'handle';
-        handle.addEventListener('mousedown', (e) => startResize(e, track, idx));
-        div.appendChild(handle);
-      }
-      roll.appendChild(div);
+  state.tracks[track].forEach((note, idx) => {
+    const midi = freqToMidi(note.freq);
+    const p = Math.max(0, Math.min(pitchCount - 1, win.max - midi));
+    const div = el('div');
+    const isSelected = state.selected && state.selected.track === track && state.selected.index === idx;
+    div.className = 'note ' + track +
+      (note.bend ? ' bend' : '') + (note.vib ? ' vib' : '') + (note.trem ? ' trem' : '') +
+      (note.porta ? ' porta' : '') + (note.crush ? ' crush' : '') +
+      (note.echo ? ' echo' : '') + (note.chorus ? ' chorus' : '') +
+      (isSelected ? ' selected' : '') + (state.multiSelected.has(note) ? ' multi-selected' : '');
+    div.style.gridRow = p + 1;
+    div.style.gridColumn = `${note.start + 1} / span ${note.len}`;
+    div.addEventListener('mousedown', (e) => { if (state.tool !== 'grab') return; setActive(track); startMoveNote(e, track, idx); });
+    div.addEventListener('click', (e) => {
+      e.stopPropagation();
+      setActive(track);
+      if (state.tool === 'eraser') {
+        if (state.multiSelected.size > 1 && state.multiSelected.has(note)) deleteSelection();
+        else deleteNote(track, idx);
+      } else if (state.tool === 'pen') selectNote(track, idx);
     });
+    if (note.arp && note.arp.length) { const badge = el('span', 'arp-badge'); badge.textContent = '♪'; div.appendChild(badge); }
+    if (state.tool === 'grab') {
+      const handle = el('div', 'handle');
+      handle.addEventListener('mousedown', (e) => { setActive(track); startResize(e, track, idx); });
+      div.appendChild(handle);
+    }
+    rollEl.appendChild(div);
   });
 
-  pitchPlayheadEl = buildPlayhead(roll, pitchCount * tracks.length * SUBLANE_PX);
+  renderMarquee(rollEl, track, pitchCount * ROW_H);
+  row.appendChild(rollEl);
+  tracksEl.appendChild(row);
+  laneRolls.push({ track, rollEl });
 }
 
-function renderRhythmRoll() {
-  if (!state.visible.rhythm) { rhythmWrap.style.display = 'none'; rhythmPlayheadEl = null; rhythmLoopEls = null; return; }
-  rhythmWrap.style.display = '';
-  rhythmRoll.innerHTML = '';
-  rhythmRoll.style.gridTemplateColumns = `44px repeat(${COLS}, ${colPx}px)`;
-  rhythmRoll.style.gridTemplateRows = `${RULER_H}px repeat(${RHYTHM_ROWS.length}, 15px)`;
-  buildRuler(rhythmRoll);
-  rhythmLoopEls = buildLoopRegion(rhythmRoll);
+function renderRhythmTrack() {
+  const track = 'rhythm';
+  const active = state.activeTrack === track;
+  const row = el('div', 'track' + (active ? ' active' : '') + (audible(track) ? '' : ' silent'));
+  row.dataset.track = track;
+  row.appendChild(buildHeader(track));
 
-  const rhythmInactive = state.activeTrack !== 'rhythm';
+  const gutter = el('div', 'gutter');
+  gutter.style.gridTemplateRows = `repeat(${RHYTHM_ROWS.length}, ${RHY_H}px)`;
+  for (const type of RHYTHM_ROWS) gutter.appendChild(buildGutterCell(RHYTHM_LABELS[type], 'rhy'));
+  row.appendChild(gutter);
+
+  const rollEl = el('div', 'lane');
+  rollEl.style.gridTemplateColumns = `repeat(${COLS}, ${colPx}px)`;
+  rollEl.style.gridTemplateRows = `repeat(${RHYTHM_ROWS.length}, ${RHY_H}px)`;
+  rollEl.dataset.track = track;
 
   RHYTHM_ROWS.forEach((type, r) => {
-    const label = document.createElement('div');
-    label.className = 'label';
-    label.style.gridRow = r + 2;
-    label.style.gridColumn = 1;
-    label.textContent = RHYTHM_LABELS[type];
-    rhythmRoll.appendChild(label);
     for (let c = 0; c < COLS; c++) {
-      const cell = document.createElement('div');
-      cell.className = 'cell' + (c % 8 === 0 ? ' bar-start' : '') + (rhythmInactive ? ' inactive' : '');
-      cell.style.gridRow = r + 2;
-      cell.style.gridColumn = c + 2;
-      cell.addEventListener('click', () => {
-        if (rhythmInactive || state.tool !== 'pen') return;
-        onRhythmCellClick(r, c);
-      });
-      cell.addEventListener('mousedown', (e) => {
-        if (rhythmInactive || state.tool !== 'grab') return;
-        startMarquee(e, rhythmRoll);
-      });
-      rhythmRoll.appendChild(cell);
+      const cell = el('div', 'cell' + (c % 8 === 0 ? ' bar-start' : (c % 4 === 0 ? ' beat' : '')));
+      cell.style.gridRow = r + 1;
+      cell.style.gridColumn = c + 1;
+      cell.addEventListener('click', () => { if (state.tool !== 'pen') return; setActive(track); onRhythmCellClick(r, c); });
+      cell.addEventListener('mousedown', (e) => { if (state.tool !== 'grab') return; setActive(track); startMarquee(e, rollEl, track); });
+      rollEl.appendChild(cell);
     }
   });
 
   for (const hit of state.tracks.rhythm) {
-    const row = RHYTHM_ROWS.indexOf(hit.type);
-    const div = document.createElement('div');
-    div.className = 'hit' + (hit.type !== 'kick' ? ' ' + hit.type : '') + (rhythmInactive ? ' inactive' : '') +
-      (state.multiSelected.has(hit) ? ' multi-selected' : '');
-    div.style.gridRow = row + 2;
-    div.style.gridColumn = `${hit.start + 2} / span 1`;
-    div.addEventListener('mousedown', (e) => {
-      if (rhythmInactive || state.tool !== 'grab') return;
-      startMoveHit(e, hit);
-    });
+    const r = RHYTHM_ROWS.indexOf(hit.type);
+    const div = el('div', 'hit' + (hit.type !== 'kick' ? ' ' + hit.type : '') + (state.multiSelected.has(hit) ? ' multi-selected' : ''));
+    div.style.gridRow = r + 1;
+    div.style.gridColumn = `${hit.start + 1} / span 1`;
+    div.addEventListener('mousedown', (e) => { if (state.tool !== 'grab') return; setActive(track); startMoveHit(e, hit); });
     div.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (rhythmInactive) return;
+      setActive(track);
       if (state.tool === 'eraser') {
         if (state.multiSelected.size > 1 && state.multiSelected.has(hit)) deleteSelection();
         else removeHit(hit);
       }
-      // pen/grab: handled via the cell click and startMoveHit respectively
     });
-    rhythmRoll.appendChild(div);
+    rollEl.appendChild(div);
   }
 
-  rhythmPlayheadEl = buildPlayhead(rhythmRoll, RHYTHM_ROWS.length * 15);
+  renderMarquee(rollEl, track, RHYTHM_ROWS.length * RHY_H);
+  row.appendChild(rollEl);
+  tracksEl.appendChild(row);
+  laneRolls.push({ track, rollEl });
 }
 
-// ---------- Playhead: start position for Play + live scrubbing ----------
+function renderMarquee(rollEl, track, heightPx) {
+  if (!state.marquee || state.marquee.track !== track) return;
+  const { col0, col1 } = state.marquee;
+  const m = el('div', 'marquee');
+  m.style.left = (col0 * colPx) + 'px';
+  m.style.width = ((col1 - col0) * colPx) + 'px';
+  m.style.height = heightPx + 'px';
+  rollEl.appendChild(m);
+}
+
+// ---------- Playhead + loop overlay positioning ----------
+function positionOverlays() { updatePlayheadPositions(); updateLoopPositions(); }
 function updatePlayheadPositions() {
-  const left = (44 + visualPlayhead * colPx) + 'px';
-  if (pitchPlayheadEl) pitchPlayheadEl.style.left = left;
-  if (rhythmPlayheadEl) rhythmPlayheadEl.style.left = left;
+  const left = (LANE_ORIGIN + visualPlayhead * colPx) + 'px';
+  if (playheadEl) playheadEl.style.left = left;
+  if (playheadGrip) playheadGrip.style.left = left;
+}
+function updateLoopPositions() {
+  if (!loopEls) return;
+  const left = LANE_ORIGIN + state.loopStart * colPx;
+  const width = (state.loopEnd - state.loopStart) * colPx;
+  loopEls.region.style.left = left + 'px';
+  loopEls.region.style.width = width + 'px';
+  loopEls.startHandle.style.left = left + 'px';
+  loopEls.endHandle.style.left = (left + width) + 'px';
+}
+
+function colFromClientX(clientX) {
+  const rect = rulerGridEl.getBoundingClientRect();
+  return (clientX - rect.left) / colPx;
 }
 
 function seekTo(col) {
@@ -874,25 +796,39 @@ function seekTo(col) {
   state.playhead = col;
   visualPlayhead = col;
   updatePlayheadPositions();
-  if (playing) {
-    ensureCtx();
-    startPlaybackFrom(col);
-  }
+  if (playing) { ensureCtx(); startPlaybackFrom(col); }
 }
-
-function startScrub(e, rollEl) {
-  e.preventDefault();
-  e.stopPropagation();
-  const rollRect = rollEl.getBoundingClientRect();
-  const seek = (ev) => seekTo((ev.clientX - rollRect.left - 44) / colPx);
+function startScrub(e) {
+  e.preventDefault(); e.stopPropagation();
+  interacting = true;
+  const seek = (ev) => seekTo(colFromClientX(ev.clientX));
   seek(e);
-  function onMove(ev) { seek(ev); }
-  function onUp() {
-    window.removeEventListener('mousemove', onMove);
-    window.removeEventListener('mouseup', onUp);
-  }
+  const onMove = (ev) => seek(ev);
+  const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); interacting = false; };
   window.addEventListener('mousemove', onMove);
   window.addEventListener('mouseup', onUp);
+}
+function startLoopDrag(e, which) {
+  e.preventDefault(); e.stopPropagation();
+  interacting = true;
+  function move(ev) {
+    const col = Math.max(0, Math.min(COLS, Math.round(colFromClientX(ev.clientX))));
+    if (which === 'start') state.loopStart = Math.min(col, state.loopEnd - 1);
+    else state.loopEnd = Math.max(col, state.loopStart + 1);
+    updateLoopPositions();
+  }
+  move(e);
+  function up() { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); interacting = false; }
+  window.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', up);
+}
+
+// ---------- Editing ----------
+function setActive(track, forceRender) {
+  if (state.activeTrack === track) { if (forceRender) render(); return; }
+  state.activeTrack = track;
+  state.multiSelected.clear();
+  render();
 }
 
 function onCellClick(track, midi, col) {
@@ -907,7 +843,6 @@ function onCellClick(track, midi, col) {
   state.selected = { track, index: cleared.length - 1 };
   render();
 }
-
 function onRhythmCellClick(row, col) {
   const type = RHYTHM_ROWS[row];
   const hits = state.tracks.rhythm.filter(h => h.start !== col);
@@ -915,67 +850,74 @@ function onRhythmCellClick(row, col) {
   state.tracks.rhythm = hits;
   render();
 }
-
-function removeHit(hit) {
-  state.tracks.rhythm = state.tracks.rhythm.filter(h => h !== hit);
-  render();
-}
-
-function selectNote(track, idx) {
-  state.selected = { track, index: idx };
-  state.multiSelected.clear(); // a plain click always collapses to a single selection
-  render();
-}
-
+function removeHit(hit) { state.tracks.rhythm = state.tracks.rhythm.filter(h => h !== hit); render(); }
+function selectNote(track, idx) { state.selected = { track, index: idx }; state.multiSelected.clear(); render(); }
 function deleteNote(track, idx) {
   state.tracks[track] = state.tracks[track].filter((_, i) => i !== idx);
   if (state.selected && state.selected.track === track && state.selected.index === idx) state.selected = null;
   render();
 }
 
-// ---------- Multi-select, copy/paste, keyboard nudging ----------
-let clipboard = null; // { track, items: [...] } (items' `start` is relative to the earliest item) | null
+// ---------- Multi-select / marquee ----------
+function startMarquee(e, rollEl, track) {
+  e.preventDefault();
+  interacting = true;
+  const rollRect = rollEl.getBoundingClientRect();
+  const startCol = Math.max(0, Math.min(COLS, Math.round((e.clientX - rollRect.left) / colPx)));
+  let moved = false;
+  const setRange = (a, b) => { state.marquee = { col0: Math.min(a, b), col1: Math.max(a, b), track }; render(); };
+  setRange(startCol, startCol);
+  function onMove(ev) {
+    const col = Math.max(0, Math.min(COLS, Math.round((ev.clientX - rollRect.left) / colPx)));
+    if (col !== startCol) moved = true;
+    setRange(startCol, col);
+  }
+  function onUp() {
+    window.removeEventListener('mousemove', onMove);
+    window.removeEventListener('mouseup', onUp);
+    interacting = false;
+    const range = state.marquee;
+    state.marquee = null;
+    if (!moved) { clearSelection(); return; }
+    selectRange(range.col0, range.col1);
+  }
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onUp);
+}
+function selectRange(lo, hi) {
+  state.multiSelected.clear();
+  const items = state.tracks[state.activeTrack];
+  for (const item of items) if (item.start >= lo && item.start < hi) state.multiSelected.add(item);
+  state.selected = null;
+  render();
+}
 
+let clipboard = null;
 function clearSelection() {
   if (state.multiSelected.size === 0 && !state.selected) return;
   state.multiSelected.clear();
   state.selected = null;
   render();
 }
-
 function deleteSelection() {
   if (state.multiSelected.size > 0) {
-    if (state.activeTrack === 'rhythm') {
-      state.tracks.rhythm = state.tracks.rhythm.filter(h => !state.multiSelected.has(h));
-    } else {
-      state.tracks[state.activeTrack] = state.tracks[state.activeTrack].filter(n => !state.multiSelected.has(n));
-    }
+    state.tracks[state.activeTrack] = state.tracks[state.activeTrack].filter(n => !state.multiSelected.has(n));
     state.multiSelected.clear();
     render();
   } else if (state.selected) {
     deleteNote(state.selected.track, state.selected.index);
   }
 }
-
-// Moves the current selection (multi- or single-) by dCol columns and dRow
-// semitones (pitch tracks) / rows (rhythm), trimming away any collision with
-// notes/hits NOT in the selection. Shared by arrow-key nudging.
 function nudgeSelection(dCol, dRow) {
   if (state.multiSelected.size > 0) {
     const sel = [...state.multiSelected];
-    // Klampa det gemensamma deltat mot gruppens ytterlighet (samma princip
-    // som startMoveNote/startMoveHit) — då bevaras inbördes avstånd vid
-    // brädkanten istället för att gruppen trycks ihop.
     if (state.activeTrack === 'rhythm') {
       const minStart = Math.min(...sel.map(h => h.start));
       const maxStart = Math.max(...sel.map(h => h.start));
       const rows = sel.map(h => RHYTHM_ROWS.indexOf(h.type));
       const dc = Math.max(-minStart, Math.min(COLS - 1 - maxStart, dCol));
       const dr = Math.max(Math.max(...rows) - (RHYTHM_ROWS.length - 1), Math.min(Math.min(...rows), dRow));
-      sel.forEach((h, i) => {
-        h.start += dc;
-        if (dr) h.type = RHYTHM_ROWS[rows[i] - dr];
-      });
+      sel.forEach((h, i) => { h.start += dc; if (dr) h.type = RHYTHM_ROWS[rows[i] - dr]; });
       const selSet = state.multiSelected;
       state.tracks.rhythm = state.tracks.rhythm.filter(h => selSet.has(h) || !sel.some(s => s.start === h.start));
     } else {
@@ -985,10 +927,7 @@ function nudgeSelection(dCol, dRow) {
       const midis    = sel.map(n => freqToMidi(n.freq));
       const dc = Math.max(-minStart, Math.min(COLS - maxEnd, dCol));
       const dr = Math.max(MIDI_MIN - Math.min(...midis), Math.min(MIDI_MAX - Math.max(...midis), dRow));
-      sel.forEach((n, i) => {
-        n.start += dc;
-        if (dr) n.freq = round2(midiToFreq(midis[i] + dr));
-      });
+      sel.forEach((n, i) => { n.start += dc; if (dr) n.freq = round2(midiToFreq(midis[i] + dr)); });
       const selSet = state.multiSelected;
       let rest = notes.filter(n => !selSet.has(n));
       for (const n of sel) rest = rest.filter(o => o.start + o.len <= n.start || o.start >= n.start + n.len);
@@ -1011,36 +950,20 @@ function nudgeSelection(dCol, dRow) {
   state.selected = { track, index: cleared.indexOf(note) };
   render();
 }
-
 function copySelection() {
   let items, track;
-  if (state.multiSelected.size > 0) {
-    items = [...state.multiSelected];
-    track = state.activeTrack;
-  } else if (state.selected) {
-    items = [state.tracks[state.selected.track][state.selected.index]];
-    track = state.selected.track;
-  } else {
-    return;
-  }
+  if (state.multiSelected.size > 0) { items = [...state.multiSelected]; track = state.activeTrack; }
+  else if (state.selected) { items = [state.tracks[state.selected.track][state.selected.index]]; track = state.selected.track; }
+  else return;
   const minStart = Math.min(...items.map(n => n.start));
   clipboard = { track, items: items.map(n => ({ ...n, start: n.start - minStart, arp: n.arp ? [...n.arp] : null })) };
 }
-
-// Pastes the clipboard into the active track, anchored so its earliest item
-// lands at the current playhead column. Only pastes into a track matching
-// the one it was copied from (a rhythm clipboard can't paste into a pitch
-// track and vice versa).
 function pasteClipboard() {
   if (!clipboard) return;
-  // Tonhöjdsspår delar notformat och kan klistras korsvis (lead↔harmony↔bass);
-  // bara rytm-urklipp är inkompatibla med tonhöjdsspår och tvärtom.
   const clipIsRhythm = clipboard.track === 'rhythm';
   if (clipIsRhythm !== (state.activeTrack === 'rhythm')) return;
   const anchor = state.playhead;
   if (state.activeTrack === 'rhythm') {
-    // Klamning vid brädkanten kan trycka ihop två urklippsposter till samma
-    // kolumn — behåll bara den första per kolumn ("ett slag per kolumn").
     const seen = new Set();
     const pasted = [];
     for (const it of clipboard.items) {
@@ -1068,9 +991,14 @@ function pasteClipboard() {
   render();
 }
 
+function nextNoteStart(notes, afterCol) {
+  let min = COLS;
+  for (const n of notes) if (n.start > afterCol && n.start < min) min = n.start;
+  return min;
+}
 function startResize(e, track, idx) {
-  e.preventDefault();
-  e.stopPropagation();
+  e.preventDefault(); e.stopPropagation();
+  interacting = true;
   const notes = state.tracks[track];
   const note = notes[idx];
   const startX = e.clientX;
@@ -1083,29 +1011,17 @@ function startResize(e, track, idx) {
     note.len = Math.min(newLen, Math.max(1, maxLen));
     render();
   }
-  function onUp() {
-    window.removeEventListener('mousemove', onMove);
-    window.removeEventListener('mouseup', onUp);
-  }
+  function onUp() { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); interacting = false; render(); }
   window.addEventListener('mousemove', onMove);
   window.addEventListener('mouseup', onUp);
 }
-
-// Grab tool: drag a note to move it (time + pitch). A click with no movement
-// counts as a selection instead, same as before the tools existed. Overlapping
-// neighbours in the same track are trimmed on release, the same rule used
-// when a new note is placed (clearOverlaps). If the dragged note is part of a
-// multi-selection, the whole group moves together by the same delta.
-function startMoveNote(e, track, idx, subLaneCount) {
-  e.preventDefault();
-  e.stopPropagation();
+function startMoveNote(e, track, idx) {
+  e.preventDefault(); e.stopPropagation();
+  interacting = true;
   const notes = state.tracks[track];
   const note = notes[idx];
   const group = (state.multiSelected.size > 1 && state.multiSelected.has(note)) ? [...state.multiSelected] : [note];
   const startPositions = group.map(n => ({ n, start: n.start, midi: freqToMidi(n.freq) }));
-  // Klampa det GEMENSAMMA deltat utifrån gruppens ytterlighet — klampas varje
-  // medlem för sig trycks gruppens inbördes avstånd ihop vid brädkanten och
-  // medlemmar kan hamna ovanpå varandra permanent.
   const minStart = Math.min(...startPositions.map(p => p.start));
   const maxEnd   = Math.max(...startPositions.map(p => p.start + p.n.len));
   const minMidi  = Math.min(...startPositions.map(p => p.midi));
@@ -1117,8 +1033,7 @@ function startMoveNote(e, track, idx, subLaneCount) {
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
     if (!moved) return;
     const deltaCols = Math.max(-minStart, Math.min(COLS - maxEnd, Math.round(dx / colPx)));
-    const pitchRowDelta = Math.max(maxMidi - MIDI_MAX,
-      Math.min(minMidi - MIDI_MIN, Math.round(dy / (SUBLANE_PX * subLaneCount))));
+    const pitchRowDelta = Math.max(maxMidi - MIDI_MAX, Math.min(minMidi - MIDI_MIN, Math.round(dy / ROW_H)));
     for (const { n, start, midi } of startPositions) {
       n.start = start + deltaCols;
       n.freq = round2(midiToFreq(midi - pitchRowDelta));
@@ -1128,6 +1043,7 @@ function startMoveNote(e, track, idx, subLaneCount) {
   function onUp() {
     window.removeEventListener('mousemove', onMove);
     window.removeEventListener('mouseup', onUp);
+    interacting = false;
     if (!moved) { selectNote(track, idx); return; }
     const groupSet = new Set(group);
     let rest = notes.filter(n => !groupSet.has(n));
@@ -1139,16 +1055,11 @@ function startMoveNote(e, track, idx, subLaneCount) {
   window.addEventListener('mousemove', onMove);
   window.addEventListener('mouseup', onUp);
 }
-
-// Same idea for rhythm hits — just a start time + row (type) to move, no
-// length. The "one hit per column" rule (same as onRhythmCellClick) applies
-// on release, and a multi-selected group moves together like above.
 function startMoveHit(e, hit) {
-  e.preventDefault();
-  e.stopPropagation();
+  e.preventDefault(); e.stopPropagation();
+  interacting = true;
   const group = (state.multiSelected.size > 1 && state.multiSelected.has(hit)) ? [...state.multiSelected] : [hit];
   const startPositions = group.map(h => ({ h, start: h.start, row: RHYTHM_ROWS.indexOf(h.type) }));
-  // Gemensamt delta klampat mot gruppens ytterlighet — se startMoveNote.
   const minStart = Math.min(...startPositions.map(p => p.start));
   const maxStart = Math.max(...startPositions.map(p => p.start));
   const minRow   = Math.min(...startPositions.map(p => p.row));
@@ -1156,16 +1067,14 @@ function startMoveHit(e, hit) {
   const startX = e.clientX, startY = e.clientY;
   function onMove(ev) {
     const deltaCols = Math.max(-minStart, Math.min(COLS - 1 - maxStart, Math.round((ev.clientX - startX) / colPx)));
-    const deltaRows = Math.max(-minRow, Math.min(RHYTHM_ROWS.length - 1 - maxRow, Math.round((ev.clientY - startY) / 15)));
-    for (const { h, start, row } of startPositions) {
-      h.start = start + deltaCols;
-      h.type = RHYTHM_ROWS[row + deltaRows];
-    }
+    const deltaRows = Math.max(-minRow, Math.min(RHYTHM_ROWS.length - 1 - maxRow, Math.round((ev.clientY - startY) / RHY_H)));
+    for (const { h, start, row } of startPositions) { h.start = start + deltaCols; h.type = RHYTHM_ROWS[row + deltaRows]; }
     render();
   }
   function onUp() {
     window.removeEventListener('mousemove', onMove);
     window.removeEventListener('mouseup', onUp);
+    interacting = false;
     const groupSet = new Set(group);
     state.tracks.rhythm = state.tracks.rhythm.filter(h => groupSet.has(h) || !group.some(g => g.start === h.start));
     render();
@@ -1174,67 +1083,52 @@ function startMoveHit(e, hit) {
   window.addEventListener('mouseup', onUp);
 }
 
-function nextNoteStart(notes, afterCol) {
-  let min = COLS;
-  for (const n of notes) if (n.start > afterCol && n.start < min) min = n.start;
-  return min;
-}
-
+// ---------- Inspector ----------
 function renderInspector() {
   const sel = state.selected;
   const note = sel && state.tracks[sel.track] && state.tracks[sel.track][sel.index];
   if (!note) {
     inspector.className = 'inspector empty';
-    inspector.textContent = 'No note selected. Click a row (Kick/Snare/Hi-hat/Tom) to add/remove a rhythm hit.';
+    inspector.textContent = 'No note selected. Pen a Kick/Snare/Hi-hat/Tom cell in the Rhythm track to add a hit.';
     return;
   }
   const { track, index } = sel;
   inspector.className = 'inspector';
   inspector.innerHTML = '';
 
-  const info = document.createElement('span');
-  info.textContent = `${TRACK_LABELS[track]} — ${midiToName(freqToMidi(note.freq))} (${note.freq} Hz), length ${note.len}/8th`;
+  const title = el('span', 'insp-title');
+  title.textContent = TRACK_LABELS[track];
+  inspector.appendChild(title);
+
+  const info = el('span');
+  info.textContent = `${midiToName(freqToMidi(note.freq))} (${note.freq} Hz), length ${note.len}/8th`;
   inspector.appendChild(info);
 
-  const vibLabel = document.createElement('label');
-  const vibBox = document.createElement('input');
-  vibBox.type = 'checkbox';
-  vibBox.checked = note.vib;
-  vibBox.addEventListener('change', () => { note.vib = vibBox.checked; render(); });
-  vibLabel.append(vibBox, ' Vibrato');
-  inspector.appendChild(vibLabel);
+  const addToggle = (labelText, key, extra) => {
+    const label = document.createElement('label');
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.checked = note[key];
+    box.addEventListener('change', () => { note[key] = box.checked; if (extra) extra(box.checked); render(); });
+    label.append(box, ' ' + labelText);
+    inspector.appendChild(label);
+    return box;
+  };
 
-  const tremLabel = document.createElement('label');
-  const tremBox = document.createElement('input');
-  tremBox.type = 'checkbox';
-  tremBox.checked = note.trem;
-  tremBox.addEventListener('change', () => { note.trem = tremBox.checked; render(); });
-  tremLabel.append(tremBox, ' Tremolo');
-  inspector.appendChild(tremLabel);
-
-  const portaLabel = document.createElement('label');
-  const portaBox = document.createElement('input');
-  portaBox.type = 'checkbox';
-  portaBox.checked = note.porta;
+  addToggle('Vibrato', 'vib');
+  addToggle('Tremolo', 'trem');
+  const portaBox = addToggle('Portamento', 'porta', (on) => { if (on) { note.bend = null; note.arp = null; } });
   portaBox.title = 'Glides unbroken into the next note in this track, without a new attack.';
-  portaBox.addEventListener('change', () => {
-    note.porta = portaBox.checked;
-    if (note.porta) { note.bend = null; note.arp = null; } // porta manages its own glide into the next note
-    render();
-  });
-  portaLabel.append(portaBox, ' Portamento');
-  inspector.appendChild(portaLabel);
 
   const bendLabel = document.createElement('label');
   bendLabel.textContent = ' Bend (semitones): ';
   const bendInput = document.createElement('input');
-  bendInput.type = 'number';
-  bendInput.min = -24; bendInput.max = 24; bendInput.step = 1;
+  bendInput.type = 'number'; bendInput.min = -24; bendInput.max = 24; bendInput.step = 1;
   bendInput.value = note.bend ? Math.round(12 * Math.log2(note.bend / note.freq)) : 0;
   bendInput.addEventListener('change', () => {
     const semitones = parseInt(bendInput.value, 10) || 0;
     note.bend = semitones === 0 ? null : round2(note.freq * Math.pow(2, semitones / 12));
-    if (note.bend) { note.arp = null; note.porta = false; } // bend, arpeggio and portamento aren't combined
+    if (note.bend) { note.arp = null; note.porta = false; }
     render();
   });
   bendLabel.appendChild(bendInput);
@@ -1251,10 +1145,7 @@ function renderInspector() {
       if (note.duty === v) opt.selected = true;
       dutySelect.appendChild(opt);
     });
-    dutySelect.addEventListener('change', () => {
-      note.duty = dutySelect.value === '' ? null : parseFloat(dutySelect.value);
-      render();
-    });
+    dutySelect.addEventListener('change', () => { note.duty = dutySelect.value === '' ? null : parseFloat(dutySelect.value); render(); });
     dutyLabel.appendChild(dutySelect);
     inspector.appendChild(dutyLabel);
   }
@@ -1262,14 +1153,12 @@ function renderInspector() {
   const arpLabel = document.createElement('label');
   arpLabel.textContent = ' Arpeggio (semitones, comma-separated): ';
   const arpInput = document.createElement('input');
-  arpInput.type = 'text';
-  arpInput.style.width = '70px';
-  arpInput.placeholder = 'e.g. 4,7';
+  arpInput.type = 'text'; arpInput.style.width = '70px'; arpInput.placeholder = 'e.g. 4,7';
   arpInput.value = note.arp ? note.arp.join(',') : '';
   arpInput.addEventListener('change', () => {
     const parsed = arpInput.value.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
     note.arp = parsed.length ? parsed : null;
-    if (note.arp) { note.bend = null; note.porta = false; } // bend, arpeggio and portamento aren't combined
+    if (note.arp) { note.bend = null; note.porta = false; }
     render();
   });
   arpLabel.appendChild(arpInput);
@@ -1279,36 +1168,14 @@ function renderInspector() {
   arpMajor.textContent = 'Major triad';
   arpMajor.addEventListener('click', () => { note.arp = [4, 7]; note.bend = null; note.porta = false; render(); });
   inspector.appendChild(arpMajor);
-
   const arpMinor = document.createElement('button');
   arpMinor.textContent = 'Minor triad';
   arpMinor.addEventListener('click', () => { note.arp = [3, 7]; note.bend = null; note.porta = false; render(); });
   inspector.appendChild(arpMinor);
 
-  const crushLabel = document.createElement('label');
-  const crushBox = document.createElement('input');
-  crushBox.type = 'checkbox';
-  crushBox.checked = note.crush;
-  crushBox.addEventListener('change', () => { note.crush = crushBox.checked; render(); });
-  crushLabel.append(crushBox, ' Bitcrush');
-  inspector.appendChild(crushLabel);
-
-  const echoLabel = document.createElement('label');
-  const echoBox = document.createElement('input');
-  echoBox.type = 'checkbox';
-  echoBox.checked = note.echo;
-  echoBox.addEventListener('change', () => { note.echo = echoBox.checked; render(); });
-  echoLabel.append(echoBox, ' Echo');
-  inspector.appendChild(echoLabel);
-
-  const chorusLabel = document.createElement('label');
-  const chorusBox = document.createElement('input');
-  chorusBox.type = 'checkbox';
-  chorusBox.checked = note.chorus;
-  chorusBox.title = note.arp ? 'Skipped while arpeggio is active.' : '';
-  chorusBox.addEventListener('change', () => { note.chorus = chorusBox.checked; render(); });
-  chorusLabel.append(chorusBox, ' Chorus');
-  inspector.appendChild(chorusLabel);
+  addToggle('Bitcrush', 'crush');
+  addToggle('Echo', 'echo');
+  addToggle('Chorus', 'chorus');
 
   const del = document.createElement('button');
   del.textContent = 'Delete note';
@@ -1326,23 +1193,6 @@ document.getElementById('help-btn').addEventListener('click', () => helpDialog.s
 document.getElementById('help-close').addEventListener('click', () => helpDialog.close());
 
 // ---------- Toolbar ----------
-document.querySelectorAll('.track-toggle input[type=checkbox]').forEach(box => {
-  box.addEventListener('change', () => {
-    state.visible[box.dataset.track] = box.checked;
-    render();
-  });
-});
-
-document.querySelectorAll('button[data-clear]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const track = btn.dataset.clear;
-    state.tracks[track] = [];
-    if (state.selected && state.selected.track === track) state.selected = null;
-    if (track === state.activeTrack) state.multiSelected.clear();
-    render();
-  });
-});
-
 document.querySelectorAll('.tool-group button[data-tool]').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.tool-group button[data-tool]').forEach(b => b.classList.remove('active'));
@@ -1354,32 +1204,14 @@ document.querySelectorAll('.tool-group button[data-tool]').forEach(btn => {
 });
 document.body.dataset.tool = state.tool;
 
-document.querySelectorAll('.active-track-group button[data-active-track]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.active-track-group button[data-active-track]').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    state.activeTrack = btn.dataset.activeTrack;
-    state.multiSelected.clear(); // multi-selection only ever applies to the active track
-    render();
-  });
-});
-
 // ---------- Keyboard shortcuts ----------
-// Space = play/stop, 1/2/3 = tool select, Delete/Backspace = delete
-// selection, arrows = nudge selection, Ctrl/Cmd+C/V = copy/paste,
-// Escape = deselect (or close the help dialog if it's open). Ignored while
-// focus is in a text field so typing in the tempo/bend/arpeggio inputs isn't
-// hijacked.
 window.addEventListener('keydown', (e) => {
   const tag = document.activeElement && document.activeElement.tagName;
   if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
-  if (helpDialog.open) {
-    if (e.key === 'Escape') helpDialog.close();
-    return;
-  }
+  if (helpDialog.open) { if (e.key === 'Escape') helpDialog.close(); return; }
   if (e.key === ' ') {
     e.preventDefault();
-    if (e.repeat) return; // hålls tangenten nere ska den inte toggla play/stop i repeat-takt
+    if (e.repeat) return;
     document.getElementById(playing ? 'stop' : 'play').click();
     return;
   }
@@ -1407,83 +1239,47 @@ const tempoInput = document.getElementById('tempo');
 tempoInput.value = state.tempo;
 tempoInput.addEventListener('change', () => { state.tempo = parseInt(tempoInput.value, 10) || TEMPO_BPM; });
 
-// ---------- Mixer (per-channel volume) ----------
-// Sliders set state.gains[ch] (same numbers as the game's MIX). applyGains()
-// pushes the values live to the running channel gain nodes, so dragging while
-// playing changes the balance immediately — handy for the too-quiet rhythm.
-const mixSliders = {};
-function syncMixerUI() {
-  for (const ch of ['lead', 'harmony', 'bass', 'rhythm']) {
-    const slider = mixSliders[ch];
-    if (!slider) continue;
-    slider.value = state.gains[ch];
-    slider.parentElement.querySelector('.mix-val').textContent = Number(state.gains[ch]).toFixed(2);
-  }
+function applyZoom() {
+  colPx = ZOOM_LEVELS[zoomIndex];
+  document.getElementById('zoom-level').textContent = Math.round(colPx / 16 * 100) + '%';
+  render();
 }
-for (const slider of document.querySelectorAll('[data-mix-slider]')) {
-  const ch = slider.dataset.mixSlider;
-  mixSliders[ch] = slider;
-  slider.addEventListener('input', () => {
-    state.gains[ch] = parseFloat(slider.value);
-    slider.parentElement.querySelector('.mix-val').textContent = state.gains[ch].toFixed(2);
-    applyGains();
-  });
-}
-syncMixerUI();
-
-document.getElementById('zoom-out').addEventListener('click', () => {
-  zoomIndex = Math.max(0, zoomIndex - 1);
-  applyZoom();
-});
-document.getElementById('zoom-in').addEventListener('click', () => {
-  zoomIndex = Math.min(ZOOM_LEVELS.length - 1, zoomIndex + 1);
-  applyZoom();
-});
+document.getElementById('zoom-out').addEventListener('click', () => { zoomIndex = Math.max(0, zoomIndex - 1); applyZoom(); });
+document.getElementById('zoom-in').addEventListener('click', () => { zoomIndex = Math.min(ZOOM_LEVELS.length - 1, zoomIndex + 1); applyZoom(); });
 
 document.getElementById('reset').addEventListener('click', () => {
   state.tracks = loadFromGame();
   state.gains = { ...MIX };
-  syncMixerUI();
+  for (const ch of ALL_TRACKS) { state.mute[ch] = false; state.solo[ch] = false; }
   applyGains();
   state.selected = null;
   state.multiSelected.clear();
   render();
 });
-
 document.getElementById('loop-reset').addEventListener('click', () => {
   state.loopStart = 0;
   state.loopEnd = COLS;
   updateLoopPositions();
 });
 
-// ---------- Save/load file (working format, separate from "Export code") ----------
-// Saves the whole state.tracks (column-based, the same format the editor works
-// with internally) + tempo as JSON — lets you keep editing a song in progress
-// later, unlike the export box, which generates the finished code for audio.js.
+// ---------- Save/load file ----------
 document.getElementById('save-file').addEventListener('click', () => {
-  const data = { version: 1, tempo: state.tempo, gains: state.gains, tracks: state.tracks };
+  const data = { version: 2, tempo: state.tempo, gains: state.gains, mute: state.mute, solo: state.solo, tracks: state.tracks };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url;
-  a.download = 'froggy-hop.json';
-  a.click();
+  a.href = url; a.download = 'froggy-hop.json'; a.click();
   URL.revokeObjectURL(url);
 });
-
 const loadInput = document.getElementById('load-file-input');
 document.getElementById('load-file').addEventListener('click', () => loadInput.click());
 loadInput.addEventListener('change', async () => {
   const file = loadInput.files[0];
-  loadInput.value = ''; // so the same file can be selected again later
+  loadInput.value = '';
   if (!file) return;
   let data;
-  try {
-    data = JSON.parse(await file.text());
-  } catch (err) {
-    alert('Could not read the file: ' + err.message);
-    return;
-  }
+  try { data = JSON.parse(await file.text()); }
+  catch (err) { alert('Could not read the file: ' + err.message); return; }
   const t = data && data.tracks;
   if (!t || !Array.isArray(t.lead) || !Array.isArray(t.harmony) || !Array.isArray(t.bass) || !Array.isArray(t.rhythm)) {
     alert('The file has the wrong format (missing lead/harmony/bass/rhythm tracks).');
@@ -1493,24 +1289,20 @@ loadInput.addEventListener('change', async () => {
   state.tempo = typeof data.tempo === 'number' ? data.tempo : TEMPO_BPM;
   tempoInput.value = state.tempo;
   if (data.gains && typeof data.gains === 'object') {
-    for (const ch of ['lead', 'harmony', 'bass', 'rhythm']) {
-      if (typeof data.gains[ch] === 'number') state.gains[ch] = data.gains[ch];
-    }
-    syncMixerUI();
-    applyGains();
+    for (const ch of ALL_TRACKS) if (typeof data.gains[ch] === 'number') state.gains[ch] = data.gains[ch];
   }
+  for (const key of ['mute', 'solo']) {
+    if (data[key] && typeof data[key] === 'object') for (const ch of ALL_TRACKS) state[key][ch] = !!data[key][ch];
+    else for (const ch of ALL_TRACKS) state[key][ch] = false;
+  }
+  applyGains();
   state.selected = null;
   state.multiSelected.clear();
   render();
 });
 
-// ---------- Playback (a simple one-shot scheduler, not the game's lookahead loop) ----------
+// ---------- Playback ----------
 let ctx = null, loopTimer = null, playing = false;
-
-// Per-channel gain nodes mirroring the game's mix tree: notes/hits route
-// through their channel's gain into a master, so the mixer sliders set the
-// relative balance (and it matches the game's MIX). A conservative master
-// keeps headroom now that four channels can sound at once with boosted gains.
 let masterGain = null;
 const chanGain = { lead: null, harmony: null, bass: null, rhythm: null };
 
@@ -1520,20 +1312,16 @@ function ensureCtx() {
     masterGain = ctx.createGain();
     masterGain.gain.value = 0.45;
     masterGain.connect(ctx.destination);
-    for (const ch of ['lead', 'harmony', 'bass', 'rhythm']) {
+    for (const ch of ALL_TRACKS) {
       chanGain[ch] = ctx.createGain();
-      chanGain[ch].gain.value = state.gains[ch];
+      chanGain[ch].gain.value = audible(ch) ? state.gains[ch] : 0;
       chanGain[ch].connect(masterGain);
     }
   }
   return ctx;
 }
-
-// Live-uppdatera kanalgainen medan man drar i ett reglage under uppspelning.
 function applyGains() {
-  for (const ch of ['lead', 'harmony', 'bass', 'rhythm']) {
-    if (chanGain[ch]) chanGain[ch].gain.value = state.gains[ch];
-  }
+  for (const ch of ALL_TRACKS) if (chanGain[ch]) chanGain[ch].gain.value = audible(ch) ? state.gains[ch] : 0;
 }
 
 const pulseWaves = new Map();
@@ -1547,21 +1335,16 @@ function pulseWave(duty) {
   pulseWaves.set(duty, wave);
   return wave;
 }
-
 let crushCurve = null;
 function bitcrushCurve() {
   if (crushCurve) return crushCurve;
   const n = 1 << 16;
-  const steps = 16; // 4-bit quantization, same as the game's AudioManager
+  const steps = 16;
   const curve = new Float32Array(n);
-  for (let i = 0; i < n; i++) {
-    const x = (i * 2) / n - 1;
-    curve[i] = Math.round(x * steps) / steps;
-  }
+  for (let i = 0; i < n; i++) { const x = (i * 2) / n - 1; curve[i] = Math.round(x * steps) / steps; }
   crushCurve = curve;
   return curve;
 }
-
 let delay = null, delayFeedback = null, delayWet = null;
 function ensureDelay() {
   if (!delay) {
@@ -1573,15 +1356,9 @@ function ensureDelay() {
     delayWet.gain.value = 0.5;
     delay.connect(delayWet).connect(masterGain);
   }
-  // Uppdateras varje anrop, inte bara vid skapandet — annars behåller ekot
-  // det gamla tempots rytm efter ett tempobyte inom samma AudioContext.
-  delay.delayTime.value = (60 / state.tempo / 2) * 1.5; // punkterad åttondel
+  delay.delayTime.value = (60 / state.tempo / 2) * 1.5;
   return delay;
 }
-
-// Routes a note's envelope gain to its channel (dry) and, if flagged, to the
-// bitcrush shaper and/or the shared echo bus. Shared by scheduleTone and
-// schedulePortamentoTone.
 function connectVoiceOutput(gain, note, destGain) {
   let outputNode = gain;
   if (note.crush) {
@@ -1593,11 +1370,9 @@ function connectVoiceOutput(gain, note, destGain) {
   outputNode.connect(destGain);
   if (note.echo) outputNode.connect(ensureDelay());
 }
-
 function scheduleTone(note, startAt, dur, oscType, destGain) {
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
-
   if (oscType === 'square' && note.duty) osc.setPeriodicWave(pulseWave(note.duty));
   else osc.type = oscType;
 
@@ -1642,42 +1417,28 @@ function scheduleTone(note, startAt, dur, oscType, destGain) {
   if (note.trem) {
     const lfo = ctx.createOscillator(), lfoGain = ctx.createGain();
     lfo.frequency.value = 18;
-    lfoGain.gain.value = 0.18; // half the game's depth, matches the lower bass gain (0.5) here
+    lfoGain.gain.value = 0.18;
     lfo.connect(lfoGain).connect(gain.gain);
     lfo.start(startAt); lfo.stop(startAt + dur);
   }
 
   connectVoiceOutput(gain, note, destGain);
-
   osc.connect(gain);
   osc.start(startAt);
   osc.stop(startAt + dur);
-
-  if (chorusOsc) {
-    chorusOsc.connect(gain);
-    chorusOsc.start(startAt);
-    chorusOsc.stop(startAt + dur);
-  }
+  if (chorusOsc) { chorusOsc.connect(gain); chorusOsc.start(startAt); chorusOsc.stop(startAt + dur); }
 }
-
-// Portamento preview: a single oscillator/envelope glides unbroken from
-// note.freq to nextNote.freq across the boundary between the two notes,
-// mirroring AudioManager._schedulePortamentoTone in audio.js. The absorbed
-// next note's own effect flags are ignored, same rule as the game.
 function schedulePortamentoTone(note, nextNote, startAt, dur, nextDur, oscType, destGain, durScale = 1) {
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
   const totalDur = (dur + nextDur) * durScale;
-
   if (oscType === 'square' && note.duty) osc.setPeriodicWave(pulseWave(note.duty));
   else osc.type = oscType;
-
   osc.frequency.setValueAtTime(note.freq, startAt);
   const glideStart = startAt + dur * 0.6;
   const glideEnd = startAt + dur + Math.min(nextDur * 0.3, 0.12);
   osc.frequency.setValueAtTime(note.freq, glideStart);
   osc.frequency.linearRampToValueAtTime(nextNote.freq, glideEnd);
-
   if (note.vib) {
     const lfo = ctx.createOscillator(), lfoGain = ctx.createGain();
     lfo.frequency.value = 5.5;
@@ -1685,12 +1446,10 @@ function schedulePortamentoTone(note, nextNote, startAt, dur, nextDur, oscType, 
     lfo.connect(lfoGain).connect(osc.frequency);
     lfo.start(startAt); lfo.stop(startAt + totalDur);
   }
-
   gain.gain.setValueAtTime(0.0001, startAt);
   gain.gain.exponentialRampToValueAtTime(0.5, startAt + 0.015);
   gain.gain.setValueAtTime(0.5, startAt + totalDur * 0.85);
   gain.gain.exponentialRampToValueAtTime(0.0001, startAt + totalDur);
-
   if (note.trem) {
     const lfo = ctx.createOscillator(), lfoGain = ctx.createGain();
     lfo.frequency.value = 18;
@@ -1698,14 +1457,11 @@ function schedulePortamentoTone(note, nextNote, startAt, dur, nextDur, oscType, 
     lfo.connect(lfoGain).connect(gain.gain);
     lfo.start(startAt); lfo.stop(startAt + totalDur);
   }
-
   connectVoiceOutput(gain, note, destGain);
-
   osc.connect(gain);
   osc.start(startAt);
   osc.stop(startAt + totalDur);
 }
-
 function scheduleKick(startAt) {
   const osc = ctx.createOscillator(), gain = ctx.createGain();
   osc.type = 'sine';
@@ -1717,7 +1473,6 @@ function scheduleKick(startAt) {
   osc.connect(gain).connect(chanGain.rhythm);
   osc.start(startAt); osc.stop(startAt + 0.13);
 }
-
 let noiseBuffer = null;
 function scheduleHihat(startAt) {
   if (!noiseBuffer) {
@@ -1735,7 +1490,6 @@ function scheduleHihat(startAt) {
   src.connect(filter).connect(gain).connect(chanGain.rhythm);
   src.start(startAt); src.stop(startAt + 0.04);
 }
-
 function schedulePuka(startAt) {
   const osc = ctx.createOscillator(), gain = ctx.createGain();
   osc.type = 'sine';
@@ -1747,7 +1501,6 @@ function schedulePuka(startAt) {
   osc.connect(gain).connect(chanGain.rhythm);
   osc.start(startAt); osc.stop(startAt + 0.3);
 }
-
 function scheduleSnare(startAt) {
   if (!noiseBuffer) {
     const len = Math.ceil(ctx.sampleRate * 0.1);
@@ -1774,11 +1527,6 @@ function scheduleSnare(startAt) {
   osc.connect(oscGain).connect(chanGain.rhythm);
   osc.start(startAt); osc.stop(startAt + 0.09);
 }
-
-// Schedules one track's notes, sorted by start position so a `porta`-flagged
-// note can be merged with the note immediately following it (same rule as
-// AudioManager._scheduler in audio.js: only merges when the next note starts
-// exactly where this one ends, i.e. no gap/rest between them).
 function scheduleTrackNotes(notes, startAt, eighthSec, fromCol, toCol, oscType, durScale, destGain) {
   const sorted = [...notes].sort((a, b) => a.start - b.start);
   for (let i = 0; i < sorted.length; i++) {
@@ -1787,23 +1535,20 @@ function scheduleTrackNotes(notes, startAt, eighthSec, fromCol, toCol, oscType, 
     const at = startAt + (n.start - fromCol) * eighthSec;
     if (n.porta) {
       const next = sorted[i + 1];
-      // next.start < toCol: a porta note just before the loop end must not
-      // absorb a note beyond it and play past the loop boundary.
       if (next && next.start === n.start + n.len && next.start < toCol) {
         schedulePortamentoTone(n, next, at, n.len * eighthSec, next.len * eighthSec, oscType, destGain, durScale);
-        i++; // absorbed into the portamento tone above, don't schedule separately
+        i++;
         continue;
       }
     }
     scheduleTone(n, at, n.len * eighthSec * durScale, oscType, destGain);
   }
 }
-
 function playOnce(startAt, eighthSec, fromCol, toCol) {
-  if (state.visible.lead) scheduleTrackNotes(state.tracks.lead, startAt, eighthSec, fromCol, toCol, 'square', 1, chanGain.lead);
-  if (state.visible.harmony) scheduleTrackNotes(state.tracks.harmony, startAt, eighthSec, fromCol, toCol, 'square', 0.9, chanGain.harmony);
-  if (state.visible.bass) scheduleTrackNotes(state.tracks.bass, startAt, eighthSec, fromCol, toCol, 'triangle', 1, chanGain.bass);
-  if (state.visible.rhythm) {
+  if (audible('lead')) scheduleTrackNotes(state.tracks.lead, startAt, eighthSec, fromCol, toCol, 'square', 1, chanGain.lead);
+  if (audible('harmony')) scheduleTrackNotes(state.tracks.harmony, startAt, eighthSec, fromCol, toCol, 'square', 0.9, chanGain.harmony);
+  if (audible('bass')) scheduleTrackNotes(state.tracks.bass, startAt, eighthSec, fromCol, toCol, 'triangle', 1, chanGain.bass);
+  if (audible('rhythm')) {
     for (const h of state.tracks.rhythm.filter(n => n.start >= fromCol && n.start < toCol)) {
       const at = startAt + (h.start - fromCol) * eighthSec;
       if (h.type === 'kick') scheduleKick(at);
@@ -1813,9 +1558,7 @@ function playOnce(startAt, eighthSec, fromCol, toCol) {
     }
   }
 }
-
 let rafId = null, playStartCtxTime = 0, playStartCol = 0;
-
 function startPlaybackFrom(col) {
   playing = true;
   clearTimeout(loopTimer);
@@ -1837,7 +1580,6 @@ function startPlaybackFrom(col) {
   loop(col);
   if (!rafId) animatePlayhead();
 }
-
 function animatePlayhead() {
   function tick() {
     if (!playing) { rafId = null; return; }
@@ -1849,33 +1591,24 @@ function animatePlayhead() {
   }
   rafId = requestAnimationFrame(tick);
 }
-
 document.getElementById('play').addEventListener('click', () => {
   ensureCtx();
   if (ctx.state === 'suspended') ctx.resume();
   startPlaybackFrom(state.playhead);
 });
-
 document.getElementById('stop').addEventListener('click', () => {
   playing = false;
   clearTimeout(loopTimer);
   if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
-  // clearTimeout only stops the *next* batch from being scheduled — playOnce()
-  // already queued every note/hit in the current segment as absolutely-timed
-  // oscillators/buffer sources, which would otherwise keep playing out for up
-  // to a full loop. Closing the context kills all of that immediately. It's
-  // recreated (ensureCtx) on the next Play; caches tied to the old context
-  // (periodic waves are context-bound, unlike buffers, but both are cheap to
-  // rebuild) are cleared so nothing references the closed context.
   if (ctx) {
     ctx.close();
     ctx = null;
+    masterGain = null;
+    for (const ch of ALL_TRACKS) chanGain[ch] = null;
     noiseBuffer = null;
     pulseWaves.clear();
     crushCurve = null;
-    delay = null;
-    delayFeedback = null;
-    delayWet = null;
+    delay = null; delayFeedback = null; delayWet = null;
   }
   visualPlayhead = state.playhead;
   updatePlayheadPositions();
@@ -1896,12 +1629,10 @@ function formatSeqLine(entry, isRhythm) {
   if (entry.chorus) parts.push(`chorus: true`);
   return `{ ${parts.join(', ')} }`;
 }
-
 function exportTrack(name, seq, isRhythm) {
   const lines = seq.map(e => '  ' + formatSeqLine(e, isRhythm)).join(',\n');
   return `export const ${name} = [\n${lines}\n];`;
 }
-
 document.getElementById('export').addEventListener('click', () => {
   const box = document.getElementById('exportBox');
   const code = [
