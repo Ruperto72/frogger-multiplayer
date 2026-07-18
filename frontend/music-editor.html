@@ -244,7 +244,9 @@
   .hit.hihat { background: #1fae54; }
   .hit.tom   { background: #ff6a3b; }
 
-  .playhead { position: absolute; top: 0; width: 2px; background: #ff3b3b; z-index: 5; pointer-events: none; }
+  /* top:0/bottom:0 stretches the line across the whole daw (timeline + tracks)
+     automatically, so its visibility never depends on a JS height measurement. */
+  .playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: #ff3b3b; z-index: 5; pointer-events: none; }
   .playhead-grip {
     position: absolute; top: 0; width: 12px; height: 22px; margin-left: -6px; z-index: 8; cursor: ew-resize;
   }
@@ -951,7 +953,6 @@ function renderMarquee(rollEl, track, heightPx) {
 
 // ---------- Playhead + loop overlay positioning ----------
 function positionOverlays() {
-  if (playheadEl) playheadEl.style.height = (TL_H + tracksEl.offsetHeight) + 'px';
   updatePlayheadPositions();
   updateLoopPositions();
 }
