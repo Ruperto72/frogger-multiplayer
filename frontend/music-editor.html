@@ -17,7 +17,13 @@
     padding: 14px; margin: 0;
   }
   h1 { font-size: 17px; margin: 0; font-weight: 600; letter-spacing: 0.2px; }
-  #help-panel { margin-left: auto; }
+  .help-fab {
+    margin-left: auto; align-self: center;
+    width: 30px; height: 30px; padding: 0; border-radius: 50%;
+    font-size: 15px; font-weight: 700; line-height: 1;
+    color: var(--muted); background: #1a1a1f; border: 1px solid #3a3a42;
+  }
+  .help-fab:hover { color: var(--ink); border-color: #55555f; }
   p.hint { color: #ccc; font-size: 12px; margin: 0; line-height: 1.6; }
   dialog#help-dialog {
     background: var(--panel); color: #eee; border: 1px solid #444; border-radius: 8px;
@@ -431,13 +437,8 @@
       </div>
     </div>
 
-    <!-- Help (far right) -->
-    <div class="panel" id="help-panel">
-      <div class="panel-cap">Help</div>
-      <div class="panel-body">
-        <button id="help-btn" title="Show help">❓ Help</button>
-      </div>
-    </div>
+    <!-- Help (discreet, far right) -->
+    <button id="help-btn" class="help-fab" title="Show help" aria-label="Help">?</button>
   </div>
 
   <div class="editor-layout">
