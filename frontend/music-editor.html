@@ -172,8 +172,9 @@
     width: 22px; height: 20px; padding: 0; font-size: 11px; font-weight: 700;
     border-radius: 4px; background: #2c2c33; color: #b8b8c2; line-height: 1;
   }
-  .th-btns button.m.on { background: #ff6a3b; color: #150a05; border-color: #ff6a3b; }
-  .th-btns button.s.on { background: #ffd23b; color: #241d03; border-color: #ffd23b; }
+  .th-btns button.m.on, .th-btns button.s.on {
+    background: #3a6bd6; color: #fff; border-color: #2a55b5; box-shadow: 0 0 6px rgba(58,107,214,0.4);
+  }
   .th-vol { display: flex; align-items: center; gap: 6px; }
   .th-vol input[type=range] { flex: 1; min-width: 0; cursor: pointer; accent-color: #888; }
   .th-vol .vol-val { font-size: 10px; color: var(--muted); min-width: 30px; text-align: right; font-variant-numeric: tabular-nums; }
@@ -773,6 +774,10 @@ function buildHeader(track) {
   const btns = el('div', 'th-btns');
   const mBtn = el('button', 'm' + (state.mute[track] ? ' on' : '')); mBtn.textContent = 'M'; mBtn.title = 'Mute';
   const sBtn = el('button', 's' + (state.solo[track] ? ' on' : '')); sBtn.textContent = 'S'; sBtn.title = 'Solo';
+  // Swallow mousedown too: otherwise the header's own mousedown (setActive ->
+  // render) rebuilds this button before the click completes, dropping the click.
+  mBtn.addEventListener('mousedown', (e) => e.stopPropagation());
+  sBtn.addEventListener('mousedown', (e) => e.stopPropagation());
   mBtn.addEventListener('click', (e) => { e.stopPropagation(); state.mute[track] = !state.mute[track]; applyGains(); render(); autosave(); });
   sBtn.addEventListener('click', (e) => { e.stopPropagation(); state.solo[track] = !state.solo[track]; applyGains(); render(); autosave(); });
   btns.append(mBtn, sBtn);
