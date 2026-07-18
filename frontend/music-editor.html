@@ -17,8 +17,8 @@
     padding: 14px; margin: 0;
   }
   h1 { font-size: 17px; margin: 0; font-weight: 600; letter-spacing: 0.2px; }
-  #help-panel { margin-left: auto; }
   #help-panel .panel-body { justify-content: center; }
+  .icon-btn { padding: 6px 9px; font-size: 14px; line-height: 1; min-width: 34px; text-align: center; }
   .help-fab {
     width: 30px; height: 30px; padding: 0; border-radius: 50%;
     font-size: 15px; font-weight: 700; line-height: 1;
@@ -430,11 +430,11 @@
     <div class="panel" id="file-panel">
       <div class="panel-cap">Session</div>
       <div class="panel-body file-group">
-        <button id="reset">↺ Game song</button>
-        <button id="save-file">💾 Save</button>
-        <button id="load-file">📂 Load</button>
+        <button id="reset" class="icon-btn" title="Reset to game's song">↺</button>
+        <button id="save-file" class="icon-btn" title="Save file">💾</button>
+        <button id="load-file" class="icon-btn" title="Load file">📂</button>
         <input type="file" id="load-file-input" accept="application/json,.json" style="display:none">
-        <button id="export">⤓ Export</button>
+        <button id="export" class="icon-btn" title="Export code">⤓</button>
       </div>
     </div>
 
