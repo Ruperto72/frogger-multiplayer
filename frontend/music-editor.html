@@ -27,27 +27,80 @@
   dialog#help-dialog h2 { margin: 0 0 10px; font-size: 16px; }
   dialog#help-dialog #help-close { margin-top: 14px; }
 
+  /* ---- Pro Tools-style top bar: a row of bezeled panels, each with a small
+         caption, holding clustered controls. ---- */
   .toolbar {
-    display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
-    background: var(--panel); padding: 10px; border-radius: 8px; margin-bottom: 10px;
-    border: 1px solid #2c2c33;
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch;
+    background: linear-gradient(#1b1b20, #141418);
+    padding: 8px; border-radius: 8px; margin-bottom: 10px;
+    border: 1px solid #34343c; box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
   }
   .toolbar label { font-size: 12px; color: var(--muted); }
-  .tool-group, .zoom-group, .history-group, .transport-group, .file-group { display: flex; gap: 4px; align-items: center; }
-  .sep { width: 1px; align-self: stretch; background: #34343c; margin: 0 2px; }
-  .zoom-group span { font-size: 12px; color: var(--muted); min-width: 34px; text-align: center; }
-  .master-vol { display: flex; align-items: center; gap: 6px; color: var(--ink) !important; font-size: 12px; }
-  .master-vol input[type=range] { width: 96px; cursor: pointer; accent-color: #cfcfe0; }
-  .master-vol #master-vol-val { color: var(--muted); min-width: 30px; text-align: right; font-variant-numeric: tabular-nums; }
+  .panel {
+    display: flex; flex-direction: column; gap: 3px;
+    background: #0d0d10; border: 1px solid #050507; border-radius: 6px;
+    padding: 4px 8px 6px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 1px 2px rgba(0,0,0,0.4);
+  }
+  .panel-cap {
+    font-size: 8px; letter-spacing: 1.2px; text-transform: uppercase;
+    color: #6b6b78; font-weight: 700; padding-left: 1px;
+  }
+  .panel-body { display: flex; gap: 6px; align-items: center; min-height: 34px; }
+
   button:disabled { opacity: 0.4; cursor: default; }
-  .tool-group button.active { outline: 2px solid #fff; }
   button, input[type=number], select {
     font: inherit; font-size: 12px; padding: 6px 10px; cursor: pointer;
     background: var(--panel2); color: var(--ink); border: 1px solid #3a3a42; border-radius: 5px;
   }
   button:hover:not(:disabled) { border-color: #55555f; }
-  input[type=number] { width: 56px; cursor: text; }
+  input[type=number] { width: 62px; cursor: text; text-align: center; padding: 6px 4px; }
   input[type=checkbox] { cursor: pointer; }
+
+  /* Transport */
+  .tp-btn {
+    width: 38px; height: 30px; padding: 0; font-size: 15px; line-height: 1;
+    border-radius: 5px; background: #24242c; border: 1px solid #101014;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06); color: #d8d8e2;
+  }
+  .tp-btn.play { color: #7dffa8; font-size: 13px; }
+  body.playing .tp-btn.play { background: #23c257; color: #04210f; border-color: #14a544; box-shadow: 0 0 10px rgba(57,255,106,0.5); }
+  .tp-btn.stop { color: #ff8f7d; }
+  .tp-btn.toggle[aria-pressed="true"] { background: #2a5f3c; color: #7dffa8; border-color: #14a544; }
+
+  /* Counter LCD */
+  #counter-panel .panel-body { flex-direction: column; align-items: stretch; gap: 1px; min-width: 128px; }
+  .lcd {
+    font-family: "Menlo", "Consolas", monospace; font-size: 26px; font-weight: 700;
+    letter-spacing: 1px; color: #4dff9b; text-align: center; line-height: 1;
+    background: #041008; border: 1px solid #04240f; border-radius: 4px; padding: 3px 6px;
+    text-shadow: 0 0 6px rgba(77,255,155,0.55); font-variant-numeric: tabular-nums;
+  }
+  .lcd .sep-dot { color: #1f7a45; margin: 0 3px; }
+  .lcd-sub { display: flex; justify-content: center; font-size: 10px; color: #3ea86a;
+    font-family: "Menlo", "Consolas", monospace; font-variant-numeric: tabular-nums; }
+  #tempo-panel .unit { font-size: 10px; color: var(--muted); }
+
+  /* Segmented control clusters */
+  .segmented { display: inline-flex; border-radius: 6px; overflow: hidden; border: 1px solid #101014; background: #0a0a0d; }
+  .segmented button {
+    border: none; border-radius: 0; border-right: 1px solid #101014;
+    background: #22222a; padding: 6px 9px; font-size: 13px; line-height: 1;
+  }
+  .segmented button:last-child { border-right: none; }
+  .segmented button.active { background: #3a6bd6; color: #fff; }
+  .segmented.tool-group button.active { background: #3a6bd6; outline: none; }
+  #zoom-level { font-size: 11px; color: var(--muted); min-width: 40px; text-align: center;
+    background: #101014; padding: 6px 4px; align-self: stretch; display: flex; align-items: center; justify-content: center; }
+
+  /* Master */
+  #master-panel .panel-body { min-width: 150px; }
+  #master-panel input[type=range] { flex: 1; min-width: 80px; cursor: pointer; accent-color: #cfcfe0; }
+  #master-vol-val { color: var(--muted); min-width: 30px; text-align: right; font-size: 11px; font-variant-numeric: tabular-nums; }
+  .mv-ico { font-size: 13px; }
+
+  body[data-tool="pen"] .cell { cursor: crosshair; }
+  body[data-tool="eraser"] .note, body[data-tool="eraser"] .hit { cursor: not-allowed; }
+  body[data-tool="grab"] .note, body[data-tool="grab"] .hit { cursor: grab; }
   body[data-tool="pen"] .cell { cursor: crosshair; }
   body[data-tool="eraser"] .note, body[data-tool="eraser"] .hit { cursor: not-allowed; }
   body[data-tool="grab"] .note, body[data-tool="grab"] .hit { cursor: grab; }
@@ -193,12 +246,41 @@
   .loop-handle::after { content: ''; position: absolute; left: 4px; top: 0; width: 2px; height: 22px; background: #3bff8f; }
 
   .inspector {
-    background: var(--panel); padding: 12px; border-radius: 8px; border: 1px solid #2c2c33;
-    font-size: 12px; display: flex; flex-direction: column; gap: 10px; align-items: stretch;
-    width: 230px; flex: 0 0 230px;
+    background: linear-gradient(#1b1b20, #141418); padding: 8px; border-radius: 8px;
+    border: 1px solid #34343c; box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+    font-size: 12px; display: flex; flex-direction: column; gap: 8px; align-items: stretch;
+    width: 244px; flex: 0 0 244px;
   }
-  .inspector.empty { color: #666; }
-  .inspector .insp-title { font-weight: 700; font-size: 12px; }
+  .inspector.empty { color: #7a7a86; padding: 16px; font-size: 12px; line-height: 1.6; }
+  .insp-panel {
+    background: #0d0d10; border: 1px solid #050507; border-radius: 6px;
+    padding: 5px 8px 8px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .insp-cap { font-size: 8px; letter-spacing: 1.2px; text-transform: uppercase; color: #6b6b78; font-weight: 700; }
+  .insp-head { display: flex; align-items: center; gap: 8px; }
+  .insp-badge { font-weight: 700; font-size: 11px; padding: 3px 9px; border-radius: 4px; color: #04140a; }
+  .insp-note {
+    font-family: "Menlo", "Consolas", monospace; color: #4dff9b; background: #041008;
+    border: 1px solid #04240f; border-radius: 4px; padding: 3px 7px; font-size: 12px;
+    text-shadow: 0 0 6px rgba(77,255,155,0.4); flex: 1; text-align: center; font-variant-numeric: tabular-nums;
+  }
+  .insp-sub { font-size: 10px; color: var(--muted); text-align: center; }
+  .fx-row { display: flex; flex-wrap: wrap; gap: 5px; }
+  .fx-toggle {
+    flex: 1 1 auto; min-width: 62px; text-align: center; padding: 7px 8px; border-radius: 5px;
+    background: #22222a; border: 1px solid #101014; color: #b8b8c2; font-size: 11px; cursor: pointer;
+  }
+  .fx-toggle:hover { border-color: #55555f; }
+  .fx-toggle.on { background: #3a6bd6; color: #fff; border-color: #2a55b5; box-shadow: 0 0 6px rgba(58,107,214,0.4); }
+  .insp-field { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+  .insp-field > span { color: var(--muted); font-size: 11px; }
+  .insp-field input[type=text] { width: 84px; text-align: center; }
+  .insp-field select { padding: 6px 6px; }
+  .arp-presets { display: flex; gap: 5px; }
+  .arp-presets button { flex: 1; font-size: 11px; padding: 6px 4px; }
+  .insp-del { background: #3a1414; border-color: #5a1e1e; color: #ff9a9a; }
+  .insp-del:hover { border-color: #a33; }
   textarea {
     width: 100%; height: 260px; margin-top: 10px; background: #111; color: #9f9;
     font-family: monospace; font-size: 12px; border: 1px solid #444; border-radius: 6px; padding: 8px;
@@ -256,42 +338,87 @@
   </dialog>
 
   <div class="toolbar">
-    <div class="tool-group">
-      <button data-tool="pen" class="active" title="Pen: click an empty cell to add a note/hit">✏️ Pen</button>
-      <button data-tool="eraser" title="Eraser: click a note/hit to remove it">🧽 Eraser</button>
-      <button data-tool="grab" title="Grab: drag a note/hit to move it, drag its right edge to resize">✋ Grab</button>
+    <!-- Transport -->
+    <div class="panel" id="transport-panel">
+      <div class="panel-cap">Transport</div>
+      <div class="panel-body">
+        <button class="tp-btn" id="rtz" title="Return to start">⏮</button>
+        <button class="tp-btn stop" id="stop" title="Stop">■</button>
+        <button class="tp-btn play" id="play" title="Play (Space)">▶</button>
+        <button class="tp-btn toggle" id="loop-btn" title="Loop on/off" aria-pressed="true">↺</button>
+        <input id="loop" type="checkbox" checked hidden>
+      </div>
     </div>
-    <div class="sep"></div>
-    <div class="history-group">
-      <button id="undo-btn" title="Undo (Ctrl+Z)" disabled>↶ Undo</button>
-      <button id="redo-btn" title="Redo (Ctrl+Y / Ctrl+Shift+Z)" disabled>↷ Redo</button>
+
+    <!-- Counters -->
+    <div class="panel" id="counter-panel">
+      <div class="panel-cap">Bars | Beats</div>
+      <div class="panel-body">
+        <div class="lcd" id="lcd-bars" title="Bars | Beats | Subdivision">001<span class="sep-dot">|</span>1<span class="sep-dot">|</span>1</div>
+        <div class="lcd-sub">
+          <span id="lcd-time" title="Min:Sec">0:00.0</span>
+        </div>
+      </div>
     </div>
-    <div class="sep"></div>
-    <label>Tempo <input id="tempo" type="number" min="40" max="300" step="1"></label>
-    <div class="zoom-group">
-      <button id="zoom-out" title="Zoom out">🔍−</button>
-      <span id="zoom-level">100%</span>
-      <button id="zoom-in" title="Zoom in">🔍+</button>
+
+    <!-- Tempo -->
+    <div class="panel" id="tempo-panel">
+      <div class="panel-cap">Tempo</div>
+      <div class="panel-body">
+        <input id="tempo" type="number" min="40" max="300" step="1">
+        <span class="unit">BPM</span>
+      </div>
     </div>
-    <div class="sep"></div>
-    <div class="transport-group">
-      <button id="play">▶ Play</button>
-      <button id="stop">■ Stop</button>
-      <label><input id="loop" type="checkbox" checked> Loop</label>
-      <button id="loop-reset" title="Reset the loop range to the full song">Full range</button>
+
+    <!-- Edit tools -->
+    <div class="panel" id="tools-panel">
+      <div class="panel-cap">Tools</div>
+      <div class="panel-body">
+        <div class="segmented tool-group">
+          <button data-tool="pen" class="active" title="Pen (1): click an empty cell to add a note/hit">✏️</button>
+          <button data-tool="eraser" title="Eraser (2): click a note/hit to remove it">🧽</button>
+          <button data-tool="grab" title="Grab (3): drag a note/hit to move it, drag its right edge to resize">✋</button>
+        </div>
+        <div class="segmented history-group">
+          <button id="undo-btn" title="Undo (Ctrl+Z)" disabled>↶</button>
+          <button id="redo-btn" title="Redo (Ctrl+Y / Ctrl+Shift+Z)" disabled>↷</button>
+        </div>
+      </div>
     </div>
-    <div class="sep"></div>
-    <label class="master-vol" title="Master preview volume (editor only)">🔊 Master
-      <input id="master-vol" type="range" min="0" max="1" step="0.02">
-      <span id="master-vol-val"></span>
-    </label>
-    <div class="sep"></div>
-    <div class="file-group">
-      <button id="reset">Reset to game's song</button>
-      <button id="save-file">💾 Save</button>
-      <button id="load-file">📂 Load</button>
-      <input type="file" id="load-file-input" accept="application/json,.json" style="display:none">
-      <button id="export">Export code</button>
+
+    <!-- Loop / zoom -->
+    <div class="panel" id="view-panel">
+      <div class="panel-cap">Loop &amp; Zoom</div>
+      <div class="panel-body">
+        <button id="loop-reset" title="Reset the loop range to the full song">Full range</button>
+        <div class="segmented zoom-group">
+          <button id="zoom-out" title="Zoom out">🔍−</button>
+          <span id="zoom-level">100%</span>
+          <button id="zoom-in" title="Zoom in">🔍+</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Master -->
+    <div class="panel" id="master-panel">
+      <div class="panel-cap">Master</div>
+      <div class="panel-body">
+        <span class="mv-ico">🔊</span>
+        <input id="master-vol" type="range" min="0" max="1" step="0.02" title="Master preview volume (editor only)">
+        <span id="master-vol-val"></span>
+      </div>
+    </div>
+
+    <!-- File -->
+    <div class="panel" id="file-panel">
+      <div class="panel-cap">Session</div>
+      <div class="panel-body file-group">
+        <button id="reset">↺ Game song</button>
+        <button id="save-file">💾 Save</button>
+        <button id="load-file">📂 Load</button>
+        <input type="file" id="load-file-input" accept="application/json,.json" style="display:none">
+        <button id="export">⤓ Export</button>
+      </div>
     </div>
   </div>
 
@@ -319,6 +446,7 @@ const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 const PITCH_TRACKS = ['lead', 'harmony', 'bass'];
 const ALL_TRACKS = ['lead', 'harmony', 'bass', 'rhythm'];
 const TRACK_LABELS = { lead: 'Lead', harmony: 'Harmony', bass: 'Bass', rhythm: 'Rhythm' };
+const TRACK_COLORS = { lead: '#2ff3ff', harmony: '#ff2fb0', bass: '#ffb347', rhythm: '#39ff6a' };
 const TRACK_OSC = { lead: 'square', harmony: 'square', bass: 'triangle', rhythm: 'kit' };
 const RHYTHM_ROWS = ['kick', 'snare', 'hihat', 'tom'];
 const RHYTHM_LABELS = { kick: 'Kick', snare: 'Snare', hihat: 'Hi-hat', tom: 'Tom' };
@@ -788,6 +916,25 @@ function updatePlayheadPositions() {
   const left = (LANE_ORIGIN + visualPlayhead * colPx) + 'px';
   if (playheadEl) playheadEl.style.left = left;
   if (playheadGrip) playheadGrip.style.left = left;
+  updateCounter();
+}
+
+// Pro Tools-style Bars|Beats|Sub + Min:Sec counter, driven by the playhead.
+const lcdBars = document.getElementById('lcd-bars');
+const lcdTime = document.getElementById('lcd-time');
+function updateCounter() {
+  if (!lcdBars) return;
+  const col = Math.max(0, Math.min(COLS, visualPlayhead));
+  const posInBar = ((col % 8) + 8) % 8;
+  const bar = Math.floor(col / 8) + 1;
+  const beat = Math.floor(posInBar / 2) + 1;  // quarter-note beat (1..4)
+  const sub = Math.floor(posInBar % 2) + 1;   // eighth-note subdivision (1..2)
+  lcdBars.innerHTML = String(bar).padStart(3, '0') +
+    '<span class="sep-dot">|</span>' + beat + '<span class="sep-dot">|</span>' + sub;
+  const sec = col * (60 / state.tempo / 2);
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  lcdTime.textContent = m + ':' + String(Math.floor(s)).padStart(2, '0') + '.' + Math.floor((s % 1) * 10);
 }
 function updateLoopPositions() {
   if (!loopEls) return;
@@ -1109,32 +1256,50 @@ function renderInspector() {
   inspector.className = 'inspector';
   inspector.innerHTML = '';
 
-  const title = el('span', 'insp-title');
-  title.textContent = TRACK_LABELS[track];
-  inspector.appendChild(title);
-
-  const info = el('span');
-  info.textContent = `${midiToName(freqToMidi(note.freq))} (${note.freq} Hz), length ${note.len}/8th`;
-  inspector.appendChild(info);
-
-  const addToggle = (labelText, key, extra) => {
-    const label = document.createElement('label');
-    const box = document.createElement('input');
-    box.type = 'checkbox';
-    box.checked = note[key];
-    box.addEventListener('change', () => { note[key] = box.checked; if (extra) extra(box.checked); render(); });
-    label.append(box, ' ' + labelText);
-    inspector.appendChild(label);
-    return box;
+  const panel = (cap) => {
+    const p = el('div', 'insp-panel');
+    const c = el('div', 'insp-cap'); c.textContent = cap;
+    p.appendChild(c);
+    inspector.appendChild(p);
+    return p;
+  };
+  // Pill toggle button (replaces the old checkboxes) — lights up when active.
+  const addFxToggle = (container, labelText, key, title, extra) => {
+    const btn = el('button', 'fx-toggle' + (note[key] ? ' on' : ''));
+    btn.textContent = labelText;
+    if (title) btn.title = title;
+    btn.addEventListener('click', () => { note[key] = !note[key]; if (extra) extra(note[key]); render(); });
+    container.appendChild(btn);
+    return btn;
   };
 
-  addToggle('Vibrato', 'vib');
-  addToggle('Tremolo', 'trem');
-  const portaBox = addToggle('Portamento', 'porta', (on) => { if (on) { note.bend = null; note.arp = null; } });
-  portaBox.title = 'Glides unbroken into the next note in this track, without a new attack.';
+  // --- Header: track badge + note readout ---
+  const head = panel('Selected note');
+  const row = el('div', 'insp-head');
+  const badge = el('span', 'insp-badge');
+  badge.textContent = TRACK_LABELS[track];
+  badge.style.background = TRACK_COLORS[track];
+  const noteLcd = el('span', 'insp-note');
+  noteLcd.textContent = `${midiToName(freqToMidi(note.freq))} · ${note.freq}Hz`;
+  row.append(badge, noteLcd);
+  head.appendChild(row);
+  const sub = el('div', 'insp-sub');
+  sub.textContent = `length ${note.len}/8th`;
+  head.appendChild(sub);
 
-  const bendLabel = document.createElement('label');
-  bendLabel.textContent = ' Bend (semitones): ';
+  // --- Modulation ---
+  const mod = panel('Modulation');
+  const modRow = el('div', 'fx-row');
+  addFxToggle(modRow, 'Vibrato', 'vib');
+  addFxToggle(modRow, 'Tremolo', 'trem');
+  addFxToggle(modRow, 'Portamento', 'porta', 'Glides unbroken into the next note in this track, without a new attack.',
+    (on) => { if (on) { note.bend = null; note.arp = null; } });
+  mod.appendChild(modRow);
+
+  // --- Pitch ---
+  const pitch = panel('Pitch');
+  const bendField = el('div', 'insp-field');
+  const bendLbl = el('span'); bendLbl.textContent = 'Bend (semitones)';
   const bendInput = document.createElement('input');
   bendInput.type = 'number'; bendInput.min = -24; bendInput.max = 24; bendInput.step = 1;
   bendInput.value = note.bend ? Math.round(12 * Math.log2(note.bend / note.freq)) : 0;
@@ -1144,12 +1309,12 @@ function renderInspector() {
     if (note.bend) { note.arp = null; note.porta = false; }
     render();
   });
-  bendLabel.appendChild(bendInput);
-  inspector.appendChild(bendLabel);
+  bendField.append(bendLbl, bendInput);
+  pitch.appendChild(bendField);
 
   if (track !== 'bass') {
-    const dutyLabel = document.createElement('label');
-    dutyLabel.textContent = ' Duty cycle: ';
+    const dutyField = el('div', 'insp-field');
+    const dutyLbl = el('span'); dutyLbl.textContent = 'Duty cycle';
     const dutySelect = document.createElement('select');
     [[null, 'Standard (50%)'], [0.125, '12.5%'], [0.25, '25%'], [0.5, '50%'], [0.75, '75%']].forEach(([v, label]) => {
       const opt = document.createElement('option');
@@ -1159,14 +1324,15 @@ function renderInspector() {
       dutySelect.appendChild(opt);
     });
     dutySelect.addEventListener('change', () => { note.duty = dutySelect.value === '' ? null : parseFloat(dutySelect.value); render(); });
-    dutyLabel.appendChild(dutySelect);
-    inspector.appendChild(dutyLabel);
+    dutyField.append(dutyLbl, dutySelect);
+    pitch.appendChild(dutyField);
   }
 
-  const arpLabel = document.createElement('label');
-  arpLabel.textContent = ' Arpeggio (semitones, comma-separated): ';
+  const arpField = el('div', 'insp-field');
+  const arpLbl = el('span'); arpLbl.textContent = 'Arpeggio';
   const arpInput = document.createElement('input');
-  arpInput.type = 'text'; arpInput.style.width = '70px'; arpInput.placeholder = 'e.g. 4,7';
+  arpInput.type = 'text'; arpInput.placeholder = 'e.g. 4,7';
+  arpInput.title = 'Extra semitones above the root, comma-separated.';
   arpInput.value = note.arp ? note.arp.join(',') : '';
   arpInput.addEventListener('change', () => {
     const parsed = arpInput.value.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
@@ -1174,24 +1340,29 @@ function renderInspector() {
     if (note.arp) { note.bend = null; note.porta = false; }
     render();
   });
-  arpLabel.appendChild(arpInput);
-  inspector.appendChild(arpLabel);
+  arpField.append(arpLbl, arpInput);
+  pitch.appendChild(arpField);
 
+  const presets = el('div', 'arp-presets');
   const arpMajor = document.createElement('button');
   arpMajor.textContent = 'Major triad';
   arpMajor.addEventListener('click', () => { note.arp = [4, 7]; note.bend = null; note.porta = false; render(); });
-  inspector.appendChild(arpMajor);
   const arpMinor = document.createElement('button');
   arpMinor.textContent = 'Minor triad';
   arpMinor.addEventListener('click', () => { note.arp = [3, 7]; note.bend = null; note.porta = false; render(); });
-  inspector.appendChild(arpMinor);
+  presets.append(arpMajor, arpMinor);
+  pitch.appendChild(presets);
 
-  addToggle('Bitcrush', 'crush');
-  addToggle('Echo', 'echo');
-  addToggle('Chorus', 'chorus');
+  // --- Texture / FX ---
+  const fx = panel('Texture / FX');
+  const fxRow = el('div', 'fx-row');
+  addFxToggle(fxRow, 'Bitcrush', 'crush');
+  addFxToggle(fxRow, 'Echo', 'echo');
+  addFxToggle(fxRow, 'Chorus', 'chorus');
+  fx.appendChild(fxRow);
 
-  const del = document.createElement('button');
-  del.textContent = 'Delete note';
+  const del = el('button', 'insp-del');
+  del.textContent = '🗑 Delete note';
   del.addEventListener('click', () => {
     state.tracks[track] = state.tracks[track].filter((_, i) => i !== index);
     state.selected = null;
@@ -1611,7 +1782,7 @@ function startPlaybackFrom(col) {
 }
 function animatePlayhead() {
   function tick() {
-    if (!playing) { rafId = null; return; }
+    if (!playing) { rafId = null; document.body.classList.remove('playing'); return; }
     const eighthSec = 60 / state.tempo / 2;
     const col = playStartCol + (ctx.currentTime - playStartCtxTime) / eighthSec;
     visualPlayhead = Math.min(col, COLS - 0.001);
@@ -1636,10 +1807,12 @@ function followPlayhead() {
 document.getElementById('play').addEventListener('click', () => {
   ensureCtx();
   if (ctx.state === 'suspended') ctx.resume();
+  document.body.classList.add('playing');
   startPlaybackFrom(state.playhead);
 });
 document.getElementById('stop').addEventListener('click', () => {
   playing = false;
+  document.body.classList.remove('playing');
   clearTimeout(loopTimer);
   if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
   if (ctx) {
@@ -1654,6 +1827,15 @@ document.getElementById('stop').addEventListener('click', () => {
   }
   visualPlayhead = state.playhead;
   updatePlayheadPositions();
+});
+
+// Return to start (RTZ) and the loop on/off toggle button.
+document.getElementById('rtz').addEventListener('click', () => { seekTo(0); daw.scrollLeft = 0; });
+const loopChk = document.getElementById('loop');
+const loopBtn = document.getElementById('loop-btn');
+loopBtn.addEventListener('click', () => {
+  loopChk.checked = !loopChk.checked;
+  loopBtn.setAttribute('aria-pressed', String(loopChk.checked));
 });
 
 // ---------- Export ----------
