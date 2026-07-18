@@ -143,8 +143,15 @@
          and every track lane, so headers pin to the left and lanes scroll as one. ---- */
   .daw {
     position: relative; overflow-x: auto; background: var(--panel);
-    border-radius: 8px; border: 1px solid #2c2c33; padding-bottom: 4px;
+    border-radius: 8px 8px 0 0; border: 1px solid #2c2c33; border-bottom: none; padding-bottom: 4px;
   }
+
+  /* Docked below .daw, outside its horizontally-scrolling region, so it can
+     never scroll out of view — always visibly under Rhythm. */
+  #master-track {
+    background: var(--panel); border: 1px solid #2c2c33; border-radius: 0 0 8px 8px;
+  }
+  #master-track .track { border-bottom: none; }
 
   .timeline { display: flex; height: 22px; width: max-content; }
   .tl-corner {
@@ -207,8 +214,10 @@
   .track[data-track="rhythm"]  .th-vol input[type=range] { accent-color: var(--rhythm); }
   .track.silent .lane { opacity: 0.32; }
 
-  /* Master track: header-only strip docked under Rhythm, no lane/gutter of its own. */
-  .master-header { width: calc(var(--header-w) + var(--gutter-w)); border-left-color: #cfcfe0; cursor: default; }
+  /* Master track: header-only strip docked under Rhythm, no lane/gutter of its own.
+     Lives outside .daw's scrolling region (see #master-track), so it doesn't need
+     (and shouldn't use) the sticky-left trick the in-DAW track headers rely on. */
+  .master-header { position: static; width: calc(var(--header-w) + var(--gutter-w)); border-left-color: #cfcfe0; cursor: default; }
   .master-header .th-name { color: #cfcfe0; }
   .master-header .th-vol input[type=range] { accent-color: #cfcfe0; }
 
@@ -518,6 +527,7 @@
         <div class="timeline" id="timeline"></div>
         <div id="tracks"></div>
       </div>
+      <div id="master-track"></div>
     </div>
     <div class="inspector empty" id="inspector">No note selected.</div>
   </div>
@@ -760,6 +770,7 @@ function updateHistoryButtons() {
 const daw = document.getElementById('daw');
 const timelineEl = document.getElementById('timeline');
 const tracksEl = document.getElementById('tracks');
+const masterTrackEl = document.getElementById('master-track');
 const inspector = document.getElementById('inspector');
 const HEADER_W = 176, GUTTER_W = 42;
 const LANE_ORIGIN = HEADER_W + GUTTER_W; // x (within .daw content) where lane columns begin
@@ -814,6 +825,7 @@ function audible(track) {
 function render() {
   renderTimeline();
   renderTracks();
+  renderMasterTrack();
   positionOverlays();
   renderInspector();
   autosave();
@@ -859,7 +871,6 @@ function renderTracks() {
   laneRolls.length = 0;
   for (const track of PITCH_TRACKS) renderPitchTrack(track);
   renderRhythmTrack();
-  renderMasterTrack();
 }
 
 function buildHeader(track) {
@@ -1034,6 +1045,7 @@ function renderRhythmTrack() {
 // Master has no notes of its own, so it's a header-only strip (no gutter/lane)
 // docked under Rhythm, rebuilt fresh from state.masterVol on every render.
 function renderMasterTrack() {
+  masterTrackEl.innerHTML = '';
   const row = el('div', 'track');
   const header = el('div', 'track-header master-header');
   const top = el('div', 'th-top');
@@ -1056,7 +1068,7 @@ function renderMasterTrack() {
 
   header.append(top, vol);
   row.appendChild(header);
-  tracksEl.appendChild(row);
+  masterTrackEl.appendChild(row);
 }
 
 function renderMarquee(rollEl, track, heightPx) {
