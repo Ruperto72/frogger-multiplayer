@@ -259,6 +259,11 @@
     border: 1px solid #34343c; box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
     font-size: 12px; display: flex; flex-direction: column; gap: 8px; align-items: stretch;
     width: 244px; flex: 0 0 244px;
+    /* Pin the effect panel so it stays reachable while editing notes far down
+       (bass/rhythm). Sits just below the sticky top bar; scrolls internally if
+       it ever gets taller than the viewport. */
+    position: sticky; top: var(--sticky-top, 110px); align-self: flex-start;
+    max-height: calc(100vh - var(--sticky-top, 110px) - 12px); overflow-y: auto;
   }
   .inspector.empty { color: #7a7a86; padding: 16px; font-size: 12px; line-height: 1.6; }
   .insp-panel {
@@ -1881,11 +1886,17 @@ document.getElementById('export').addEventListener('click', () => {
   box.select();
 });
 
-// Add a drop shadow to the sticky top bar once the page has scrolled under it.
+// Add a drop shadow to the sticky top bar once the page has scrolled under it,
+// and publish its height so the sticky inspector can sit just below it (the bar
+// wraps to a taller layout on narrow windows, so this is measured, not fixed).
 const toolbarEl = document.querySelector('.toolbar');
-const toolbarTop = toolbarEl.offsetTop;
-const updateStuck = () => toolbarEl.classList.toggle('stuck', window.scrollY > toolbarTop);
+const updateStuck = () => toolbarEl.classList.toggle('stuck', window.scrollY > toolbarEl.offsetTop);
+function updateStickyTop() {
+  document.documentElement.style.setProperty('--sticky-top', (toolbarEl.offsetHeight + 18) + 'px');
+}
 window.addEventListener('scroll', updateStuck, { passive: true });
+window.addEventListener('resize', () => { updateStickyTop(); updateStuck(); });
+updateStickyTop();
 updateStuck();
 
 applyZoom();
