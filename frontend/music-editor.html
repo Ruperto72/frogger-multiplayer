@@ -715,6 +715,11 @@ function audible(track) {
 
 // ---------- Rendering ----------
 function render() {
+  // The playhead, grip and loop overlays are appended to .daw (siblings of the
+  // timeline/tracks, so innerHTML clears there don't reach them). Remove the
+  // previous set first, otherwise every render leaves a frozen duplicate behind.
+  daw.querySelectorAll(':scope > .playhead, :scope > .playhead-grip, :scope > .loop-region, :scope > .loop-handle')
+    .forEach(e => e.remove());
   renderTimeline();
   renderTracks();
   positionOverlays();
