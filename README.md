@@ -3,7 +3,8 @@
 Realtids-Frogger för två spelare, byggd med vanilla JavaScript och WebSockets. Två spelare matchas mot varandra och tävlar om att först nå målraden — samtidigt som de kan knuffa varandra ut i trafiken.
 
 **Spela:** https://ruperto72.github.io/frogger-multiplayer/
-**Musikeditor:** https://ruperto72.github.io/frogger-multiplayer/music-editor/
+
+**Musikeditor:** https://ruperto72.github.io/frogger-multiplayer/music-editor.html/
 
 > Backend körs på Renders free tier och sover efter 15 min inaktivitet — första anslutningen kan ta upp till en minut.
 
