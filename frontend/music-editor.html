@@ -25,14 +25,35 @@
     color: var(--muted); background: #1a1a1f; border: 1px solid #3a3a42;
   }
   .help-fab:hover { color: var(--ink); border-color: #55555f; }
-  p.hint { color: #ccc; font-size: 12px; margin: 0; line-height: 1.6; }
   dialog#help-dialog {
-    background: var(--panel); color: #eee; border: 1px solid #444; border-radius: 8px;
-    max-width: 660px; padding: 20px;
+    background: var(--panel); color: #e8e8ee; border: 1px solid #444; border-radius: 10px;
+    max-width: 700px; width: calc(100vw - 40px); max-height: 86vh; padding: 0; overflow: hidden;
   }
-  dialog#help-dialog::backdrop { background: rgba(0,0,0,0.6); }
-  dialog#help-dialog h2 { margin: 0 0 10px; font-size: 16px; }
-  dialog#help-dialog #help-close { margin-top: 14px; }
+  dialog#help-dialog::backdrop { background: rgba(0,0,0,0.65); }
+  .help-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 14px 20px; border-bottom: 1px solid #33333c;
+    background: linear-gradient(#22222a, #1b1b20);
+  }
+  .help-head h2 { margin: 0; font-size: 16px; }
+  .help-head #help-close { padding: 4px 12px; }
+  .help-body { padding: 4px 20px 18px; overflow-y: auto; max-height: calc(86vh - 60px); }
+  .help-body h3 {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: #8fbcff;
+    margin: 18px 0 6px; border-bottom: 1px solid #2c2c33; padding-bottom: 4px; font-weight: 700;
+  }
+  .help-body h3:first-child { margin-top: 12px; }
+  .help-body p { color: #c7c7d0; font-size: 12.5px; line-height: 1.6; margin: 0 0 8px; }
+  .help-body ul { margin: 0 0 8px; padding-left: 4px; list-style: none; }
+  .help-body li { color: #c7c7d0; font-size: 12.5px; line-height: 1.55; margin: 4px 0; padding-left: 16px; text-indent: -16px; }
+  .help-body li b { color: #e8e8ee; }
+  .help-body code { background: #111; padding: 1px 5px; border-radius: 3px; font-size: 11.5px; color: #9f9; }
+  .kbd-grid { display: grid; grid-template-columns: max-content 1fr; gap: 5px 14px; align-items: center; font-size: 12.5px; color: #c7c7d0; margin: 4px 0 4px; }
+  .kbd-grid > span:nth-child(odd) { text-align: right; }
+  kbd {
+    background: #2a2a30; border: 1px solid #454550; border-bottom-width: 2px; border-radius: 4px;
+    padding: 1px 6px; font-family: inherit; font-size: 11px; color: #e8e8ee; white-space: nowrap;
+  }
 
   /* ---- Pro Tools-style top bar: a row of bezeled panels, each with a small
          caption, holding clustered controls. ---- */
@@ -312,54 +333,87 @@
 <body>
 
   <dialog id="help-dialog">
-    <h2>Help</h2>
-    <p class="hint">
-      Dev tool for composing the "Froggy Hop" loop. Loads the current song from
-      <code>js/audio.js</code>. The four instruments are now laid out as separate
-      <b>tracks</b> stacked vertically, like a music studio (Pro&nbsp;Tools style): one lane
-      each for <b>Lead</b>, <b>Harmony</b>, <b>Bass</b> and <b>Rhythm</b>. Each track has a
-      <b>channel strip</b> on the left with its name, <b>M</b>ute / <b>S</b>olo buttons and a
-      <b>volume</b> slider. Click a track's strip (or click into its lane) to make it the
-      <i>active</i> track that the Pen/Eraser/Grab tools edit.
-    </p>
-    <p class="hint">
-      Each pitch lane auto-fits to the range of notes it contains, so tracks stay compact.
-      The shared timeline at the top and the red playhead run across every lane at once.
-    </p>
-    <p class="hint">
-      Three tools: <b>Pen</b> adds a new note/hit in an empty cell, <b>Eraser</b> removes a
-      note/hit you click on (or a whole selected group), <b>Grab</b> moves a note/hit by
-      dragging it (drag its right edge to change its length). Select several notes/hits in a track
-      two ways: <b>Shift+click</b> each one to add/remove it from the selection, or (in Grab) drag
-      across empty space to marquee-select every note/hit whose start falls in the dragged range.
-      A selected group moves together, <b>Delete</b> removes it, and <b>Ctrl/Cmd+C&nbsp;/&nbsp;V</b>
-      copies and pastes it (anchored at the playhead). Select a single note to edit vibrato/tremolo/
-      bend/duty/arpeggio/portamento/bitcrush/echo/chorus in the panel on the right.
-    </p>
-    <p class="hint">
-      The <b>Length</b> control in the toolbar makes the song longer or shorter one bar at a time:
-      <b>+</b> appends an empty bar, <b>−</b> removes the last bar (dropping any notes/hits past the
-      new end). The length is saved with your file and exported as the trailing rest, so the game
-      loops the new length.
-    </p>
-    <p class="hint">
-      Keyboard (ignored while typing in a field): <b>Space</b> play/stop, <b>1/2/3</b>
-      Pen/Eraser/Grab, <b>Delete</b>/<b>Backspace</b> delete selection, arrow keys nudge it,
-      <b>Ctrl/Cmd+C/V</b> copy/paste, <b>Ctrl/Cmd+Z</b> undo, <b>Ctrl/Cmd+Shift+Z</b>/<b>Ctrl/Cmd+Y</b>
-      redo, <b>Escape</b> deselect. Undo covers song data (notes/hits/tempo).
-    </p>
-    <p class="hint">
-      Each track's <b>volume</b> slider sets the relative channel level (the same numbers as the
-      game's <code>MIX</code> constant) — drag while playing to rebalance live. <b>Mute</b>
-      silences a track; <b>Solo</b> silences every track except the soloed one(s). The
-      <b>🔊 Master</b> slider in the toolbar sets the overall preview loudness (editor only —
-      it isn't part of the game's audio). During playback the view auto-scrolls to follow the
-      playhead so it never runs off the right edge. "Export code"
-      emits the matching <code>export const MIX</code> line plus the note arrays for
-      <code>audio.js</code>; the mix, mute and solo state are saved with your <code>.json</code>
-      file and the autosave.
-    </p>
-    <button id="help-close">Close</button>
+    <div class="help-head">
+      <h2>🎛️ Music Studio — Help</h2>
+      <button id="help-close">Close ✕</button>
+    </div>
+    <div class="help-body">
+      <h3>Overview</h3>
+      <p>
+        Dev tool for composing the "Froggy Hop" loop, loaded from <code>js/audio.js</code>. The four
+        instruments are laid out as separate <b>tracks</b> stacked vertically, like a music studio
+        (Pro&nbsp;Tools style). A shared timeline at the top and the red playhead run across every
+        lane at once.
+      </p>
+
+      <h3>Tracks &amp; channel strips</h3>
+      <ul>
+        <li>One lane each for <b>Lead</b>, <b>Harmony</b>, <b>Bass</b> and <b>Rhythm</b>.</li>
+        <li>Each track's <b>channel strip</b> (left) has its name, <b>M</b>ute / <b>S</b>olo buttons and a <b>volume</b> slider.</li>
+        <li>Click a strip (or into its lane) to make it the <b>active</b> track that the tools edit.</li>
+        <li>Pitch lanes auto-fit to the notes they contain, so tracks stay compact.</li>
+      </ul>
+
+      <h3>Tools</h3>
+      <ul>
+        <li><b>✏️ Pen</b> — click an empty cell to add a note/hit.</li>
+        <li><b>🧽 Eraser</b> — click a note/hit to remove it (or a whole selected group).</li>
+        <li><b>✋ Grab</b> — drag a note/hit to move it; drag its right edge to change its length.</li>
+      </ul>
+
+      <h3>Selecting several notes</h3>
+      <ul>
+        <li><b>Shift+click</b> each note/hit to add or remove it from the selection (any tool).</li>
+        <li>With <b>Grab</b>, drag across empty space to marquee-select everything whose start falls in the range.</li>
+        <li>A selection moves together; <b>Delete</b> removes it; <b>Ctrl/Cmd+C&nbsp;/&nbsp;V</b> copies &amp; pastes it at the playhead.</li>
+      </ul>
+
+      <h3>Note effects</h3>
+      <p>
+        Select a single note to edit vibrato, tremolo, bend, duty cycle, arpeggio, portamento,
+        bitcrush, echo and chorus in the inspector on the right.
+      </p>
+
+      <h3>Song length</h3>
+      <p>
+        The <b>Length</b> control makes the song longer or shorter one bar at a time: <b>+</b> appends
+        an empty bar, <b>−</b> removes the last bar (dropping any notes/hits past the new end). The
+        length is saved with your file and exported so the game loops it.
+      </p>
+
+      <h3>Mixing</h3>
+      <ul>
+        <li>Each track's <b>volume</b> slider sets its relative level (the game's <code>MIX</code>) — drag while playing to rebalance live.</li>
+        <li><b>Mute</b> silences a track; <b>Solo</b> silences every track except the soloed one(s).</li>
+        <li><b>🔊 Master</b> sets the overall preview loudness (editor only — not part of the game's audio).</li>
+      </ul>
+
+      <h3>Transport &amp; timeline</h3>
+      <ul>
+        <li>Transport: return-to-start, stop, play, and a loop on/off toggle; the LCD shows Bars&nbsp;|&nbsp;Beats and Min:Sec.</li>
+        <li>Click the timeline (or drag the playhead) to set where playback starts; the view auto-scrolls to follow the playhead.</li>
+        <li>The green band is the loop range — drag its ends, or "Full range" to reset it.</li>
+      </ul>
+
+      <h3>Saving &amp; exporting</h3>
+      <ul>
+        <li><b>💾 Save</b> / <b>📂 Load</b> keep a work-in-progress <code>.json</code> (tracks, tempo, length, mix). Work also autosaves to this browser.</li>
+        <li><b>⤓ Export</b> emits the <code>MIX</code> line and the note arrays to paste into <code>audio.js</code>.</li>
+      </ul>
+
+      <h3>Keyboard shortcuts</h3>
+      <div class="kbd-grid">
+        <span><kbd>Space</kbd></span><span>Play / stop</span>
+        <span><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></span><span>Pen / Eraser / Grab</span>
+        <span><kbd>Delete</kbd> <kbd>Backspace</kbd></span><span>Delete the selection</span>
+        <span><kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd></span><span>Nudge the selection</span>
+        <span><kbd>Ctrl/Cmd</kbd>+<kbd>C</kbd> / <kbd>V</kbd></span><span>Copy / paste</span>
+        <span><kbd>Ctrl/Cmd</kbd>+<kbd>Z</kbd></span><span>Undo (notes/hits/tempo/length)</span>
+        <span><kbd>Ctrl/Cmd</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> / <kbd>Ctrl/Cmd</kbd>+<kbd>Y</kbd></span><span>Redo</span>
+        <span><kbd>Esc</kbd></span><span>Deselect (or close this dialog)</span>
+      </div>
+      <p style="color:#8a8a95; font-size:11.5px;">Shortcuts are ignored while typing in a field.</p>
+    </div>
   </dialog>
 
   <div class="toolbar">
