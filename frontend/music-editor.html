@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Music Editor (dev tool, not part of the app)</title>
 <style>
   :root {
@@ -338,6 +339,58 @@
     width: 100%; height: 260px; margin-top: 10px; background: #111; color: #9f9;
     font-family: monospace; font-size: 12px; border: 1px solid #444; border-radius: 6px; padding: 8px;
   }
+
+  /* ---------- Mobile / touch responsive ---------- */
+  #more-toggle { display: none; align-items: center; font-size: 12px; font-weight: 700; padding: 8px 12px; }
+  #more-toggle[aria-expanded="true"] { background: #3a6bd6; color: #fff; }
+  #rotate-hint { display: none; }
+  #rotate-hint.dismissed { display: none !important; }
+  #insp-close { display: none; }
+
+  @media (max-width: 760px) {
+    body { padding: 8px; }
+    .toolbar { gap: 6px; padding: 6px; }
+    .panel { padding: 3px 6px 5px; }
+    .panel-cap { font-size: 7px; }
+    .panel-body { min-height: 30px; gap: 5px; }
+    /* Collapse the non-essential panels behind the More toggle. */
+    #more-toggle { display: inline-flex; margin-left: auto; }
+    #help-panel { margin-left: 6px; }
+    .tb-extra { display: none; }
+    .toolbar.show-extra .tb-extra { display: flex; }
+    /* Inspector becomes a bottom sheet that only appears when a note is selected. */
+    .editor-layout { flex-direction: column; }
+    .inspector {
+      position: fixed; left: 0; right: 0; bottom: 0; top: auto; width: auto; flex: none;
+      max-height: 48vh; border-radius: 12px 12px 0 0; z-index: 45;
+      box-shadow: 0 -8px 24px rgba(0,0,0,0.55);
+    }
+    .inspector.empty { display: none; }
+    body.has-sel #insp-close {
+      display: block; position: fixed; right: 12px; bottom: calc(48vh + 8px); z-index: 46;
+      background: #24242c; border: 1px solid #454550; color: #e8e8ee; padding: 8px 14px; border-radius: 20px;
+    }
+    #rotate-hint {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      background: #24242c; color: #cfcfe0; font-size: 12px; padding: 7px 10px;
+      border-radius: 6px; margin-bottom: 8px;
+    }
+    #rotate-hint button { background: none; border: none; color: #9a9aa6; padding: 2px 8px; font-size: 13px; }
+  }
+  @media (max-width: 760px) and (orientation: landscape) {
+    #rotate-hint { display: none; }
+  }
+
+  /* Bigger hit areas on touch devices (independent of width — tablets too). */
+  @media (pointer: coarse) {
+    .tp-btn { width: 46px; height: 40px; font-size: 17px; }
+    .segmented button { padding: 10px 13px; font-size: 15px; }
+    .th-btns button { width: 32px; height: 28px; font-size: 13px; }
+    .th-vol input[type=range] { height: 28px; }
+    .help-fab { width: 38px; height: 38px; font-size: 17px; }
+    .icon-btn { min-height: 38px; min-width: 40px; }
+    button { min-height: 34px; }
+  }
 </style>
 </head>
 <body>
@@ -426,6 +479,8 @@
     </div>
   </dialog>
 
+  <div id="rotate-hint">📱 Turn your phone sideways for more room to edit.<button id="rotate-dismiss" aria-label="Dismiss">✕</button></div>
+
   <div class="toolbar">
     <!-- Transport -->
     <div class="panel" id="transport-panel">
@@ -451,7 +506,7 @@
     </div>
 
     <!-- Tempo -->
-    <div class="panel" id="tempo-panel">
+    <div class="panel tb-extra" id="tempo-panel">
       <div class="panel-cap">Tempo</div>
       <div class="panel-body">
         <input id="tempo" type="number" min="40" max="300" step="1">
@@ -475,8 +530,11 @@
       </div>
     </div>
 
+    <!-- More toggle (mobile only) -->
+    <button id="more-toggle" class="panel" aria-expanded="false" title="More controls">⋯ More</button>
+
     <!-- Length -->
-    <div class="panel" id="length-panel">
+    <div class="panel tb-extra" id="length-panel">
       <div class="panel-cap">Length</div>
       <div class="panel-body">
         <div class="segmented">
@@ -488,7 +546,7 @@
     </div>
 
     <!-- Loop / zoom -->
-    <div class="panel" id="view-panel">
+    <div class="panel tb-extra" id="view-panel">
       <div class="panel-cap">Loop &amp; Zoom</div>
       <div class="panel-body">
         <button id="loop-reset" title="Reset the loop range to the full song">Full range</button>
@@ -501,7 +559,7 @@
     </div>
 
     <!-- File -->
-    <div class="panel" id="file-panel">
+    <div class="panel tb-extra" id="file-panel">
       <div class="panel-cap">Session</div>
       <div class="panel-body file-group">
         <button id="reset" class="icon-btn" title="Reset to game's song">↺</button>
@@ -531,6 +589,7 @@
     </div>
     <div class="inspector empty" id="inspector">No note selected.</div>
   </div>
+  <button id="insp-close" title="Close editor panel">✕ Done</button>
 
   <textarea id="exportBox" style="display:none" readonly></textarea>
 
@@ -1449,6 +1508,7 @@ function startMoveHit(e, hit) {
 function renderInspector() {
   const sel = state.selected;
   const note = sel && state.tracks[sel.track] && state.tracks[sel.track][sel.index];
+  document.body.classList.toggle('has-sel', !!note); // drives the mobile close button
   if (!note) {
     inspector.className = 'inspector empty';
     inspector.textContent = 'No note selected. Pen a Kick/Snare/Hi-hat/Tom cell in the Rhythm track to add a hit.';
@@ -1577,6 +1637,17 @@ function renderInspector() {
 const helpDialog = document.getElementById('help-dialog');
 document.getElementById('help-btn').addEventListener('click', () => helpDialog.showModal());
 document.getElementById('help-close').addEventListener('click', () => helpDialog.close());
+
+// ---------- Mobile UI: More toggle, rotate hint, inspector close ----------
+const toolbar = document.querySelector('.toolbar');
+const moreToggle = document.getElementById('more-toggle');
+moreToggle.addEventListener('click', () => {
+  const open = toolbar.classList.toggle('show-extra');
+  moreToggle.setAttribute('aria-expanded', String(open));
+  moreToggle.textContent = open ? '✕ Less' : '⋯ More';
+});
+document.getElementById('rotate-dismiss').addEventListener('click', () => document.getElementById('rotate-hint').classList.add('dismissed'));
+document.getElementById('insp-close').addEventListener('click', () => clearSelection());
 
 // ---------- Toolbar ----------
 document.querySelectorAll('.tool-group button[data-tool]').forEach(btn => {
@@ -2102,6 +2173,10 @@ updateStuck();
 
 createOverlays();
 updateLengthUI();
+// On touch devices, start more zoomed-in so grid cells are easy to tap.
+if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) {
+  zoomIndex = Math.min(ZOOM_LEVELS.length - 1, ZOOM_LEVELS.indexOf(24) >= 0 ? ZOOM_LEVELS.indexOf(24) : zoomIndex + 1);
+}
 applyZoom();
 </script>
 </body>
