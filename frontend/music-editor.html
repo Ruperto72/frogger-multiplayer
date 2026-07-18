@@ -1649,6 +1649,17 @@ moreToggle.addEventListener('click', () => {
 document.getElementById('rotate-dismiss').addEventListener('click', () => document.getElementById('rotate-hint').classList.add('dismissed'));
 document.getElementById('insp-close').addEventListener('click', () => clearSelection());
 
+// The installed PWA manifest locks the app to portrait (good for the game, which
+// wants it). The editor is far better in landscape, so allow it to rotate freely
+// here — locking to 'any' overrides the manifest's portrait lock for this page.
+// (No-op / harmless rejection in a regular browser tab, where the lock isn't
+// permitted; the lock is released when this page unloads, so the game stays
+// portrait.)
+try { screen.orientation.lock('any').catch(() => {}); } catch { /* unsupported */ }
+// Release the lock when leaving the editor so the game reverts to the manifest's
+// portrait default.
+window.addEventListener('pagehide', () => { try { screen.orientation.unlock(); } catch { /* ignore */ } });
+
 // ---------- Toolbar ----------
 document.querySelectorAll('.tool-group button[data-tool]').forEach(btn => {
   btn.addEventListener('click', () => {
