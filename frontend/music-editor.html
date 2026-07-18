@@ -17,7 +17,7 @@
     padding: 14px; margin: 0;
   }
   h1 { font-size: 17px; margin: 0; font-weight: 600; letter-spacing: 0.2px; }
-  .header-row { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; }
+  #help-panel { margin-left: auto; }
   p.hint { color: #ccc; font-size: 12px; margin: 0; line-height: 1.6; }
   dialog#help-dialog {
     background: var(--panel); color: #eee; border: 1px solid #444; border-radius: 8px;
@@ -302,10 +302,6 @@
 </style>
 </head>
 <body>
-  <div class="header-row">
-    <h1>🎛️ Frog vs Toad — Music Studio</h1>
-    <button id="help-btn" title="Show help">❓ Help</button>
-  </div>
 
   <dialog id="help-dialog">
     <h2>Help</h2>
@@ -432,6 +428,14 @@
         <button id="load-file">📂 Load</button>
         <input type="file" id="load-file-input" accept="application/json,.json" style="display:none">
         <button id="export">⤓ Export</button>
+      </div>
+    </div>
+
+    <!-- Help (far right) -->
+    <div class="panel" id="help-panel">
+      <div class="panel-cap">Help</div>
+      <div class="panel-body">
+        <button id="help-btn" title="Show help">❓ Help</button>
       </div>
     </div>
   </div>
