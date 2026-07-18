@@ -1660,6 +1660,19 @@ try { screen.orientation.lock('any').catch(() => {}); } catch { /* unsupported *
 // portrait default.
 window.addEventListener('pagehide', () => { try { screen.orientation.unlock(); } catch { /* ignore */ } });
 
+// Mobile browsers often keep the old zoom scale after an orientation change,
+// leaving the editor zoomed-in and cut off. Momentarily clamp the viewport to
+// maximum-scale=1 to snap it back to fit-to-width, then restore the normal
+// viewport (so pinch-zoom stays available during editing).
+const viewportMeta = document.querySelector('meta[name="viewport"]');
+const VP_BASE = 'width=device-width, initial-scale=1, viewport-fit=cover';
+function refitViewport() {
+  if (!viewportMeta) return;
+  viewportMeta.setAttribute('content', VP_BASE + ', maximum-scale=1, user-scalable=0');
+  setTimeout(() => viewportMeta.setAttribute('content', VP_BASE), 400);
+}
+window.addEventListener('orientationchange', refitViewport);
+
 // ---------- Toolbar ----------
 document.querySelectorAll('.tool-group button[data-tool]').forEach(btn => {
   btn.addEventListener('click', () => {
