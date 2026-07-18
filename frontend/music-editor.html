@@ -117,9 +117,6 @@
   body[data-tool="pen"] .cell { cursor: crosshair; }
   body[data-tool="eraser"] .note, body[data-tool="eraser"] .hit { cursor: not-allowed; }
   body[data-tool="grab"] .note, body[data-tool="grab"] .hit { cursor: grab; }
-  body[data-tool="pen"] .cell { cursor: crosshair; }
-  body[data-tool="eraser"] .note, body[data-tool="eraser"] .hit { cursor: not-allowed; }
-  body[data-tool="grab"] .note, body[data-tool="grab"] .hit { cursor: grab; }
 
   .editor-layout { display: flex; gap: 10px; align-items: flex-start; }
   .rolls-column { flex: 1; min-width: 0; }
@@ -597,19 +594,25 @@ const state = {
   marquee: null              // { col0, col1, track } while marquee-selecting
 };
 
+// Decode the persisted mix (gains/masterVol/mute/solo) from a saved draft or
+// loaded file into state. Absent per-channel gains keep their current value;
+// absent mute/solo default to off. UI/audio sync is left to the caller.
+function applySavedMix(data) {
+  if (data.gains && typeof data.gains === 'object') {
+    for (const ch of ALL_TRACKS) if (typeof data.gains[ch] === 'number') state.gains[ch] = data.gains[ch];
+  }
+  if (typeof data.masterVol === 'number') state.masterVol = data.masterVol;
+  for (const key of ['mute', 'solo']) {
+    const src = (data[key] && typeof data[key] === 'object') ? data[key] : {};
+    for (const ch of ALL_TRACKS) state[key][ch] = !!src[ch];
+  }
+}
+
 const autosaveDraft = loadAutosaveIfPresent();
 if (autosaveDraft && confirm('Found an unsaved draft from a previous session. Restore it?\n\n(Cancel discards it and loads the game\'s current song instead.)')) {
   state.tracks = autosaveDraft.tracks;
   state.tempo = typeof autosaveDraft.tempo === 'number' ? autosaveDraft.tempo : TEMPO_BPM;
-  if (autosaveDraft.gains && typeof autosaveDraft.gains === 'object') {
-    for (const ch of ALL_TRACKS) if (typeof autosaveDraft.gains[ch] === 'number') state.gains[ch] = autosaveDraft.gains[ch];
-  }
-  if (typeof autosaveDraft.masterVol === 'number') state.masterVol = autosaveDraft.masterVol;
-  for (const key of ['mute', 'solo']) {
-    if (autosaveDraft[key] && typeof autosaveDraft[key] === 'object') {
-      for (const ch of ALL_TRACKS) state[key][ch] = !!autosaveDraft[key][ch];
-    }
-  }
+  applySavedMix(autosaveDraft);
 } else if (autosaveDraft) {
   try { localStorage.removeItem(AUTOSAVE_KEY); } catch { /* ignore */ }
 }
@@ -715,17 +718,28 @@ function audible(track) {
 
 // ---------- Rendering ----------
 function render() {
-  // The playhead, grip and loop overlays are appended to .daw (siblings of the
-  // timeline/tracks, so innerHTML clears there don't reach them). Remove the
-  // previous set first, otherwise every render leaves a frozen duplicate behind.
-  daw.querySelectorAll(':scope > .playhead, :scope > .playhead-grip, :scope > .loop-region, :scope > .loop-handle')
-    .forEach(e => e.remove());
   renderTimeline();
   renderTracks();
   positionOverlays();
   renderInspector();
   autosave();
   checkpointHistory();
+}
+
+// The playhead, grip and loop region/handles are persistent chrome whose content
+// never changes — only their position. Create them once (as .daw children, so the
+// timeline/tracks innerHTML clears never touch them) and just reposition on render.
+function createOverlays() {
+  playheadEl = el('div', 'playhead');
+  playheadGrip = el('div', 'playhead-grip');
+  playheadGrip.addEventListener('mousedown', (e) => startScrub(e));
+  const region = el('div', 'loop-region');
+  const startHandle = el('div', 'loop-handle');
+  const endHandle = el('div', 'loop-handle');
+  startHandle.addEventListener('mousedown', (e) => startLoopDrag(e, 'start'));
+  endHandle.addEventListener('mousedown', (e) => startLoopDrag(e, 'end'));
+  loopEls = { region, startHandle, endHandle };
+  daw.append(region, startHandle, endHandle, playheadEl, playheadGrip);
 }
 
 function renderTimeline() {
@@ -744,15 +758,6 @@ function renderTimeline() {
   }
   timelineEl.appendChild(ruler);
   rulerGridEl = ruler;
-
-  // Loop region + handles live over the timeline.
-  const region = el('div', 'loop-region');
-  const startHandle = el('div', 'loop-handle');
-  const endHandle = el('div', 'loop-handle');
-  startHandle.addEventListener('mousedown', (e) => startLoopDrag(e, 'start'));
-  endHandle.addEventListener('mousedown', (e) => startLoopDrag(e, 'end'));
-  daw.appendChild(region); daw.appendChild(startHandle); daw.appendChild(endHandle);
-  loopEls = { region, startHandle, endHandle };
 }
 
 function renderTracks() {
@@ -760,13 +765,6 @@ function renderTracks() {
   laneRolls.length = 0;
   for (const track of PITCH_TRACKS) renderPitchTrack(track);
   renderRhythmTrack();
-
-  // Single continuous playhead spanning the whole stack (child of .daw).
-  playheadEl = el('div', 'playhead');
-  playheadGrip = el('div', 'playhead-grip');
-  playheadGrip.addEventListener('mousedown', (e) => startScrub(e));
-  daw.appendChild(playheadEl); daw.appendChild(playheadGrip);
-  playheadEl.style.height = (TL_H + tracksEl.offsetHeight) + 'px';
 }
 
 function buildHeader(track) {
@@ -777,15 +775,16 @@ function buildHeader(track) {
   const osc = el('span', 'th-osc'); osc.textContent = TRACK_OSC[track];
   nameWrap.append(name, osc);
   const btns = el('div', 'th-btns');
-  const mBtn = el('button', 'm' + (state.mute[track] ? ' on' : '')); mBtn.textContent = 'M'; mBtn.title = 'Mute';
-  const sBtn = el('button', 's' + (state.solo[track] ? ' on' : '')); sBtn.textContent = 'S'; sBtn.title = 'Solo';
-  // Swallow mousedown too: otherwise the header's own mousedown (setActive ->
-  // render) rebuilds this button before the click completes, dropping the click.
-  mBtn.addEventListener('mousedown', (e) => e.stopPropagation());
-  sBtn.addEventListener('mousedown', (e) => e.stopPropagation());
-  mBtn.addEventListener('click', (e) => { e.stopPropagation(); state.mute[track] = !state.mute[track]; applyGains(); render(); autosave(); });
-  sBtn.addEventListener('click', (e) => { e.stopPropagation(); state.solo[track] = !state.solo[track]; applyGains(); render(); autosave(); });
-  btns.append(mBtn, sBtn);
+  for (const [cls, key, label] of [['m', 'mute', 'M'], ['s', 'solo', 'S']]) {
+    const btn = el('button', cls + (state[key][track] ? ' on' : ''));
+    btn.textContent = label;
+    btn.title = key[0].toUpperCase() + key.slice(1);
+    // Swallow mousedown too: otherwise the header's own mousedown (setActive ->
+    // render) rebuilds this button before the click completes, dropping the click.
+    btn.addEventListener('mousedown', (e) => e.stopPropagation());
+    btn.addEventListener('click', (e) => { e.stopPropagation(); state[key][track] = !state[key][track]; applyGains(); render(); autosave(); });
+    btns.append(btn);
+  }
   top.append(nameWrap, btns);
 
   const vol = el('div', 'th-vol');
@@ -946,7 +945,11 @@ function renderMarquee(rollEl, track, heightPx) {
 }
 
 // ---------- Playhead + loop overlay positioning ----------
-function positionOverlays() { updatePlayheadPositions(); updateLoopPositions(); }
+function positionOverlays() {
+  if (playheadEl) playheadEl.style.height = (TL_H + tracksEl.offsetHeight) + 'px';
+  updatePlayheadPositions();
+  updateLoopPositions();
+}
 function updatePlayheadPositions() {
   const left = (LANE_ORIGIN + visualPlayhead * colPx) + 'px';
   if (playheadEl) playheadEl.style.left = left;
@@ -981,8 +984,9 @@ function updateLoopPositions() {
   loopEls.endHandle.style.left = (left + width) + 'px';
 }
 
-function colFromClientX(clientX) {
-  const rect = rulerGridEl.getBoundingClientRect();
+// Pass a cached rect (captured once at gesture start) to avoid a layout read on
+// every mousemove; falls back to a fresh measurement for one-off calls.
+function colFromClientX(clientX, rect = rulerGridEl.getBoundingClientRect()) {
   return (clientX - rect.left) / colPx;
 }
 
@@ -996,7 +1000,8 @@ function seekTo(col) {
 function startScrub(e) {
   e.preventDefault(); e.stopPropagation();
   interacting = true;
-  const seek = (ev) => seekTo(colFromClientX(ev.clientX));
+  const rect = rulerGridEl.getBoundingClientRect();
+  const seek = (ev) => seekTo(colFromClientX(ev.clientX, rect));
   seek(e);
   const onMove = (ev) => seek(ev);
   const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); interacting = false; };
@@ -1006,8 +1011,9 @@ function startScrub(e) {
 function startLoopDrag(e, which) {
   e.preventDefault(); e.stopPropagation();
   interacting = true;
+  const rect = rulerGridEl.getBoundingClientRect();
   function move(ev) {
-    const col = Math.max(0, Math.min(COLS, Math.round(colFromClientX(ev.clientX))));
+    const col = Math.max(0, Math.min(COLS, Math.round(colFromClientX(ev.clientX, rect))));
     if (which === 'start') state.loopStart = Math.min(col, state.loopEnd - 1);
     else state.loopEnd = Math.max(col, state.loopStart + 1);
     updateLoopPositions();
@@ -1522,14 +1528,9 @@ loadInput.addEventListener('change', async () => {
   state.tracks = t;
   state.tempo = typeof data.tempo === 'number' ? data.tempo : TEMPO_BPM;
   tempoInput.value = state.tempo;
-  if (data.gains && typeof data.gains === 'object') {
-    for (const ch of ALL_TRACKS) if (typeof data.gains[ch] === 'number') state.gains[ch] = data.gains[ch];
-  }
-  if (typeof data.masterVol === 'number') { state.masterVol = data.masterVol; syncMasterVolUI(); if (masterGain) masterGain.gain.value = state.masterVol; }
-  for (const key of ['mute', 'solo']) {
-    if (data[key] && typeof data[key] === 'object') for (const ch of ALL_TRACKS) state[key][ch] = !!data[key][ch];
-    else for (const ch of ALL_TRACKS) state[key][ch] = false;
-  }
+  applySavedMix(data);
+  syncMasterVolUI();
+  if (masterGain) masterGain.gain.value = state.masterVol;
   applyGains();
   state.selected = null;
   state.multiSelected.clear();
@@ -1549,9 +1550,9 @@ function ensureCtx() {
     masterGain.connect(ctx.destination);
     for (const ch of ALL_TRACKS) {
       chanGain[ch] = ctx.createGain();
-      chanGain[ch].gain.value = audible(ch) ? state.gains[ch] : 0;
       chanGain[ch].connect(masterGain);
     }
+    applyGains(); // set each channel to its audible gain (respecting mute/solo)
   }
   return ctx;
 }
@@ -1612,6 +1613,27 @@ function connectVoiceOutput(gain, note, destGain) {
   outputNode.connect(destGain);
   if (note.echo) outputNode.connect(ensureDelay(destGain));
 }
+// Shared voice building blocks used by both scheduleTone and schedulePortamentoTone.
+function addVibrato(osc, freq, startAt, endAt) {
+  const lfo = ctx.createOscillator(), lfoGain = ctx.createGain();
+  lfo.frequency.value = 5.5;
+  lfoGain.gain.value = freq * 0.02;
+  lfo.connect(lfoGain).connect(osc.frequency);
+  lfo.start(startAt); lfo.stop(endAt);
+}
+function addTremolo(gainNode, startAt, endAt) {
+  const lfo = ctx.createOscillator(), lfoGain = ctx.createGain();
+  lfo.frequency.value = 18;
+  lfoGain.gain.value = 0.18;
+  lfo.connect(lfoGain).connect(gainNode.gain);
+  lfo.start(startAt); lfo.stop(endAt);
+}
+function applyEnvelope(gainParam, startAt, dur) {
+  gainParam.setValueAtTime(0.0001, startAt);
+  gainParam.exponentialRampToValueAtTime(0.5, startAt + 0.015);
+  gainParam.setValueAtTime(0.5, startAt + dur * 0.85);
+  gainParam.exponentialRampToValueAtTime(0.0001, startAt + dur);
+}
 function scheduleTone(note, startAt, dur, oscType, destGain) {
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
@@ -1630,13 +1652,7 @@ function scheduleTone(note, startAt, dur, oscType, destGain) {
       osc.frequency.setValueAtTime(note.freq, startAt + dur * 0.5);
       osc.frequency.linearRampToValueAtTime(note.bend, startAt + dur);
     }
-    if (note.vib) {
-      const lfo = ctx.createOscillator(), lfoGain = ctx.createGain();
-      lfo.frequency.value = 5.5;
-      lfoGain.gain.value = note.freq * 0.02;
-      lfo.connect(lfoGain).connect(osc.frequency);
-      lfo.start(startAt); lfo.stop(startAt + dur);
-    }
+    if (note.vib) addVibrato(osc, note.freq, startAt, startAt + dur);
     if (note.chorus) {
       chorusOsc = ctx.createOscillator();
       if (oscType === 'square' && note.duty) chorusOsc.setPeriodicWave(pulseWave(note.duty));
@@ -1651,18 +1667,8 @@ function scheduleTone(note, startAt, dur, oscType, destGain) {
     }
   }
 
-  gain.gain.setValueAtTime(0.0001, startAt);
-  gain.gain.exponentialRampToValueAtTime(0.5, startAt + 0.015);
-  gain.gain.setValueAtTime(0.5, startAt + dur * 0.85);
-  gain.gain.exponentialRampToValueAtTime(0.0001, startAt + dur);
-
-  if (note.trem) {
-    const lfo = ctx.createOscillator(), lfoGain = ctx.createGain();
-    lfo.frequency.value = 18;
-    lfoGain.gain.value = 0.18;
-    lfo.connect(lfoGain).connect(gain.gain);
-    lfo.start(startAt); lfo.stop(startAt + dur);
-  }
+  applyEnvelope(gain.gain, startAt, dur);
+  if (note.trem) addTremolo(gain, startAt, startAt + dur);
 
   connectVoiceOutput(gain, note, destGain);
   osc.connect(gain);
@@ -1681,24 +1687,9 @@ function schedulePortamentoTone(note, nextNote, startAt, dur, nextDur, oscType, 
   const glideEnd = startAt + dur + Math.min(nextDur * 0.3, 0.12);
   osc.frequency.setValueAtTime(note.freq, glideStart);
   osc.frequency.linearRampToValueAtTime(nextNote.freq, glideEnd);
-  if (note.vib) {
-    const lfo = ctx.createOscillator(), lfoGain = ctx.createGain();
-    lfo.frequency.value = 5.5;
-    lfoGain.gain.value = note.freq * 0.02;
-    lfo.connect(lfoGain).connect(osc.frequency);
-    lfo.start(startAt); lfo.stop(startAt + totalDur);
-  }
-  gain.gain.setValueAtTime(0.0001, startAt);
-  gain.gain.exponentialRampToValueAtTime(0.5, startAt + 0.015);
-  gain.gain.setValueAtTime(0.5, startAt + totalDur * 0.85);
-  gain.gain.exponentialRampToValueAtTime(0.0001, startAt + totalDur);
-  if (note.trem) {
-    const lfo = ctx.createOscillator(), lfoGain = ctx.createGain();
-    lfo.frequency.value = 18;
-    lfoGain.gain.value = 0.18;
-    lfo.connect(lfoGain).connect(gain.gain);
-    lfo.start(startAt); lfo.stop(startAt + totalDur);
-  }
+  if (note.vib) addVibrato(osc, note.freq, startAt, startAt + totalDur);
+  applyEnvelope(gain.gain, startAt, totalDur);
+  if (note.trem) addTremolo(gain, startAt, startAt + totalDur);
   connectVoiceOutput(gain, note, destGain);
   osc.connect(gain);
   osc.start(startAt);
@@ -1716,15 +1707,18 @@ function scheduleKick(startAt) {
   osc.start(startAt); osc.stop(startAt + 0.13);
 }
 let noiseBuffer = null;
-function scheduleHihat(startAt) {
+function ensureNoiseBuffer() {
   if (!noiseBuffer) {
     const len = Math.ceil(ctx.sampleRate * 0.1);
     noiseBuffer = ctx.createBuffer(1, len, ctx.sampleRate);
     const data = noiseBuffer.getChannelData(0);
     for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
   }
+  return noiseBuffer;
+}
+function scheduleHihat(startAt) {
   const src = ctx.createBufferSource(), filter = ctx.createBiquadFilter(), gain = ctx.createGain();
-  src.buffer = noiseBuffer;
+  src.buffer = ensureNoiseBuffer();
   filter.type = 'highpass'; filter.frequency.value = 6000;
   gain.gain.setValueAtTime(0.0001, startAt);
   gain.gain.exponentialRampToValueAtTime(0.6, startAt + 0.004);
@@ -1744,14 +1738,8 @@ function schedulePuka(startAt) {
   osc.start(startAt); osc.stop(startAt + 0.3);
 }
 function scheduleSnare(startAt) {
-  if (!noiseBuffer) {
-    const len = Math.ceil(ctx.sampleRate * 0.1);
-    noiseBuffer = ctx.createBuffer(1, len, ctx.sampleRate);
-    const data = noiseBuffer.getChannelData(0);
-    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
-  }
   const src = ctx.createBufferSource(), filter = ctx.createBiquadFilter(), noiseGain = ctx.createGain();
-  src.buffer = noiseBuffer;
+  src.buffer = ensureNoiseBuffer();
   filter.type = 'bandpass'; filter.frequency.value = 1800; filter.Q.value = 0.7;
   noiseGain.gain.setValueAtTime(0.0001, startAt);
   noiseGain.gain.exponentialRampToValueAtTime(1, startAt + 0.004);
@@ -1791,12 +1779,9 @@ function playOnce(startAt, eighthSec, fromCol, toCol) {
   if (audible('harmony')) scheduleTrackNotes(state.tracks.harmony, startAt, eighthSec, fromCol, toCol, 'square', 0.9, chanGain.harmony);
   if (audible('bass')) scheduleTrackNotes(state.tracks.bass, startAt, eighthSec, fromCol, toCol, 'triangle', 1, chanGain.bass);
   if (audible('rhythm')) {
+    const scheduleHit = { kick: scheduleKick, snare: scheduleSnare, tom: schedulePuka, hihat: scheduleHihat };
     for (const h of state.tracks.rhythm.filter(n => n.start >= fromCol && n.start < toCol)) {
-      const at = startAt + (h.start - fromCol) * eighthSec;
-      if (h.type === 'kick') scheduleKick(at);
-      else if (h.type === 'snare') scheduleSnare(at);
-      else if (h.type === 'tom') schedulePuka(at);
-      else scheduleHihat(at);
+      (scheduleHit[h.type] || scheduleHihat)(startAt + (h.start - fromCol) * eighthSec);
     }
   }
 }
@@ -1917,16 +1902,21 @@ document.getElementById('export').addEventListener('click', () => {
 // Add a drop shadow to the sticky top bar once the page has scrolled under it,
 // and publish its height so the sticky inspector can sit just below it (the bar
 // wraps to a taller layout on narrow windows, so this is measured, not fixed).
+// toolbarTop is cached (it only changes on resize) so the scroll handler does no
+// layout reads.
 const toolbarEl = document.querySelector('.toolbar');
-const updateStuck = () => toolbarEl.classList.toggle('stuck', window.scrollY > toolbarEl.offsetTop);
+let toolbarTop = 0;
 function updateStickyTop() {
+  toolbarTop = toolbarEl.offsetTop;
   document.documentElement.style.setProperty('--sticky-top', (toolbarEl.offsetHeight + 18) + 'px');
 }
+const updateStuck = () => toolbarEl.classList.toggle('stuck', window.scrollY > toolbarTop);
 window.addEventListener('scroll', updateStuck, { passive: true });
 window.addEventListener('resize', () => { updateStickyTop(); updateStuck(); });
 updateStickyTop();
 updateStuck();
 
+createOverlays();
 applyZoom();
 </script>
 </body>
