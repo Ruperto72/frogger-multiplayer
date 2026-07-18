@@ -539,6 +539,7 @@ import { LEAD, HARMONY, BASS, RHYTHM, TEMPO_BPM, MIX } from './js/audio.js';
 
 // ---- Song length in columns (eighth-notes), derived from the loaded song. ----
 let COLS = 64;
+const MIN_COLS = 8, MAX_COLS = 512; // 1..64 bars — the allowed song-length range
 const seqLength = (seq) => seq.reduce((s, n) => s + n.d, 0);
 
 const MIDI_MIN = 33, MIDI_MAX = 96;
@@ -621,8 +622,12 @@ function fromColumnHits(hits) {
   return out;
 }
 
+const clampCols = (c) => Math.max(MIN_COLS, Math.min(MAX_COLS, Math.round(c / 8) * 8));
 function loadFromGame() {
-  COLS = Math.max(seqLength(LEAD), seqLength(HARMONY), seqLength(BASS), seqLength(RHYTHM));
+  // Round up to a whole bar so COLS is always a multiple of 8 (the Length readout
+  // and bar grid assume whole bars), even if the game's tracks differ in length.
+  const max = Math.max(seqLength(LEAD), seqLength(HARMONY), seqLength(BASS), seqLength(RHYTHM));
+  COLS = Math.max(MIN_COLS, Math.min(MAX_COLS, Math.ceil(max / 8) * 8));
   return {
     lead: toColumnNotes(LEAD),
     harmony: toColumnNotes(HARMONY),
@@ -640,7 +645,10 @@ function derivedColsFromTracks(tracks) {
   return Math.max(8, Math.ceil(max / 8) * 8);
 }
 function colsFromSaved(data, tracks) {
-  return (typeof data.cols === 'number' && data.cols >= 8) ? Math.round(data.cols / 8) * 8 : derivedColsFromTracks(tracks);
+  // Clamp to the allowed range so a corrupt/hand-edited file with a huge `cols`
+  // can't build a giant grid and hang the browser.
+  const raw = (typeof data.cols === 'number' && data.cols >= 8) ? data.cols : derivedColsFromTracks(tracks);
+  return clampCols(raw);
 }
 
 // ---------- Autosave (localStorage) ----------
@@ -968,8 +976,8 @@ function renderPitchTrack(track) {
     div.addEventListener('mousedown', (e) => { if (state.tool !== 'grab' || e.shiftKey) return; setActive(track); startMoveNote(e, track, idx); });
     div.addEventListener('click', (e) => {
       e.stopPropagation();
+      if (e.shiftKey) { toggleMultiSelect(track, note); return; } // Shift+click adds/removes from the selection (any tool)
       setActive(track);
-      if (e.shiftKey) { toggleMultiSelect(note); return; } // Shift+click adds/removes from the selection (any tool)
       if (state.tool === 'eraser') {
         if (state.multiSelected.size > 1 && state.multiSelected.has(note)) deleteSelection();
         else deleteNote(track, idx);
@@ -1026,8 +1034,8 @@ function renderRhythmTrack() {
     div.addEventListener('mousedown', (e) => { if (state.tool !== 'grab' || e.shiftKey) return; setActive(track); startMoveHit(e, hit); });
     div.addEventListener('click', (e) => {
       e.stopPropagation();
+      if (e.shiftKey) { toggleMultiSelect(track, hit); return; } // Shift+click adds/removes from the selection (any tool)
       setActive(track);
-      if (e.shiftKey) { toggleMultiSelect(hit); return; } // Shift+click adds/removes from the selection (any tool)
       if (state.tool === 'eraser') {
         if (state.multiSelected.size > 1 && state.multiSelected.has(hit)) deleteSelection();
         else removeHit(hit);
@@ -1229,8 +1237,17 @@ function selectRange(lo, hi) {
   render();
 }
 // Shift+click: toggle a single note/hit in/out of the multi-selection so notes
-// can be picked one by one (in addition to the marquee drag).
-function toggleMultiSelect(item) {
+// can be picked one by one (in addition to the marquee drag). Handles the active
+// track switch itself (one render), and folds the current single selection into
+// the group so shift+click extends an existing selection instead of replacing it.
+function toggleMultiSelect(track, item) {
+  if (state.activeTrack !== track) {
+    state.activeTrack = track;
+    state.multiSelected.clear();
+  } else if (state.selected && state.selected.track === track) {
+    const selNote = state.tracks[track][state.selected.index];
+    if (selNote) state.multiSelected.add(selNote);
+  }
   if (state.multiSelected.has(item)) state.multiSelected.delete(item);
   else state.multiSelected.add(item);
   state.selected = null;
@@ -1617,13 +1634,12 @@ document.getElementById('zoom-out').addEventListener('click', () => { zoomIndex 
 document.getElementById('zoom-in').addEventListener('click', () => { zoomIndex = Math.min(ZOOM_LEVELS.length - 1, zoomIndex + 1); applyZoom(); });
 
 // ---------- Song length (whole bars) ----------
-const MIN_COLS = 8, MAX_COLS = 512; // 1..64 bars
 function updateLengthUI() { document.getElementById('len-bars').textContent = (COLS / 8) + ' bars'; }
 // Change the song length. Shrinking drops notes/hits past the new end (and trims
 // notes that straddle it); growing just adds empty bars. The length is encoded on
 // export/save as the trailing rest, so it round-trips.
 function setCols(newCols) {
-  newCols = Math.max(MIN_COLS, Math.min(MAX_COLS, Math.round(newCols / 8) * 8));
+  newCols = clampCols(newCols);
   if (newCols === COLS) return;
   const wasFullLoop = state.loopStart === 0 && state.loopEnd === COLS;
   if (newCols < COLS) {
