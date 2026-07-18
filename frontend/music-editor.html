@@ -105,8 +105,9 @@
   .segmented button:last-child { border-right: none; }
   .segmented button.active { background: #3a6bd6; color: #fff; }
   .segmented.tool-group button.active { background: #3a6bd6; outline: none; }
-  #zoom-level { font-size: 11px; color: var(--muted); min-width: 40px; text-align: center;
+  #zoom-level, #len-bars { font-size: 11px; color: var(--muted); min-width: 40px; text-align: center;
     background: #101014; padding: 6px 4px; align-self: stretch; display: flex; align-items: center; justify-content: center; }
+  #len-bars { min-width: 54px; }
 
   /* Master */
   #master-panel .panel-body { min-width: 150px; }
@@ -327,12 +328,19 @@
     </p>
     <p class="hint">
       Three tools: <b>Pen</b> adds a new note/hit in an empty cell, <b>Eraser</b> removes a
-      note/hit you click on (or a whole marquee-selected group), <b>Grab</b> moves a note/hit by
-      dragging it (drag its right edge to change its length). In Grab, dragging empty space
-      marquee-selects every note/hit in the active track whose start falls in the dragged range;
-      the group then moves together, and Ctrl/Cmd+C / Ctrl/Cmd+V copies and pastes it (anchored at
-      the playhead). Select a single note to edit vibrato/tremolo/bend/duty/arpeggio/portamento/
-      bitcrush/echo/chorus in the panel on the right.
+      note/hit you click on (or a whole selected group), <b>Grab</b> moves a note/hit by
+      dragging it (drag its right edge to change its length). Select several notes/hits in a track
+      two ways: <b>Shift+click</b> each one to add/remove it from the selection, or (in Grab) drag
+      across empty space to marquee-select every note/hit whose start falls in the dragged range.
+      A selected group moves together, <b>Delete</b> removes it, and <b>Ctrl/Cmd+C&nbsp;/&nbsp;V</b>
+      copies and pastes it (anchored at the playhead). Select a single note to edit vibrato/tremolo/
+      bend/duty/arpeggio/portamento/bitcrush/echo/chorus in the panel on the right.
+    </p>
+    <p class="hint">
+      The <b>Length</b> control in the toolbar makes the song longer or shorter one bar at a time:
+      <b>+</b> appends an empty bar, <b>−</b> removes the last bar (dropping any notes/hits past the
+      new end). The length is saved with your file and exported as the trailing rest, so the game
+      loops the new length.
     </p>
     <p class="hint">
       Keyboard (ignored while typing in a field): <b>Space</b> play/stop, <b>1/2/3</b>
@@ -399,6 +407,18 @@
         <div class="segmented history-group">
           <button id="undo-btn" title="Undo (Ctrl+Z)" disabled>↶</button>
           <button id="redo-btn" title="Redo (Ctrl+Y / Ctrl+Shift+Z)" disabled>↷</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Length -->
+    <div class="panel" id="length-panel">
+      <div class="panel-cap">Length</div>
+      <div class="panel-body">
+        <div class="segmented">
+          <button id="len-minus" title="Remove the last bar (shorten the song)">−</button>
+          <span id="len-bars">32 bars</span>
+          <button id="len-plus" title="Add a bar (lengthen the song)">+</button>
         </div>
       </div>
     </div>
@@ -556,6 +576,18 @@ function loadFromGame() {
   };
 }
 
+// Song length to use when a saved draft/file predates the explicit `cols` field:
+// round the last note/hit end up to a whole bar (min 1 bar).
+function derivedColsFromTracks(tracks) {
+  let max = 8;
+  for (const t of PITCH_TRACKS) for (const n of tracks[t] || []) max = Math.max(max, n.start + n.len);
+  for (const h of tracks.rhythm || []) max = Math.max(max, h.start + 1);
+  return Math.max(8, Math.ceil(max / 8) * 8);
+}
+function colsFromSaved(data, tracks) {
+  return (typeof data.cols === 'number' && data.cols >= 8) ? Math.round(data.cols / 8) * 8 : derivedColsFromTracks(tracks);
+}
+
 // ---------- Autosave (localStorage) ----------
 const AUTOSAVE_KEY = 'frogger-music-editor-autosave';
 let autosaveTimer = null;
@@ -564,7 +596,7 @@ function autosave() {
   autosaveTimer = setTimeout(() => {
     try {
       localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({
-        tempo: state.tempo, gains: state.gains, masterVol: state.masterVol, mute: state.mute, solo: state.solo, tracks: state.tracks
+        tempo: state.tempo, cols: COLS, gains: state.gains, masterVol: state.masterVol, mute: state.mute, solo: state.solo, tracks: state.tracks
       }));
     } catch { /* best-effort */ }
   }, 400);
@@ -614,6 +646,8 @@ const autosaveDraft = loadAutosaveIfPresent();
 if (autosaveDraft && confirm('Found an unsaved draft from a previous session. Restore it?\n\n(Cancel discards it and loads the game\'s current song instead.)')) {
   state.tracks = autosaveDraft.tracks;
   state.tempo = typeof autosaveDraft.tempo === 'number' ? autosaveDraft.tempo : TEMPO_BPM;
+  COLS = colsFromSaved(autosaveDraft, state.tracks);
+  state.loopEnd = COLS;
   applySavedMix(autosaveDraft);
 } else if (autosaveDraft) {
   try { localStorage.removeItem(AUTOSAVE_KEY); } catch { /* ignore */ }
@@ -624,8 +658,8 @@ const HISTORY_LIMIT = 100;
 const undoStack = [];
 const redoStack = [];
 let historyTimer = null;
-let lastCommitted = JSON.stringify({ tempo: state.tempo, tracks: state.tracks });
-const snapshotSong = () => JSON.stringify({ tempo: state.tempo, tracks: state.tracks });
+const snapshotSong = () => JSON.stringify({ tempo: state.tempo, cols: COLS, tracks: state.tracks });
+let lastCommitted = snapshotSong();
 function checkpointHistory() { clearTimeout(historyTimer); historyTimer = setTimeout(commitHistory, 400); }
 function commitHistory() {
   clearTimeout(historyTimer);
@@ -643,6 +677,15 @@ function restoreSnapshot(s) {
   state.tracks = data.tracks;
   state.tempo = data.tempo;
   tempoInput.value = state.tempo;
+  if (typeof data.cols === 'number' && data.cols >= 8) {
+    COLS = data.cols;
+    state.loopStart = Math.min(state.loopStart, COLS - 1);
+    state.loopEnd = Math.min(state.loopEnd, COLS);
+    if (state.loopEnd <= state.loopStart) state.loopEnd = COLS;
+    state.playhead = Math.min(state.playhead, COLS - 1);
+    visualPlayhead = state.playhead;
+    updateLengthUI();
+  }
   state.selected = null;
   state.multiSelected.clear();
   render();
@@ -865,10 +908,11 @@ function renderPitchTrack(track) {
       (isSelected ? ' selected' : '') + (state.multiSelected.has(note) ? ' multi-selected' : '');
     div.style.gridRow = p + 1;
     div.style.gridColumn = `${note.start + 1} / span ${note.len}`;
-    div.addEventListener('mousedown', (e) => { if (state.tool !== 'grab') return; setActive(track); startMoveNote(e, track, idx); });
+    div.addEventListener('mousedown', (e) => { if (state.tool !== 'grab' || e.shiftKey) return; setActive(track); startMoveNote(e, track, idx); });
     div.addEventListener('click', (e) => {
       e.stopPropagation();
       setActive(track);
+      if (e.shiftKey) { toggleMultiSelect(note); return; } // Shift+click adds/removes from the selection (any tool)
       if (state.tool === 'eraser') {
         if (state.multiSelected.size > 1 && state.multiSelected.has(note)) deleteSelection();
         else deleteNote(track, idx);
@@ -922,10 +966,11 @@ function renderRhythmTrack() {
     const div = el('div', 'hit' + (hit.type !== 'kick' ? ' ' + hit.type : '') + (state.multiSelected.has(hit) ? ' multi-selected' : ''));
     div.style.gridRow = r + 1;
     div.style.gridColumn = `${hit.start + 1} / span 1`;
-    div.addEventListener('mousedown', (e) => { if (state.tool !== 'grab') return; setActive(track); startMoveHit(e, hit); });
+    div.addEventListener('mousedown', (e) => { if (state.tool !== 'grab' || e.shiftKey) return; setActive(track); startMoveHit(e, hit); });
     div.addEventListener('click', (e) => {
       e.stopPropagation();
       setActive(track);
+      if (e.shiftKey) { toggleMultiSelect(hit); return; } // Shift+click adds/removes from the selection (any tool)
       if (state.tool === 'eraser') {
         if (state.multiSelected.size > 1 && state.multiSelected.has(hit)) deleteSelection();
         else removeHit(hit);
@@ -1094,6 +1139,14 @@ function selectRange(lo, hi) {
   state.multiSelected.clear();
   const items = state.tracks[state.activeTrack];
   for (const item of items) if (item.start >= lo && item.start < hi) state.multiSelected.add(item);
+  state.selected = null;
+  render();
+}
+// Shift+click: toggle a single note/hit in/out of the multi-selection so notes
+// can be picked one by one (in addition to the marquee drag).
+function toggleMultiSelect(item) {
+  if (state.multiSelected.has(item)) state.multiSelected.delete(item);
+  else state.multiSelected.add(item);
   state.selected = null;
   render();
 }
@@ -1489,16 +1542,50 @@ function applyZoom() {
 document.getElementById('zoom-out').addEventListener('click', () => { zoomIndex = Math.max(0, zoomIndex - 1); applyZoom(); });
 document.getElementById('zoom-in').addEventListener('click', () => { zoomIndex = Math.min(ZOOM_LEVELS.length - 1, zoomIndex + 1); applyZoom(); });
 
+// ---------- Song length (whole bars) ----------
+const MIN_COLS = 8, MAX_COLS = 512; // 1..64 bars
+function updateLengthUI() { document.getElementById('len-bars').textContent = (COLS / 8) + ' bars'; }
+// Change the song length. Shrinking drops notes/hits past the new end (and trims
+// notes that straddle it); growing just adds empty bars. The length is encoded on
+// export/save as the trailing rest, so it round-trips.
+function setCols(newCols) {
+  newCols = Math.max(MIN_COLS, Math.min(MAX_COLS, Math.round(newCols / 8) * 8));
+  if (newCols === COLS) return;
+  const wasFullLoop = state.loopStart === 0 && state.loopEnd === COLS;
+  if (newCols < COLS) {
+    for (const t of PITCH_TRACKS) {
+      state.tracks[t] = state.tracks[t]
+        .filter(n => n.start < newCols)
+        .map(n => (n.start + n.len > newCols ? { ...n, len: newCols - n.start } : n));
+    }
+    state.tracks.rhythm = state.tracks.rhythm.filter(h => h.start < newCols);
+  }
+  COLS = newCols;
+  if (wasFullLoop) { state.loopStart = 0; state.loopEnd = COLS; }
+  else { state.loopStart = Math.min(state.loopStart, COLS - 1); state.loopEnd = Math.min(state.loopEnd, COLS); if (state.loopEnd <= state.loopStart) state.loopEnd = COLS; }
+  state.playhead = Math.min(state.playhead, COLS - 1);
+  visualPlayhead = state.playhead;
+  state.selected = null;
+  state.multiSelected.clear();
+  updateLengthUI();
+  render();
+}
+document.getElementById('len-minus').addEventListener('click', () => setCols(COLS - 8));
+document.getElementById('len-plus').addEventListener('click', () => setCols(COLS + 8));
+
 document.getElementById('reset').addEventListener('click', () => {
-  state.tracks = loadFromGame();
+  state.tracks = loadFromGame(); // recomputes COLS from the game song
   state.gains = { ...MIX };
   state.masterVol = 0.45;
   syncMasterVolUI();
   if (masterGain) masterGain.gain.value = state.masterVol;
   for (const ch of ALL_TRACKS) { state.mute[ch] = false; state.solo[ch] = false; }
   applyGains();
+  state.loopStart = 0; state.loopEnd = COLS;
+  state.playhead = 0; visualPlayhead = 0;
   state.selected = null;
   state.multiSelected.clear();
+  updateLengthUI();
   render();
 });
 document.getElementById('loop-reset').addEventListener('click', () => {
@@ -1509,7 +1596,7 @@ document.getElementById('loop-reset').addEventListener('click', () => {
 
 // ---------- Save/load file ----------
 document.getElementById('save-file').addEventListener('click', () => {
-  const data = { version: 2, tempo: state.tempo, gains: state.gains, masterVol: state.masterVol, mute: state.mute, solo: state.solo, tracks: state.tracks };
+  const data = { version: 2, tempo: state.tempo, cols: COLS, gains: state.gains, masterVol: state.masterVol, mute: state.mute, solo: state.solo, tracks: state.tracks };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1533,12 +1620,16 @@ loadInput.addEventListener('change', async () => {
   state.tracks = t;
   state.tempo = typeof data.tempo === 'number' ? data.tempo : TEMPO_BPM;
   tempoInput.value = state.tempo;
+  COLS = colsFromSaved(data, t);
+  state.loopStart = 0; state.loopEnd = COLS;
+  state.playhead = Math.min(state.playhead, COLS - 1); visualPlayhead = state.playhead;
   applySavedMix(data);
   syncMasterVolUI();
   if (masterGain) masterGain.gain.value = state.masterVol;
   applyGains();
   state.selected = null;
   state.multiSelected.clear();
+  updateLengthUI();
   render();
 });
 
@@ -1922,6 +2013,7 @@ updateStickyTop();
 updateStuck();
 
 createOverlays();
+updateLengthUI();
 applyZoom();
 </script>
 </body>
