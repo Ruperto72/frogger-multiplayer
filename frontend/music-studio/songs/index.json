@@ -7,11 +7,11 @@
   {
     "file": "cinematic.json",
     "name": "Cinematic",
-    "desc": "Slow, epic minor-key theme — strings, brass stabs and a triplet climax."
+    "desc": "A ~2-minute epic in A minor — intro, theme, bridge, climax and outro with strings, horn, brass and arps."
   },
   {
     "file": "techno.json",
     "name": "Techno",
-    "desc": "128 BPM four-on-the-floor with a rolling 16th bass and an acid saw lead."
+    "desc": "A ~2-minute 128 BPM journey — intro, groove, build, drop, breakdown and a bigger second drop."
   }
 ]
