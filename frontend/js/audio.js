@@ -23,6 +23,18 @@ const REST = 0;
 // tydligt under den täta melodin. Redigerbar via reglagen i editorn.
 export const MIX = { lead: 0.9, harmony: 0.5, bass: 0.7, rhythm: 1.4 };
 
+// Klangfärg (oscillatorform) och panorering (stereobild) per kanal. Samma
+// tal delas av spelet och music-editor.html så låten låter likadant båda
+// ställena. `osc` = vågform för de tonala rösterna ('square' | 'triangle' |
+// 'sawtooth' | 'sine'); rytmen har ingen vågform ('kit'). `pan` = -1 (vänster)
+// … 0 (mitten) … 1 (höger). Redigerbar via reglagen i editorn.
+export const VOICES = {
+  lead:    { osc: 'square',   pan: 0 },
+  harmony: { osc: 'square',   pan: 0 },
+  bass:    { osc: 'triangle', pan: 0 },
+  rhythm:  { osc: 'kit',      pan: 0 }
+};
+
 // "Froggy Hop" — 32 takter (4× originalet), komponerad i fyra delar som
 // byggs upp allt eftersom: del 1 (takt 1-8) = originaltemat med glest
 // ackompanjemang (stämma tyst, gles bas/rytm); del 2 (9-16) fylligare med
@@ -225,21 +237,35 @@ export class AudioManager {
     this._musicGain.gain.value = 0.1;
     this._musicGain.connect(this._master);
 
+    // Per-kanal: gain → panner → musicGain, så varje spår kan panoreras
+    // (stereobild) oberoende. Panorering läses från VOICES.
+    this._leadPan = this._ctx.createStereoPanner();
+    this._leadPan.pan.value = VOICES.lead.pan;
+    this._leadPan.connect(this._musicGain);
     this._leadGain = this._ctx.createGain();
     this._leadGain.gain.value = MIX.lead;
-    this._leadGain.connect(this._musicGain);
+    this._leadGain.connect(this._leadPan);
 
+    this._harmonyPan = this._ctx.createStereoPanner();
+    this._harmonyPan.pan.value = VOICES.harmony.pan;
+    this._harmonyPan.connect(this._musicGain);
     this._harmonyGain = this._ctx.createGain();
     this._harmonyGain.gain.value = MIX.harmony;
-    this._harmonyGain.connect(this._musicGain);
+    this._harmonyGain.connect(this._harmonyPan);
 
+    this._bassPan = this._ctx.createStereoPanner();
+    this._bassPan.pan.value = VOICES.bass.pan;
+    this._bassPan.connect(this._musicGain);
     this._bassGain = this._ctx.createGain();
     this._bassGain.gain.value = MIX.bass;
-    this._bassGain.connect(this._musicGain);
+    this._bassGain.connect(this._bassPan);
 
+    this._rhythmPan = this._ctx.createStereoPanner();
+    this._rhythmPan.pan.value = VOICES.rhythm.pan;
+    this._rhythmPan.connect(this._musicGain);
     this._rhythmGain = this._ctx.createGain();
     this._rhythmGain.gain.value = MIX.rhythm;
-    this._rhythmGain.connect(this._musicGain);
+    this._rhythmGain.connect(this._rhythmPan);
 
     this._sfxGain = this._ctx.createGain();
     this._sfxGain.gain.value = 0.3;
@@ -338,9 +364,9 @@ export class AudioManager {
     this._musicOn = true;
     const startAt = this._ctx.currentTime + 0.1;
     this._voices = [
-      { notes: LEAD,    index: 0, nextAt: startAt, gain: this._leadGain,    osc: 'square',   kind: 'tone' },
-      { notes: HARMONY, index: 0, nextAt: startAt, gain: this._harmonyGain, osc: 'square',   kind: 'tone' },
-      { notes: BASS,    index: 0, nextAt: startAt, gain: this._bassGain,    osc: 'triangle', kind: 'tone' },
+      { notes: LEAD,    index: 0, nextAt: startAt, gain: this._leadGain,    osc: VOICES.lead.osc,    kind: 'tone' },
+      { notes: HARMONY, index: 0, nextAt: startAt, gain: this._harmonyGain, osc: VOICES.harmony.osc, kind: 'tone' },
+      { notes: BASS,    index: 0, nextAt: startAt, gain: this._bassGain,    osc: VOICES.bass.osc,    kind: 'tone' },
       { notes: RHYTHM,  index: 0, nextAt: startAt, kind: 'rhythm' }
     ];
     this._scheduler();

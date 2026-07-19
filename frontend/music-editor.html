@@ -226,6 +226,17 @@
   .th-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
   .th-name { font-size: 13px; font-weight: 700; letter-spacing: 0.3px; line-height: 1.2; }
   .th-osc { display: block; font-size: 9px; color: var(--muted); font-weight: 400; }
+  .th-wave {
+    margin-top: 3px; font-size: 10px; color: #cfcfd8; background: #26262d;
+    border: 1px solid #3a3a44; border-radius: 4px; padding: 1px 4px; cursor: pointer; max-width: 84px;
+  }
+  .th-pan { display: flex; align-items: center; gap: 6px; }
+  .th-pan input[type=range] { flex: 1; min-width: 0; cursor: pointer; accent-color: #888; }
+  .th-pan .pan-val { font-size: 10px; color: var(--muted); min-width: 30px; text-align: right; font-variant-numeric: tabular-nums; }
+  .track[data-track="lead"]    .th-pan input[type=range] { accent-color: var(--lead); }
+  .track[data-track="harmony"] .th-pan input[type=range] { accent-color: var(--harmony); }
+  .track[data-track="bass"]    .th-pan input[type=range] { accent-color: var(--bass); }
+  .track[data-track="rhythm"]  .th-pan input[type=range] { accent-color: var(--rhythm); }
   .th-btns { display: flex; gap: 4px; }
   .th-btns button {
     width: 22px; height: 20px; padding: 0; font-size: 11px; font-weight: 700;
@@ -481,6 +492,7 @@
       <h3>Mixing</h3>
       <ul>
         <li>Each track's <b>volume</b> slider sets its relative level (the game's <code>MIX</code>) — drag while playing to rebalance live.</li>
+        <li>The <b>waveform</b> picker (Square / Triangle / Saw / Sine) and the <b>pan</b> slider set each track's tone and stereo placement (the game's <code>VOICES</code>). Double-click the pan slider to re-center it.</li>
         <li><b>Mute</b> silences a track; <b>Solo</b> silences every track except the soloed one(s).</li>
         <li><b>🔊 Master</b> sets the overall preview loudness (editor only — not part of the game's audio).</li>
       </ul>
@@ -494,8 +506,8 @@
 
       <h3>Saving &amp; exporting</h3>
       <ul>
-        <li><b>💾 Save</b> / <b>📂 Load</b> keep a work-in-progress <code>.json</code> (tracks, tempo, length, mix). Work also autosaves to this browser.</li>
-        <li><b>⤓ Export</b> emits the <code>MIX</code> line and the note arrays to paste into <code>audio.js</code>.</li>
+        <li><b>💾 Save</b> / <b>📂 Load</b> keep a work-in-progress <code>.json</code> (tracks, tempo, length, mix, waveforms &amp; pan). Work also autosaves to this browser.</li>
+        <li><b>⤓ Export</b> emits the <code>MIX</code> and <code>VOICES</code> lines and the note arrays to paste into <code>audio.js</code>.</li>
       </ul>
 
       <h3>Keyboard shortcuts</h3>
@@ -636,7 +648,7 @@
   <textarea id="exportBox" style="display:none" readonly></textarea>
 
 <script type="module">
-import { LEAD, HARMONY, BASS, RHYTHM, TEMPO_BPM, MIX } from './js/audio.js';
+import { LEAD, HARMONY, BASS, RHYTHM, TEMPO_BPM, MIX, VOICES } from './js/audio.js';
 
 // ---- Song length in columns (eighth-notes), derived from the loaded song. ----
 let COLS = 64;
@@ -649,7 +661,8 @@ const PITCH_TRACKS = ['lead', 'harmony', 'bass'];
 const ALL_TRACKS = ['lead', 'harmony', 'bass', 'rhythm'];
 const TRACK_LABELS = { lead: 'Lead', harmony: 'Harmony', bass: 'Bass', rhythm: 'Rhythm' };
 const TRACK_COLORS = { lead: '#2ff3ff', harmony: '#ff2fb0', bass: '#ffb347', rhythm: '#39ff6a' };
-const TRACK_OSC = { lead: 'square', harmony: 'square', bass: 'triangle', rhythm: 'kit' };
+const WAVEFORMS = ['square', 'triangle', 'sawtooth', 'sine']; // selectable per tonal track
+const WAVE_LABEL = { square: 'Square', triangle: 'Triangle', sawtooth: 'Saw', sine: 'Sine', kit: 'Kit' };
 const RHYTHM_ROWS = ['kick', 'snare', 'hihat', 'tom'];
 const RHYTHM_LABELS = { kick: 'Kick', snare: 'Snare', hihat: 'Hi-hat', tom: 'Tom' };
 
@@ -666,6 +679,7 @@ const midiToFreq = (m) => 440 * Math.pow(2, (m - 69) / 12);
 const midiToName = (m) => NOTE_NAMES[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1);
 const freqToMidi  = (f) => Math.round(12 * Math.log2(f / 440) + 69);
 const round2 = (n) => Math.round(n * 100) / 100;
+const panLabel = (p) => { const v = Math.round(p * 100); return v === 0 ? 'C' : (v < 0 ? 'L' + (-v) : 'R' + v); };
 const el = (tag, cls) => { const e = document.createElement(tag); if (cls) e.className = cls; return e; };
 
 // --- Sequential {f,d,...} format (audio.js) <-> column-based editor notes. ---
@@ -761,7 +775,7 @@ function autosave() {
   autosaveTimer = setTimeout(() => {
     try {
       localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({
-        tempo: state.tempo, cols: COLS, gains: state.gains, masterVol: state.masterVol, mute: state.mute, solo: state.solo, tracks: state.tracks
+        tempo: state.tempo, cols: COLS, gains: state.gains, waveform: state.waveform, pan: state.pan, masterVol: state.masterVol, mute: state.mute, solo: state.solo, tracks: state.tracks
       }));
     } catch { /* best-effort */ }
   }, 400);
@@ -781,6 +795,8 @@ const state = {
   tracks: loadFromGame(),
   tempo: TEMPO_BPM,
   gains: { ...MIX },                                             // relative per-channel volume (the game's MIX)
+  waveform: { lead: VOICES.lead.osc, harmony: VOICES.harmony.osc, bass: VOICES.bass.osc, rhythm: VOICES.rhythm.osc }, // per-track oscillator (the game's VOICES)
+  pan: { lead: VOICES.lead.pan, harmony: VOICES.harmony.pan, bass: VOICES.bass.pan, rhythm: VOICES.rhythm.pan },       // per-track stereo pan (VOICES)
   masterVol: 0.45,                                               // editor preview master level (not part of the game)
   mute:  { lead: false, harmony: false, bass: false, rhythm: false },
   solo:  { lead: false, harmony: false, bass: false, rhythm: false },
@@ -799,6 +815,12 @@ const state = {
 function applySavedMix(data) {
   if (data.gains && typeof data.gains === 'object') {
     for (const ch of ALL_TRACKS) if (typeof data.gains[ch] === 'number') state.gains[ch] = data.gains[ch];
+  }
+  if (data.waveform && typeof data.waveform === 'object') {
+    for (const ch of PITCH_TRACKS) if (WAVEFORMS.includes(data.waveform[ch])) state.waveform[ch] = data.waveform[ch];
+  }
+  if (data.pan && typeof data.pan === 'object') {
+    for (const ch of ALL_TRACKS) if (typeof data.pan[ch] === 'number') state.pan[ch] = Math.max(-1, Math.min(1, data.pan[ch]));
   }
   if (typeof data.masterVol === 'number') state.masterVol = data.masterVol;
   for (const key of ['mute', 'solo']) {
@@ -987,8 +1009,31 @@ function buildHeader(track) {
   const top = el('div', 'th-top');
   const nameWrap = el('div');
   const name = el('span', 'th-name'); name.textContent = TRACK_LABELS[track];
-  const osc = el('span', 'th-osc'); osc.textContent = TRACK_OSC[track];
-  nameWrap.append(name, osc);
+  nameWrap.append(name);
+  if (track === 'rhythm') {
+    const osc = el('span', 'th-osc'); osc.textContent = WAVE_LABEL.kit;
+    nameWrap.append(osc);
+  } else {
+    // Waveform (oscillator) picker — affects the editor preview AND the game
+    // via the exported VOICES config.
+    const wave = el('select', 'th-wave');
+    wave.title = 'Waveform (VOICES ' + track + ')';
+    for (const w of WAVEFORMS) {
+      const opt = document.createElement('option');
+      opt.value = w; opt.textContent = WAVE_LABEL[w];
+      if (state.waveform[track] === w) opt.selected = true;
+      wave.append(opt);
+    }
+    wave.addEventListener('mousedown', (e) => e.stopPropagation());
+    wave.addEventListener('change', (e) => {
+      e.stopPropagation();
+      state.waveform[track] = wave.value;
+      const n = state.tracks[track][0];
+      if (n) previewNote(track, n);
+      autosave();
+    });
+    nameWrap.append(wave);
+  }
   const btns = el('div', 'th-btns');
   for (const [cls, key, label] of [['m', 'mute', 'M'], ['s', 'solo', 'S']]) {
     const btn = el('button', cls + (state[key][track] ? ' on' : ''));
@@ -1015,7 +1060,22 @@ function buildHeader(track) {
   });
   vol.append(slider, val);
 
-  header.append(top, vol);
+  // Stereo pan (VOICES) — affects the editor preview AND the game.
+  const panRow = el('div', 'th-pan');
+  const panSlider = document.createElement('input');
+  panSlider.type = 'range'; panSlider.min = -1; panSlider.max = 1; panSlider.step = 0.1; panSlider.value = state.pan[track];
+  panSlider.title = 'Stereo pan (VOICES ' + track + ')';
+  const panVal = el('span', 'pan-val'); panVal.textContent = panLabel(state.pan[track]);
+  panSlider.addEventListener('mousedown', (e) => e.stopPropagation());
+  panSlider.addEventListener('dblclick', (e) => { e.stopPropagation(); panSlider.value = 0; panSlider.dispatchEvent(new Event('input')); });
+  panSlider.addEventListener('input', () => {
+    state.pan[track] = parseFloat(panSlider.value);
+    panVal.textContent = panLabel(state.pan[track]);
+    applyPan(); autosave();
+  });
+  panRow.append(panSlider, panVal);
+
+  header.append(top, vol, panRow);
   header.addEventListener('mousedown', () => setActive(track, true));
   return header;
 }
@@ -1870,6 +1930,9 @@ document.getElementById('len-plus').addEventListener('click', () => setCols(COLS
 document.getElementById('reset').addEventListener('click', () => {
   state.tracks = loadFromGame(); // recomputes COLS from the game song
   state.gains = { ...MIX };
+  state.waveform = { lead: VOICES.lead.osc, harmony: VOICES.harmony.osc, bass: VOICES.bass.osc, rhythm: VOICES.rhythm.osc };
+  state.pan = { lead: VOICES.lead.pan, harmony: VOICES.harmony.pan, bass: VOICES.bass.pan, rhythm: VOICES.rhythm.pan };
+  applyPan();
   state.masterVol = 0.45;
   syncMasterVolUI();
   if (masterGain) masterGain.gain.value = state.masterVol;
@@ -1890,7 +1953,7 @@ document.getElementById('loop-reset').addEventListener('click', () => {
 
 // ---------- Save/load file ----------
 document.getElementById('save-file').addEventListener('click', () => {
-  const data = { version: 2, tempo: state.tempo, cols: COLS, gains: state.gains, masterVol: state.masterVol, mute: state.mute, solo: state.solo, tracks: state.tracks };
+  const data = { version: 2, tempo: state.tempo, cols: COLS, gains: state.gains, waveform: state.waveform, pan: state.pan, masterVol: state.masterVol, mute: state.mute, solo: state.solo, tracks: state.tracks };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1921,6 +1984,7 @@ loadInput.addEventListener('change', async () => {
   syncMasterVolUI();
   if (masterGain) masterGain.gain.value = state.masterVol;
   applyGains();
+  applyPan();
   state.selected = null;
   state.multiSelected.clear();
   updateLengthUI();
@@ -1932,6 +1996,7 @@ let ctx = null, loopTimer = null, playing = false;
 let masterGain = null;
 let previewGain = null; // always-audible bus for click-to-hear note previews
 const chanGain = { lead: null, harmony: null, bass: null, rhythm: null };
+const chanPan = { lead: null, harmony: null, bass: null, rhythm: null };
 
 function ensureCtx() {
   if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -1940,10 +2005,14 @@ function ensureCtx() {
     masterGain.gain.value = state.masterVol;
     masterGain.connect(ctx.destination);
     for (const ch of ALL_TRACKS) {
+      // Per channel: gain → panner → master, mirroring the game's audio graph.
+      chanPan[ch] = ctx.createStereoPanner();
+      chanPan[ch].connect(masterGain);
       chanGain[ch] = ctx.createGain();
-      chanGain[ch].connect(masterGain);
+      chanGain[ch].connect(chanPan[ch]);
     }
     applyGains(); // set each channel to its audible gain (respecting mute/solo)
+    applyPan();   // set each channel's stereo pan
     previewGain = ctx.createGain();
     previewGain.gain.value = 0.7;
     previewGain.connect(masterGain);
@@ -1959,7 +2028,7 @@ function previewNote(track, note) {
   try {
     ensureCtx();
     if (ctx.state === 'suspended') ctx.resume();
-    const oscType = track === 'bass' ? 'triangle' : 'square';
+    const oscType = state.waveform[track] || 'square';
     scheduleTone(note, ctx.currentTime + 0.005, 0.3, oscType, previewGain);
   } catch { /* audio unavailable */ }
 }
@@ -1976,6 +2045,9 @@ function previewHit(type) {
 }
 function applyGains() {
   for (const ch of ALL_TRACKS) if (chanGain[ch]) chanGain[ch].gain.value = audible(ch) ? state.gains[ch] : 0;
+}
+function applyPan() {
+  for (const ch of ALL_TRACKS) if (chanPan[ch]) chanPan[ch].pan.value = state.pan[ch];
 }
 
 const pulseWaves = new Map();
@@ -2194,9 +2266,9 @@ function scheduleTrackNotes(notes, startAt, eighthSec, fromCol, toCol, oscType, 
   }
 }
 function playOnce(startAt, eighthSec, fromCol, toCol) {
-  if (audible('lead')) scheduleTrackNotes(state.tracks.lead, startAt, eighthSec, fromCol, toCol, 'square', 1, chanGain.lead);
-  if (audible('harmony')) scheduleTrackNotes(state.tracks.harmony, startAt, eighthSec, fromCol, toCol, 'square', 0.9, chanGain.harmony);
-  if (audible('bass')) scheduleTrackNotes(state.tracks.bass, startAt, eighthSec, fromCol, toCol, 'triangle', 1, chanGain.bass);
+  if (audible('lead')) scheduleTrackNotes(state.tracks.lead, startAt, eighthSec, fromCol, toCol, state.waveform.lead, 1, chanGain.lead);
+  if (audible('harmony')) scheduleTrackNotes(state.tracks.harmony, startAt, eighthSec, fromCol, toCol, state.waveform.harmony, 0.9, chanGain.harmony);
+  if (audible('bass')) scheduleTrackNotes(state.tracks.bass, startAt, eighthSec, fromCol, toCol, state.waveform.bass, 1, chanGain.bass);
   if (audible('rhythm')) {
     const scheduleHit = { kick: scheduleKick, snare: scheduleSnare, tom: schedulePuka, hihat: scheduleHihat };
     for (const h of state.tracks.rhythm.filter(n => n.start >= fromCol && n.start < toCol)) {
@@ -2266,7 +2338,7 @@ document.getElementById('stop').addEventListener('click', () => {
     ctx = null;
     masterGain = null;
     previewGain = null;
-    for (const ch of ALL_TRACKS) chanGain[ch] = null;
+    for (const ch of ALL_TRACKS) { chanGain[ch] = null; chanPan[ch] = null; }
     noiseBuffer = null;
     pulseWaves.clear();
     crushCurve = null;
@@ -2314,7 +2386,9 @@ document.getElementById('export').addEventListener('click', () => {
     exportTrack('RHYTHM', fromColumnHits(state.tracks.rhythm), true)
   ].join('\n\n');
   const mix = `export const MIX = { lead: ${state.gains.lead}, harmony: ${state.gains.harmony}, bass: ${state.gains.bass}, rhythm: ${state.gains.rhythm} };`;
-  box.value = `// Tempo: ${state.tempo} BPM — also update TEMPO_BPM in audio.js if it changed.\n\n${mix}\n\n${code}`;
+  const v = (ch) => `{ osc: '${state.waveform[ch]}', pan: ${round2(state.pan[ch])} }`;
+  const voices = `export const VOICES = {\n  lead:    ${v('lead')},\n  harmony: ${v('harmony')},\n  bass:    ${v('bass')},\n  rhythm:  ${v('rhythm')}\n};`;
+  box.value = `// Tempo: ${state.tempo} BPM — also update TEMPO_BPM in audio.js if it changed.\n\n${mix}\n\n${voices}\n\n${code}`;
   box.style.display = 'block';
   box.focus();
   box.select();
