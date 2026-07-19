@@ -145,7 +145,27 @@
   .daw {
     position: relative; overflow-x: auto; background: var(--panel);
     border-radius: 8px 8px 0 0; border: 1px solid #2c2c33; border-bottom: none; padding-bottom: 4px;
+    scrollbar-width: none; /* hidden — replaced by #hscroll, which starts under the grid */
   }
+  .daw::-webkit-scrollbar { height: 0; display: none; }
+
+  /* Custom horizontal scrollbar whose track begins at the note grid (after the
+     channel-strip headers + note gutter) instead of spanning the full width. */
+  #hscroll {
+    position: relative; height: 16px; background: var(--panel);
+    border-left: 1px solid #2c2c33; border-right: 1px solid #2c2c33;
+  }
+  #hscroll.hidden { display: none; }
+  #hscroll-track {
+    position: absolute; left: calc(var(--header-w) + var(--gutter-w)); right: 6px; top: 3px;
+    height: 10px; background: #17171b; border-radius: 5px;
+  }
+  #hscroll-thumb {
+    position: absolute; top: 0; left: 0; height: 10px; min-width: 30px; border-radius: 5px;
+    background: #4a4a55; cursor: grab; touch-action: none;
+  }
+  #hscroll-thumb:hover { background: #5a5a66; }
+  #hscroll-thumb.dragging { cursor: grabbing; background: #6a6a77; }
 
   /* Docked below .daw, outside its horizontally-scrolling region, so it can
      never scroll out of view. Holds Master volume + Tempo + Length, and can be
@@ -575,6 +595,7 @@
         <div class="timeline" id="timeline"></div>
         <div id="tracks"></div>
       </div>
+      <div id="hscroll"><div id="hscroll-track"><div id="hscroll-thumb"></div></div></div>
       <div id="master-track">
         <button id="master-collapse" title="Hide this bar" aria-label="Toggle bottom bar" aria-expanded="true">▾</button>
         <div class="mstrip-body">
@@ -1142,7 +1163,56 @@ function renderMarquee(rollEl, track, heightPx) {
 function positionOverlays() {
   updatePlayheadPositions();
   updateLoopPositions();
+  updateHScroll();
 }
+
+// ---------- Custom horizontal scrollbar (track starts at the note grid) ----------
+const hscrollEl = document.getElementById('hscroll');
+const hscrollTrack = document.getElementById('hscroll-track');
+const hscrollThumb = document.getElementById('hscroll-thumb');
+function updateHScroll() {
+  const maxScroll = daw.scrollWidth - daw.clientWidth;
+  if (maxScroll <= 1) { hscrollEl.classList.add('hidden'); return; }
+  hscrollEl.classList.remove('hidden');
+  const trackW = hscrollTrack.clientWidth;
+  const thumbW = Math.max(30, Math.round(trackW * (daw.clientWidth / daw.scrollWidth)));
+  const left = Math.round((trackW - thumbW) * (daw.scrollLeft / maxScroll));
+  hscrollThumb.style.width = thumbW + 'px';
+  hscrollThumb.style.left = left + 'px';
+}
+daw.addEventListener('scroll', updateHScroll, { passive: true });
+window.addEventListener('resize', updateHScroll);
+hscrollThumb.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  const trackW = hscrollTrack.clientWidth;
+  const thumbW = hscrollThumb.offsetWidth;
+  const maxScroll = daw.scrollWidth - daw.clientWidth;
+  const range = trackW - thumbW;
+  const startX = e.clientX;
+  const startLeft = parseFloat(hscrollThumb.style.left) || 0;
+  hscrollThumb.classList.add('dragging');
+  // window-level listeners so the drag keeps tracking when the cursor leaves the
+  // thumb (the codebase's other drags do the same).
+  const onMove = (ev) => {
+    const newLeft = Math.max(0, Math.min(range, startLeft + (ev.clientX - startX)));
+    daw.scrollLeft = range > 0 ? maxScroll * (newLeft / range) : 0;
+  };
+  const onUp = () => {
+    hscrollThumb.classList.remove('dragging');
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+  };
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', onUp);
+});
+// Click on the track (outside the thumb) pages the view toward the click.
+hscrollTrack.addEventListener('pointerdown', (e) => {
+  if (e.target === hscrollThumb) return;
+  const rect = hscrollTrack.getBoundingClientRect();
+  const maxScroll = daw.scrollWidth - daw.clientWidth;
+  const frac = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  daw.scrollLeft = maxScroll * frac;
+});
 function updatePlayheadPositions() {
   const left = (LANE_ORIGIN + visualPlayhead * colPx) + 'px';
   if (playheadEl) playheadEl.style.left = left;
