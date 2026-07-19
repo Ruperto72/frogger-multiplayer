@@ -65,8 +65,7 @@ triangel-bas, en bruskanal):
   triangel-kropp, `_scheduleSnare`) och `tom` ("pukan", sjunkande sinus likt
   kicken men ljusare och längre utklingning, `_schedulePuka`) — sprinklade in
   som en backbeat (snare på slag 3) och en liten fyllning (puka) i takt 1/5
-  respektive 4/8, samma speglade platser som LEAD:s egna kryddor (se
-  [2026-07-15-music-editor-playhead-sidebar-drums.md](2026-07-15-music-editor-playhead-sidebar-drums.md)).
+  respektive 4/8, samma speglade platser som LEAD:s egna kryddor.
 
 Alla fyra arrayer summerar till exakt 64 åttondelar (8 takter × 8 åttondelar)
 — verifierat med ett litet Node-skript vid implementation — så rösterna

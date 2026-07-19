@@ -93,8 +93,7 @@ canvas. Kvar att göra:
 ## Ljud — fler effekter
 
 `frontend/js/audio.js` har bend, vibrato, tremolo, pulsbredd (duty cycle),
-arpeggio (chip-ackord), portamento, bitcrush, eko och chorus — alla
-redigerbara i `frontend/music-editor.html` (se
+arpeggio (chip-ackord), portamento, bitcrush, eko och chorus (se
 [2026-07-15-audio-portamento-crush-echo-chorus.md](docs/superpowers/specs/2026-07-15-audio-portamento-crush-echo-chorus.md)
 för de fyra sistnämnda). Samtliga nio effekter är nu även insprinklade i den
 faktiska "Froggy Hop"-melodin på enstaka, utvalda noter.

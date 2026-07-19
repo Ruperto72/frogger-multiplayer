@@ -17,15 +17,12 @@ const C3 = 130.81, D3 = 146.83, E3 = 164.81, Fs3 = 185.00, G3 = 196.00, A3 = 220
 const C6 = 1046.50, D6 = 1174.66;
 const REST = 0;
 
-// Relativ kanalvolym (mix). Samma tal används av spelet (AudioManager,
-// gånger musicGain-mastern) och av music-editor.html — så balansen är
-// densamma på båda ställena. Rytmen är lyft (1.4) så trummorna hörs
-// tydligt under den täta melodin. Redigerbar via reglagen i editorn.
+// Relativ kanalvolym (mix), gånger musicGain-mastern. Rytmen är lyft (1.4)
+// så trummorna hörs tydligt under den täta melodin.
 export const MIX = { lead: 0.9, harmony: 0.5, bass: 0.7, rhythm: 1.4 };
 
-// Klangfärg (oscillatorform) och panorering (stereobild) per kanal. Samma
-// tal delas av spelet och music-editor.html så låten låter likadant båda
-// ställena. `osc` = vågform för de tonala rösterna ('square' | 'triangle' |
+// Klangfärg (oscillatorform) och panorering (stereobild) per kanal.
+// `osc` = vågform för de tonala rösterna ('square' | 'triangle' |
 // 'sawtooth' | 'sine'); rytmen har ingen vågform ('kit'). `pan` = -1 (vänster)
 // … 0 (mitten) … 1 (höger). Redigerbar via reglagen i editorn.
 export const VOICES = {

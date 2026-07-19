@@ -4,8 +4,6 @@ Realtids-Frogger för två spelare, byggd med vanilla JavaScript och WebSockets.
 
 **Spela:** https://ruperto72.github.io/frogger-multiplayer
 
-**Musikeditor:** https://ruperto72.github.io/frogger-multiplayer/music-editor
-
 > Backend körs på Renders free tier och sover efter 15 min inaktivitet — första anslutningen kan ta upp till en minut.
 
 ## Spelregler
@@ -42,21 +40,6 @@ cd backend && node --test test/*.test.js
 ```
 
 Frontend: öppna `frontend/index.html` direkt i webbläsaren — den ansluter automatiskt till `localhost:3000` lokalt, annars till produktionsbackenden.
-
-### Musikeditor (dev-verktyg)
-
-`frontend/music-editor.html` är en fristående piano-roll-editor för bakgrundslåten
-i `frontend/js/audio.js` (lead/stämma/bas/rytm). Kräver en lokal http-server (ES-moduler
-tillåter inte `file://`):
-
-```bash
-node dev-server.js
-# öppna http://localhost:8080/music-editor.html
-```
-
-Läser in den nuvarande låten automatiskt. Klicka i rutnätet för att lägga/redigera/ta bort
-noter, dra i högerkanten för att ändra längd, spela upp med aktuellt tempo och exportera
-färdig kod att klistra in i `LEAD`/`HARMONY`/`BASS`/`RHYTHM`.
 
 ## Deployment
 
