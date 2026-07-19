@@ -442,10 +442,11 @@ export class AudioManager {
       }
     }
 
+    const peak = note.vel != null ? note.vel : 1; // per-note velocity (loudness/accent)
     const releaseAt = startAt + durationSec * 0.85;
     gain.gain.setValueAtTime(0.0001, startAt);
-    gain.gain.exponentialRampToValueAtTime(1, startAt + 0.015);
-    gain.gain.setValueAtTime(1, releaseAt);
+    gain.gain.exponentialRampToValueAtTime(peak, startAt + 0.015);
+    gain.gain.setValueAtTime(peak, releaseAt);
     gain.gain.exponentialRampToValueAtTime(0.0001, startAt + durationSec);
 
     if (note.trem) {
@@ -503,10 +504,11 @@ export class AudioManager {
       lfo.stop(startAt + totalDur);
     }
 
+    const peak = note.vel != null ? note.vel : 1; // per-note velocity (loudness/accent)
     const releaseAt = startAt + totalDur * 0.85;
     gain.gain.setValueAtTime(0.0001, startAt);
-    gain.gain.exponentialRampToValueAtTime(1, startAt + 0.015);
-    gain.gain.setValueAtTime(1, releaseAt);
+    gain.gain.exponentialRampToValueAtTime(peak, startAt + 0.015);
+    gain.gain.setValueAtTime(peak, releaseAt);
     gain.gain.exponentialRampToValueAtTime(0.0001, startAt + totalDur);
 
     if (note.trem) {

@@ -362,6 +362,8 @@
   .insp-field select { padding: 6px 6px; }
   .arp-presets { display: flex; gap: 5px; }
   .arp-presets button { flex: 1; font-size: 11px; padding: 6px 4px; }
+  .insp-field input[type=range] { flex: 1; min-width: 0; margin: 0 8px; cursor: pointer; }
+  .insp-velval { min-width: 34px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
   .insp-del { background: #3a1414; border-color: #5a1e1e; color: #ff9a9a; }
   .insp-del:hover { border-color: #a33; }
   textarea {
@@ -451,6 +453,7 @@
         <li><b>✏️ Pen</b> — click an empty cell to add a note/hit.</li>
         <li><b>🧽 Eraser</b> — click a note/hit to remove it (or a whole selected group).</li>
         <li><b>✋ Grab</b> — drag a note/hit to move it; drag its right edge to change its length.</li>
+        <li>Placing or selecting a note/hit plays it, so you hear the pitch or drum as you edit.</li>
       </ul>
 
       <h3>Selecting several notes</h3>
@@ -671,7 +674,7 @@ function toColumnNotes(seq) {
   let col = 0;
   for (const n of seq) {
     if (n.f) notes.push({
-      start: col, len: n.d, freq: n.f,
+      start: col, len: n.d, freq: n.f, vel: n.vel ?? 1,
       bend: n.bend ?? null, vib: !!n.vib, trem: !!n.trem,
       duty: n.duty ?? null, arp: n.arp ?? null,
       porta: !!n.porta, crush: !!n.crush, echo: !!n.echo, chorus: !!n.chorus
@@ -694,6 +697,7 @@ function fromColumnNotes(notes) {
     if (n.start > col) out.push({ f: 0, d: n.start - col });
     out.push({
       f: round2(n.freq), d: n.len,
+      ...(n.vel != null && n.vel < 1 ? { vel: round2(n.vel) } : {}),
       ...(n.bend ? { bend: round2(n.bend) } : {}),
       ...(n.vib ? { vib: true } : {}),
       ...(n.trem ? { trem: true } : {}),
@@ -1070,6 +1074,8 @@ function renderPitchTrack(track) {
       (isSelected ? ' selected' : '') + (state.multiSelected.has(note) ? ' multi-selected' : '');
     div.style.gridRow = p + 1;
     div.style.gridColumn = `${note.start + 1} / span ${note.len}`;
+    // Velocity shown as brightness — quieter notes look dimmer.
+    div.style.opacity = (0.4 + 0.6 * (note.vel != null ? note.vel : 1)).toFixed(2);
     div.addEventListener('mousedown', (e) => { if (state.tool !== 'grab' || e.shiftKey) return; setActive(track); startMoveNote(e, track, idx); });
     div.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1299,12 +1305,13 @@ function onCellClick(track, midi, col) {
   const notes = state.tracks[track];
   const cleared = clearOverlaps(notes, col, 1);
   cleared.push({
-    start: col, len: 1, freq: round2(midiToFreq(midi)),
+    start: col, len: 1, freq: round2(midiToFreq(midi)), vel: 1,
     bend: null, vib: false, trem: false, duty: null, arp: null,
     porta: false, crush: false, echo: false, chorus: false
   });
   state.tracks[track] = cleared;
   state.selected = { track, index: cleared.length - 1 };
+  previewNote(track, cleared[cleared.length - 1]);
   render();
 }
 function onRhythmCellClick(row, col) {
@@ -1312,10 +1319,11 @@ function onRhythmCellClick(row, col) {
   const hits = state.tracks.rhythm.filter(h => h.start !== col);
   hits.push({ start: col, type });
   state.tracks.rhythm = hits;
+  previewHit(type);
   render();
 }
 function removeHit(hit) { state.tracks.rhythm = state.tracks.rhythm.filter(h => h !== hit); render(); }
-function selectNote(track, idx) { state.selected = { track, index: idx }; state.multiSelected.clear(); render(); }
+function selectNote(track, idx) { state.selected = { track, index: idx }; state.multiSelected.clear(); previewNote(track, state.tracks[track][idx]); render(); }
 function deleteNote(track, idx) {
   state.tracks[track] = state.tracks[track].filter((_, i) => i !== idx);
   if (state.selected && state.selected.track === track && state.selected.index === idx) state.selected = null;
@@ -1608,6 +1616,18 @@ function renderInspector() {
   const sub = el('div', 'insp-sub');
   sub.textContent = `length ${note.len}/8th`;
   head.appendChild(sub);
+
+  // Velocity (loudness/accent) — 10..100%.
+  const velField = el('div', 'insp-field');
+  const velLbl = el('span'); velLbl.textContent = 'Velocity';
+  const velInput = document.createElement('input');
+  velInput.type = 'range'; velInput.min = 0.1; velInput.max = 1; velInput.step = 0.05;
+  velInput.value = note.vel != null ? note.vel : 1;
+  const velVal = el('span', 'insp-velval'); velVal.textContent = Math.round(velInput.value * 100) + '%';
+  velInput.addEventListener('input', () => { velVal.textContent = Math.round(parseFloat(velInput.value) * 100) + '%'; });
+  velInput.addEventListener('change', () => { note.vel = parseFloat(velInput.value); previewNote(track, note); render(); });
+  velField.append(velLbl, velInput, velVal);
+  head.appendChild(velField);
 
   // --- Modulation ---
   const mod = panel('Modulation');
@@ -1910,6 +1930,7 @@ loadInput.addEventListener('change', async () => {
 // ---------- Playback ----------
 let ctx = null, loopTimer = null, playing = false;
 let masterGain = null;
+let previewGain = null; // always-audible bus for click-to-hear note previews
 const chanGain = { lead: null, harmony: null, bass: null, rhythm: null };
 
 function ensureCtx() {
@@ -1923,8 +1944,35 @@ function ensureCtx() {
       chanGain[ch].connect(masterGain);
     }
     applyGains(); // set each channel to its audible gain (respecting mute/solo)
+    previewGain = ctx.createGain();
+    previewGain.gain.value = 0.7;
+    previewGain.connect(masterGain);
   }
   return ctx;
+}
+
+// Click-to-hear preview: a short one-shot tone (pitch tracks) or drum hit
+// (rhythm) when you place or select a note. Routed through previewGain so it's
+// audible regardless of mute/solo. No-op if the audio can't start.
+function previewNote(track, note) {
+  if (!note || !note.freq) return;
+  try {
+    ensureCtx();
+    if (ctx.state === 'suspended') ctx.resume();
+    const oscType = track === 'bass' ? 'triangle' : 'square';
+    scheduleTone(note, ctx.currentTime + 0.005, 0.3, oscType, previewGain);
+  } catch { /* audio unavailable */ }
+}
+function previewHit(type) {
+  try {
+    ensureCtx();
+    if (ctx.state === 'suspended') ctx.resume();
+    const at = ctx.currentTime + 0.005;
+    if (type === 'kick') scheduleKick(at);
+    else if (type === 'snare') scheduleSnare(at);
+    else if (type === 'tom') schedulePuka(at);
+    else scheduleHihat(at);
+  } catch { /* audio unavailable */ }
 }
 function applyGains() {
   for (const ch of ALL_TRACKS) if (chanGain[ch]) chanGain[ch].gain.value = audible(ch) ? state.gains[ch] : 0;
@@ -1998,12 +2046,13 @@ function addTremolo(gainNode, startAt, endAt) {
   lfo.connect(lfoGain).connect(gainNode.gain);
   lfo.start(startAt); lfo.stop(endAt);
 }
-function applyEnvelope(gainParam, startAt, dur) {
+function applyEnvelope(gainParam, startAt, dur, peak = 0.5) {
   gainParam.setValueAtTime(0.0001, startAt);
-  gainParam.exponentialRampToValueAtTime(0.5, startAt + 0.015);
-  gainParam.setValueAtTime(0.5, startAt + dur * 0.85);
+  gainParam.exponentialRampToValueAtTime(peak, startAt + 0.015);
+  gainParam.setValueAtTime(peak, startAt + dur * 0.85);
   gainParam.exponentialRampToValueAtTime(0.0001, startAt + dur);
 }
+const notePeak = (note) => 0.5 * (note.vel != null ? note.vel : 1);
 function scheduleTone(note, startAt, dur, oscType, destGain) {
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
@@ -2037,7 +2086,7 @@ function scheduleTone(note, startAt, dur, oscType, destGain) {
     }
   }
 
-  applyEnvelope(gain.gain, startAt, dur);
+  applyEnvelope(gain.gain, startAt, dur, notePeak(note));
   if (note.trem) addTremolo(gain, startAt, startAt + dur);
 
   connectVoiceOutput(gain, note, destGain);
@@ -2058,7 +2107,7 @@ function schedulePortamentoTone(note, nextNote, startAt, dur, nextDur, oscType, 
   osc.frequency.setValueAtTime(note.freq, glideStart);
   osc.frequency.linearRampToValueAtTime(nextNote.freq, glideEnd);
   if (note.vib) addVibrato(osc, note.freq, startAt, startAt + totalDur);
-  applyEnvelope(gain.gain, startAt, totalDur);
+  applyEnvelope(gain.gain, startAt, totalDur, notePeak(note));
   if (note.trem) addTremolo(gain, startAt, startAt + totalDur);
   connectVoiceOutput(gain, note, destGain);
   osc.connect(gain);
@@ -2216,6 +2265,7 @@ document.getElementById('stop').addEventListener('click', () => {
     ctx.close();
     ctx = null;
     masterGain = null;
+    previewGain = null;
     for (const ch of ALL_TRACKS) chanGain[ch] = null;
     noiseBuffer = null;
     pulseWaves.clear();
@@ -2239,6 +2289,7 @@ loopBtn.addEventListener('click', () => {
 function formatSeqLine(entry, isRhythm) {
   if (isRhythm) return `{ type: '${entry.type}', d: ${entry.d} }`;
   const parts = [`f: ${entry.f}`, `d: ${entry.d}`];
+  if (entry.vel != null) parts.push(`vel: ${entry.vel}`);
   if (entry.bend) parts.push(`bend: ${entry.bend}`);
   if (entry.vib) parts.push(`vib: true`);
   if (entry.trem) parts.push(`trem: true`);
