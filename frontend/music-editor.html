@@ -255,6 +255,14 @@
   .th-btns button.m.on, .th-btns button.s.on {
     background: #3a6bd6; color: #fff; border-color: #2a55b5; box-shadow: 0 0 6px rgba(58,107,214,0.4);
   }
+  .th-btns button.x { color: #d88; font-size: 10px; }
+  .th-btns button.x:hover { background: #3a1414; color: #ff9a9a; border-color: #a33; }
+  .add-track-row { display: flex; padding: 6px; }
+  .add-track-btn {
+    width: 100%; padding: 7px; font-size: 12px; color: #9a9aa6; background: #17171c;
+    border: 1px dashed #3a3a42; border-radius: 6px; cursor: pointer;
+  }
+  .add-track-btn:hover { color: var(--ink); border-color: #55555f; background: #1d1d24; }
   .th-vol { display: flex; align-items: center; gap: 6px; }
   .th-vol input[type=range] { flex: 1; min-width: 0; cursor: pointer; accent-color: #888; }
   .th-vol .vol-val { font-size: 10px; color: var(--muted); min-width: 30px; text-align: right; font-variant-numeric: tabular-nums; }
@@ -470,7 +478,7 @@
     <div class="help-body">
       <h3>Overview</h3>
       <p>
-        Dev tool for composing the "Froggy Hop" loop, loaded from <code>js/audio.js</code>. The four
+        Dev tool for composing the "Froggy Hop" loop, loaded from <code>js/audio.js</code>. The
         instruments are laid out as separate <b>tracks</b> stacked vertically, like a music studio
         (Pro&nbsp;Tools style). A shared timeline at the top and the red playhead run across every
         lane at once.
@@ -478,8 +486,9 @@
 
       <h3>Tracks &amp; channel strips</h3>
       <ul>
-        <li>One lane each for <b>Lead</b>, <b>Harmony</b>, <b>Bass</b> and <b>Rhythm</b>.</li>
-        <li>Each track's <b>channel strip</b> (left) has its name, <b>M</b>ute / <b>S</b>olo buttons and a <b>volume</b> slider.</li>
+        <li>Starts with a lane each for <b>Lead</b>, <b>Harmony</b>, <b>Bass</b> and <b>Rhythm</b>.</li>
+        <li>Each track's <b>channel strip</b> (left) has its name, <b>M</b>ute / <b>S</b>olo, a <b>volume</b> slider, waveform, pan and a level meter.</li>
+        <li><b>＋ Add track</b> (below the last lane) adds a tonal track; <b>double-click a track's name</b> to rename it; the <b>✕</b> on a strip removes that track (Rhythm is fixed). Added tracks export into the game too.</li>
         <li>Click a strip (or into its lane) to make it the <b>active</b> track that the tools edit.</li>
         <li>Pitch lanes auto-fit to the notes they contain, so tracks stay compact.</li>
       </ul>
@@ -517,8 +526,8 @@
 
       <h3>Mixing</h3>
       <ul>
-        <li>Each track's <b>volume</b> slider sets its relative level (the game's <code>MIX</code>) — drag while playing to rebalance live.</li>
-        <li>The <b>waveform</b> picker (Square / Triangle / Saw / Sine) and the <b>pan</b> slider set each track's tone and stereo placement (the game's <code>VOICES</code>). Double-click the pan slider to re-center it.</li>
+        <li>Each track's <b>volume</b> slider sets its relative level (its <code>mix</code>) — drag while playing to rebalance live.</li>
+        <li>The <b>waveform</b> picker (Square / Triangle / Saw / Sine) and the <b>pan</b> slider set each track's tone and stereo placement. Double-click the pan slider to re-center it.</li>
         <li><b>Mute</b> silences a track; <b>Solo</b> silences every track except the soloed one(s).</li>
         <li><b>🔊 Master</b> sets the overall preview loudness (editor only — not part of the game's audio).</li>
         <li>The <b>level meters</b> (per track and next to Master) show live output while previewing or playing.</li>
@@ -535,8 +544,8 @@
 
       <h3>Saving &amp; exporting</h3>
       <ul>
-        <li><b>💾 Save</b> / <b>📂 Load</b> keep a work-in-progress <code>.json</code> (tracks, tempo, length, mix, waveforms &amp; pan). Work also autosaves to this browser.</li>
-        <li><b>⤓ Export</b> emits the <code>MIX</code> and <code>VOICES</code> lines and the note arrays to paste into <code>audio.js</code>.</li>
+        <li><b>💾 Save</b> / <b>📂 Load</b> keep a work-in-progress <code>.json</code> (tracks, tempo, length, meter, mix, waveforms, pan &amp; markers). Work also autosaves to this browser.</li>
+        <li><b>⤓ Export</b> emits the <code>TRACKS</code> and <code>RHYTHM_TRACK</code> declarations to paste over the ones in <code>audio.js</code>.</li>
       </ul>
 
       <h3>Keyboard shortcuts</h3>
@@ -700,7 +709,7 @@
   <textarea id="exportBox" style="display:none" readonly></textarea>
 
 <script type="module">
-import { LEAD, HARMONY, BASS, RHYTHM, TEMPO_BPM, MIX, VOICES } from './js/audio.js';
+import { TRACKS, RHYTHM_TRACK, TEMPO_BPM } from './js/audio.js';
 
 // ---- Song length in columns (eighth-notes), derived from the loaded song. ----
 let COLS = 64;
@@ -722,10 +731,26 @@ const tsId = (ts) => `${ts.num}/${ts.den}`;
 
 const MIDI_MIN = 33, MIDI_MAX = 96;
 const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-const PITCH_TRACKS = ['lead', 'harmony', 'bass'];
-const ALL_TRACKS = ['lead', 'harmony', 'bass', 'rhythm'];
-const TRACK_LABELS = { lead: 'Lead', harmony: 'Harmony', bass: 'Bass', rhythm: 'Rhythm' };
-const TRACK_COLORS = { lead: '#2ff3ff', harmony: '#ff2fb0', bass: '#ffb347', rhythm: '#39ff6a' };
+
+// Tracks are dynamic: the user can add, rename and remove tonal tracks. The
+// ordered descriptors live in state.trackList ({ id, name, color, kind }); the
+// per-track data/mix maps (state.tracks/gains/waveform/pan/mute/solo) are keyed
+// by id. PITCH_TRACKS/ALL_TRACKS are id lists rebuilt from trackList so the many
+// `for (const t of ALL_TRACKS)` loops keep working unchanged. Rhythm is a single
+// special track (a drum kit) that's always present and last.
+let PITCH_TRACKS = ['lead', 'harmony', 'bass'];
+let ALL_TRACKS = ['lead', 'harmony', 'bass', 'rhythm'];
+function refreshTrackArrays() {
+  PITCH_TRACKS = state.trackList.filter(t => t.kind === 'tone').map(t => t.id);
+  ALL_TRACKS = state.trackList.map(t => t.id);
+}
+const trackOf = (id) => state.trackList.find(t => t.id === id);
+const trackName = (id) => { const t = trackOf(id); return t ? t.name : id; };
+const trackColor = (id) => { const t = trackOf(id); return t ? t.color : '#8a8a94'; };
+const isRhythm = (id) => { const t = trackOf(id); return t ? t.kind === 'rhythm' : id === 'rhythm'; };
+const DEFAULT_IDS = ['lead', 'harmony', 'bass']; // ids for the game's three tonal tracks (match saved-file keys)
+const RHYTHM_COLOR = '#39ff6a';
+const TRACK_PALETTE = ['#2ff3ff', '#ff2fb0', '#ffb347', '#b78bff', '#5ce0a0', '#ff7a7a', '#ffe14d', '#7ad0ff', '#ff9de0', '#9affc0'];
 const WAVEFORMS = ['square', 'triangle', 'sawtooth', 'sine']; // selectable per tonal track
 const WAVE_LABEL = { square: 'Square', triangle: 'Triangle', sawtooth: 'Saw', sine: 'Sine', kit: 'Kit' };
 const RHYTHM_ROWS = ['kick', 'snare', 'hihat', 'tom'];
@@ -825,16 +850,25 @@ function fromColumnHits(hits) {
 
 // Round to a whole bar in the current meter, clamped to the allowed range.
 const clampCols = (c) => { const bar = eighthsPerBar(); return Math.max(bar, Math.min(MAX_COLS, Math.round(c / bar) * bar)); };
-function loadFromGame() {
+// Build the full editor state for the game's song: the track list plus every
+// per-track map (notes/gain/waveform/pan/mute/solo), derived from the exported
+// TRACKS + RHYTHM_TRACK. Also sets COLS. Used at startup and by Reset.
+function gameDefaults() {
+  const trackList = [];
+  const tracks = {}, gains = {}, waveform = {}, pan = {}, mute = {}, solo = {};
+  TRACKS.forEach((t, i) => {
+    const id = DEFAULT_IDS[i] || ('t' + i);
+    trackList.push({ id, name: t.name, color: TRACK_PALETTE[i % TRACK_PALETTE.length], kind: 'tone' });
+    tracks[id] = toColumnNotes(t.notes);
+    gains[id] = t.mix; waveform[id] = t.osc; pan[id] = t.pan; mute[id] = false; solo[id] = false;
+  });
+  trackList.push({ id: 'rhythm', name: RHYTHM_TRACK.name, color: RHYTHM_COLOR, kind: 'rhythm' });
+  tracks.rhythm = toColumnHits(RHYTHM_TRACK.hits);
+  gains.rhythm = RHYTHM_TRACK.mix; waveform.rhythm = 'kit'; pan.rhythm = RHYTHM_TRACK.pan; mute.rhythm = false; solo.rhythm = false;
   // The game's song is in 4/4 (8 eighths per bar); round up to a whole 4/4 bar.
-  const max = Math.max(seqLength(LEAD), seqLength(HARMONY), seqLength(BASS), seqLength(RHYTHM));
+  const max = Math.max(...TRACKS.map(t => seqLength(t.notes)), seqLength(RHYTHM_TRACK.hits));
   COLS = Math.max(8, Math.min(MAX_COLS, Math.ceil(max / 8) * 8));
-  return {
-    lead: toColumnNotes(LEAD),
-    harmony: toColumnNotes(HARMONY),
-    bass: toColumnNotes(BASS),
-    rhythm: toColumnHits(RHYTHM)
-  };
+  return { trackList, tracks, gains, waveform, pan, mute, solo };
 }
 
 // Song length to use when a saved draft/file predates the explicit `cols` field:
@@ -861,7 +895,7 @@ function autosave() {
   autosaveTimer = setTimeout(() => {
     try {
       localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({
-        tempo: state.tempo, cols: COLS, grid: round4(state.grid), timeSig: state.timeSig, markers: state.markers, gains: state.gains, waveform: state.waveform, pan: state.pan, masterVol: state.masterVol, mute: state.mute, solo: state.solo, tracks: state.tracks
+        tempo: state.tempo, cols: COLS, grid: round4(state.grid), timeSig: state.timeSig, markers: state.markers, trackList: state.trackList, gains: state.gains, waveform: state.waveform, pan: state.pan, masterVol: state.masterVol, mute: state.mute, solo: state.solo, tracks: state.tracks
       }));
     } catch { /* best-effort */ }
   }, 400);
@@ -873,19 +907,21 @@ function loadAutosaveIfPresent() {
   let data;
   try { data = JSON.parse(raw); } catch { return null; }
   const t = data && data.tracks;
-  if (!t || !Array.isArray(t.lead) || !Array.isArray(t.harmony) || !Array.isArray(t.bass) || !Array.isArray(t.rhythm)) return null;
+  if (!t || typeof t !== 'object' || !Array.isArray(t.rhythm)) return null;
   return data;
 }
 
+const _gd = gameDefaults();
 const state = {
-  tracks: loadFromGame(),
+  trackList: _gd.trackList,  // ordered track descriptors ({ id, name, color, kind })
+  tracks: _gd.tracks,        // id -> notes/hits
+  gains: _gd.gains,          // id -> relative volume (the game's MIX)
+  waveform: _gd.waveform,    // id -> oscillator (the game's VOICES)
+  pan: _gd.pan,              // id -> stereo pan (VOICES)
+  mute: _gd.mute,
+  solo: _gd.solo,
   tempo: TEMPO_BPM,
-  gains: { ...MIX },                                             // relative per-channel volume (the game's MIX)
-  waveform: { lead: VOICES.lead.osc, harmony: VOICES.harmony.osc, bass: VOICES.bass.osc, rhythm: VOICES.rhythm.osc }, // per-track oscillator (the game's VOICES)
-  pan: { lead: VOICES.lead.pan, harmony: VOICES.harmony.pan, bass: VOICES.bass.pan, rhythm: VOICES.rhythm.pan },       // per-track stereo pan (VOICES)
-  masterVol: 0.45,                                               // editor preview master level (not part of the game)
-  mute:  { lead: false, harmony: false, bass: false, rhythm: false },
-  solo:  { lead: false, harmony: false, bass: false, rhythm: false },
+  masterVol: 0.45,           // editor preview master level (not part of the game)
   activeTrack: 'lead',
   tool: 'pen',
   grid: DEFAULT_GRID,        // eighth-notes per grid step (note snap resolution)
@@ -930,25 +966,62 @@ function restoreTimeSig(data) {
     state.timeSig = { num: ts.num, den: ts.den };
   }
 }
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+// Rebuild the track list and per-track maps from saved data, tolerating old
+// files that had no trackList (derive it from the track data keys). Rhythm is
+// forced to exist exactly once, last. Mix values are seeded to defaults here and
+// overridden by applySavedMix. Refreshes PITCH_TRACKS/ALL_TRACKS.
+function restoreTrackList(data) {
+  const src = (data.tracks && typeof data.tracks === 'object') ? data.tracks : {};
+  let list = [];
+  if (Array.isArray(data.trackList) && data.trackList.length) {
+    list = data.trackList
+      .filter(t => t && typeof t.id === 'string')
+      .map((t, i) => ({
+        id: t.id,
+        name: String(t.name || t.id),
+        color: (typeof t.color === 'string' && t.color) || TRACK_PALETTE[i % TRACK_PALETTE.length],
+        kind: t.kind === 'rhythm' ? 'rhythm' : 'tone'
+      }));
+  }
+  if (!list.length) { // old file: infer tonal tracks from the data keys
+    const tonal = Object.keys(src).filter(k => k !== 'rhythm');
+    list = tonal.map((id, i) => ({ id, name: cap(id), color: TRACK_PALETTE[i % TRACK_PALETTE.length], kind: 'tone' }));
+  }
+  list = list.filter(t => t.kind !== 'rhythm');
+  list.push({ id: 'rhythm', name: 'Rhythm', color: RHYTHM_COLOR, kind: 'rhythm' });
+  state.trackList = list;
+  refreshTrackArrays();
+  const tracks = {}, gains = {}, waveform = {}, pan = {}, mute = {}, solo = {};
+  for (const t of state.trackList) {
+    tracks[t.id] = Array.isArray(src[t.id]) ? src[t.id] : [];
+    gains[t.id] = 0.9; waveform[t.id] = t.kind === 'rhythm' ? 'kit' : 'square'; pan[t.id] = 0; mute[t.id] = false; solo[t.id] = false;
+  }
+  state.tracks = tracks; state.gains = gains; state.waveform = waveform; state.pan = pan; state.mute = mute; state.solo = solo;
+}
 
 const autosaveDraft = loadAutosaveIfPresent();
 if (autosaveDraft && confirm('Found an unsaved draft from a previous session. Restore it?\n\n(Cancel discards it and loads the game\'s current song instead.)')) {
-  state.tracks = autosaveDraft.tracks;
   state.tempo = typeof autosaveDraft.tempo === 'number' ? autosaveDraft.tempo : TEMPO_BPM;
   restoreTimeSig(autosaveDraft);
+  restoreTrackList(autosaveDraft);
   COLS = colsFromSaved(autosaveDraft, state.tracks);
   state.loopEnd = COLS;
   applySavedMix(autosaveDraft);
 } else if (autosaveDraft) {
   try { localStorage.removeItem(AUTOSAVE_KEY); } catch { /* ignore */ }
 }
+refreshTrackArrays(); // sync PITCH_TRACKS/ALL_TRACKS with the (possibly restored) track list
 
 // ---------- Undo/redo ----------
 const HISTORY_LIMIT = 100;
 const undoStack = [];
 const redoStack = [];
 let historyTimer = null;
-const snapshotSong = () => JSON.stringify({ tempo: state.tempo, cols: COLS, tracks: state.tracks });
+const snapshotSong = () => JSON.stringify({
+  tempo: state.tempo, cols: COLS, tracks: state.tracks, trackList: state.trackList,
+  gains: state.gains, waveform: state.waveform, pan: state.pan, mute: state.mute, solo: state.solo
+});
 let lastCommitted = snapshotSong();
 function checkpointHistory() { clearTimeout(historyTimer); historyTimer = setTimeout(commitHistory, 400); }
 function commitHistory() {
@@ -965,6 +1038,14 @@ function commitHistory() {
 function restoreSnapshot(s) {
   const data = JSON.parse(s);
   state.tracks = data.tracks;
+  if (Array.isArray(data.trackList)) {
+    state.trackList = data.trackList;
+    refreshTrackArrays();
+    for (const map of ['gains', 'waveform', 'pan', 'mute', 'solo']) if (data[map]) state[map] = data[map];
+    if (!trackOf(state.activeTrack)) state.activeTrack = (state.trackList[0] || { id: 'rhythm' }).id;
+    for (const t of state.trackList) ensureChannelNodes(t.id);
+    applyGains(); applyPan();
+  }
   state.tempo = data.tempo;
   tempoInput.value = state.tempo;
   if (typeof data.cols === 'number' && data.cols >= 8) {
@@ -1138,15 +1219,89 @@ function renderTimeline() {
 function renderTracks() {
   tracksEl.innerHTML = '';
   laneRolls.length = 0;
-  for (const track of PITCH_TRACKS) renderPitchTrack(track);
-  renderRhythmTrack();
+  for (const t of state.trackList) {
+    if (t.kind === 'rhythm') renderRhythmTrack();
+    else renderPitchTrack(t.id);
+  }
+  renderAddTrack();
+}
+// A slim "＋ Add track" strip under the last track.
+function renderAddTrack() {
+  const row = el('div', 'add-track-row');
+  const btn = el('button', 'add-track-btn');
+  btn.textContent = '＋ Add track';
+  btn.title = 'Add a new tonal track';
+  btn.addEventListener('click', addTrack);
+  row.appendChild(btn);
+  tracksEl.appendChild(row);
+}
+
+// ---------- Add / rename / remove tracks ----------
+let trackSeq = 0;
+const nextTrackId = () => 'trk' + Date.now().toString(36) + (trackSeq++);
+// If the audio graph is already live, wire up a channel for a freshly added
+// track so it previews/plays without needing a full teardown.
+function ensureChannelNodes(id) {
+  if (!ctx || !masterGain || chanGain[id]) return;
+  chanPan[id] = ctx.createStereoPanner();
+  chanPan[id].pan.value = state.pan[id] || 0;
+  chanPan[id].connect(masterGain);
+  chanGain[id] = ctx.createGain();
+  chanGain[id].gain.value = audible(id) ? state.gains[id] : 0;
+  chanGain[id].connect(chanPan[id]);
+  chanAnalyser[id] = ctx.createAnalyser();
+  chanAnalyser[id].fftSize = 256;
+  chanGain[id].connect(chanAnalyser[id]);
+}
+function addTrack() {
+  const id = nextTrackId();
+  const tonalCount = state.trackList.filter(t => t.kind === 'tone').length;
+  const desc = { id, name: 'Track ' + (tonalCount + 1), color: TRACK_PALETTE[tonalCount % TRACK_PALETTE.length], kind: 'tone' };
+  const rIdx = state.trackList.findIndex(t => t.kind === 'rhythm'); // keep rhythm last
+  state.trackList.splice(rIdx < 0 ? state.trackList.length : rIdx, 0, desc);
+  state.tracks[id] = [];
+  state.gains[id] = 0.9; state.waveform[id] = 'square'; state.pan[id] = 0; state.mute[id] = false; state.solo[id] = false;
+  refreshTrackArrays();
+  ensureChannelNodes(id);
+  state.activeTrack = id;
+  render(); autosave();
+}
+function renameTrack(id) {
+  const t = trackOf(id);
+  if (!t) return;
+  const name = prompt('Track name:', t.name);
+  if (name === null) return;
+  const trimmed = name.trim();
+  if (trimmed) { t.name = trimmed; render(); autosave(); }
+}
+function removeTrack(id) {
+  const t = trackOf(id);
+  if (!t || t.kind === 'rhythm') return; // rhythm can't be removed
+  const n = (state.tracks[id] || []).length;
+  if (n && !confirm(`Remove "${t.name}" and its ${n} note${n === 1 ? '' : 's'}?`)) return;
+  state.trackList = state.trackList.filter(x => x.id !== id);
+  for (const map of [state.tracks, state.gains, state.waveform, state.pan, state.mute, state.solo]) delete map[id];
+  for (const nodes of [chanGain, chanPan, chanAnalyser]) {
+    if (nodes[id]) { try { nodes[id].disconnect(); } catch { /* already gone */ } delete nodes[id]; }
+  }
+  delete vuLevel[id]; delete vuMeters[id];
+  refreshTrackArrays();
+  if (state.activeTrack === id) state.activeTrack = (state.trackList[0] || { id: 'rhythm' }).id;
+  if (state.selected && state.selected.track === id) state.selected = null;
+  state.multiSelected.clear();
+  render(); autosave();
 }
 
 function buildHeader(track) {
   const header = el('div', 'track-header');
+  header.style.borderLeftColor = trackColor(track);
   const top = el('div', 'th-top');
   const nameWrap = el('div');
-  const name = el('span', 'th-name'); name.textContent = TRACK_LABELS[track];
+  const name = el('span', 'th-name'); name.textContent = trackName(track);
+  name.style.color = trackColor(track);
+  name.title = 'Double-click to rename';
+  name.addEventListener('mousedown', (e) => e.stopPropagation());
+  name.addEventListener('dblclick', (e) => { e.stopPropagation(); renameTrack(track); });
   nameWrap.append(name);
   if (track === 'rhythm') {
     const osc = el('span', 'th-osc'); osc.textContent = WAVE_LABEL.kit;
@@ -1183,12 +1338,18 @@ function buildHeader(track) {
     btn.addEventListener('click', (e) => { e.stopPropagation(); state[key][track] = !state[key][track]; applyGains(); render(); autosave(); });
     btns.append(btn);
   }
+  if (track !== 'rhythm') { // rhythm is the fixed drum kit and can't be removed
+    const rm = el('button', 'x'); rm.textContent = '✕'; rm.title = 'Remove this track';
+    rm.addEventListener('mousedown', (e) => e.stopPropagation());
+    rm.addEventListener('click', (e) => { e.stopPropagation(); removeTrack(track); });
+    btns.append(rm);
+  }
   top.append(nameWrap, btns);
 
   const vol = el('div', 'th-vol');
   const slider = document.createElement('input');
   slider.type = 'range'; slider.min = 0; slider.max = 2; slider.step = 0.05; slider.value = state.gains[track];
-  slider.title = 'Channel volume (MIX ' + track + ')';
+  slider.title = 'Channel volume (mix)'; slider.style.accentColor = trackColor(track);
   const val = el('span', 'vol-val'); val.textContent = Number(state.gains[track]).toFixed(2);
   slider.addEventListener('mousedown', (e) => e.stopPropagation());
   slider.addEventListener('input', () => {
@@ -1202,7 +1363,7 @@ function buildHeader(track) {
   const panRow = el('div', 'th-pan');
   const panSlider = document.createElement('input');
   panSlider.type = 'range'; panSlider.min = -1; panSlider.max = 1; panSlider.step = 0.1; panSlider.value = state.pan[track];
-  panSlider.title = 'Stereo pan (VOICES ' + track + ')';
+  panSlider.title = 'Stereo pan'; panSlider.style.accentColor = trackColor(track);
   const panVal = el('span', 'pan-val'); panVal.textContent = panLabel(state.pan[track]);
   panSlider.addEventListener('mousedown', (e) => e.stopPropagation());
   panSlider.addEventListener('dblclick', (e) => { e.stopPropagation(); panSlider.value = 0; panSlider.dispatchEvent(new Event('input')); });
@@ -1306,6 +1467,7 @@ function renderPitchTrack(track) {
       (note.porta ? ' porta' : '') + (note.crush ? ' crush' : '') +
       (note.echo ? ' echo' : '') + (note.chorus ? ' chorus' : '') +
       (isSelected ? ' selected' : '') + (state.multiSelected.has(note) ? ' multi-selected' : '');
+    div.style.background = trackColor(track);
     div.style.position = 'absolute';
     div.style.left = (note.start * colPx) + 'px';
     div.style.width = Math.max(3, note.len * colPx) + 'px';
@@ -1857,8 +2019,8 @@ function renderInspector() {
   const head = panel('Selected note');
   const row = el('div', 'insp-head');
   const badge = el('span', 'insp-badge');
-  badge.textContent = TRACK_LABELS[track];
-  badge.style.background = TRACK_COLORS[track];
+  badge.textContent = trackName(track);
+  badge.style.background = trackColor(track);
   const noteLcd = el('span', 'insp-note');
   noteLcd.textContent = `${midiToName(freqToMidi(note.freq))} · ${note.freq}Hz`;
   row.append(badge, noteLcd);
@@ -2159,18 +2321,19 @@ document.getElementById('len-minus').addEventListener('click', () => setCols(COL
 document.getElementById('len-plus').addEventListener('click', () => setCols(COLS + eighthsPerBar()));
 
 document.getElementById('reset').addEventListener('click', () => {
-  state.timeSig = { ...DEFAULT_TS };            // game song is 4/4; reset meter first so COLS rounds right
+  stopPlayback();                     // audio graph is keyed by track id — rebuild after reset
+  state.timeSig = { ...DEFAULT_TS };  // game song is 4/4; reset meter first so COLS rounds right
   syncTimeSigUI();
   state.markers = [];
-  state.tracks = loadFromGame(); // recomputes COLS from the game song
-  state.gains = { ...MIX };
-  state.waveform = { lead: VOICES.lead.osc, harmony: VOICES.harmony.osc, bass: VOICES.bass.osc, rhythm: VOICES.rhythm.osc };
-  state.pan = { lead: VOICES.lead.pan, harmony: VOICES.harmony.pan, bass: VOICES.bass.pan, rhythm: VOICES.rhythm.pan };
+  const gd = gameDefaults();          // rebuilds track list + all per-track maps, recomputes COLS
+  state.trackList = gd.trackList; state.tracks = gd.tracks; state.gains = gd.gains;
+  state.waveform = gd.waveform; state.pan = gd.pan; state.mute = gd.mute; state.solo = gd.solo;
+  refreshTrackArrays();
+  state.activeTrack = 'lead';
   applyPan();
   state.masterVol = 0.45;
   syncMasterVolUI();
   if (masterGain) masterGain.gain.value = state.masterVol;
-  for (const ch of ALL_TRACKS) { state.mute[ch] = false; state.solo[ch] = false; }
   applyGains();
   state.loopStart = 0; state.loopEnd = COLS;
   state.playhead = 0; visualPlayhead = 0;
@@ -2187,7 +2350,7 @@ document.getElementById('loop-reset').addEventListener('click', () => {
 
 // ---------- Save/load file ----------
 document.getElementById('save-file').addEventListener('click', () => {
-  const data = { version: 2, tempo: state.tempo, cols: COLS, grid: round4(state.grid), timeSig: state.timeSig, markers: state.markers, gains: state.gains, waveform: state.waveform, pan: state.pan, masterVol: state.masterVol, mute: state.mute, solo: state.solo, tracks: state.tracks };
+  const data = { version: 2, tempo: state.tempo, cols: COLS, grid: round4(state.grid), timeSig: state.timeSig, markers: state.markers, trackList: state.trackList, gains: state.gains, waveform: state.waveform, pan: state.pan, masterVol: state.masterVol, mute: state.mute, solo: state.solo, tracks: state.tracks };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -2204,18 +2367,20 @@ loadInput.addEventListener('change', async () => {
   try { data = JSON.parse(await file.text()); }
   catch (err) { alert('Could not read the file: ' + err.message); return; }
   const t = data && data.tracks;
-  if (!t || !Array.isArray(t.lead) || !Array.isArray(t.harmony) || !Array.isArray(t.bass) || !Array.isArray(t.rhythm)) {
-    alert('The file has the wrong format (missing lead/harmony/bass/rhythm tracks).');
+  if (!t || typeof t !== 'object' || !Array.isArray(t.rhythm)) {
+    alert('The file has the wrong format (missing the rhythm track).');
     return;
   }
-  state.tracks = t;
+  stopPlayback(); // audio graph is keyed by track id — rebuild it after a load
   state.tempo = typeof data.tempo === 'number' ? data.tempo : TEMPO_BPM;
   tempoInput.value = state.tempo;
   restoreTimeSig(data);
-  COLS = colsFromSaved(data, t);
+  restoreTrackList(data);
+  COLS = colsFromSaved(data, state.tracks);
   state.loopStart = 0; state.loopEnd = COLS;
   state.playhead = Math.min(state.playhead, COLS - 1); visualPlayhead = state.playhead;
   applySavedMix(data);
+  state.activeTrack = state.trackList[0] ? state.trackList[0].id : 'rhythm';
   syncMasterVolUI();
   syncGridUI();
   syncTimeSigUI();
@@ -2232,9 +2397,9 @@ loadInput.addEventListener('change', async () => {
 let ctx = null, loopTimer = null, playing = false;
 let masterGain = null;
 let previewGain = null; // always-audible bus for click-to-hear note previews
-const chanGain = { lead: null, harmony: null, bass: null, rhythm: null };
-const chanPan = { lead: null, harmony: null, bass: null, rhythm: null };
-const chanAnalyser = { lead: null, harmony: null, bass: null, rhythm: null };
+let chanGain = {};   // id -> GainNode (rebuilt per audio context from ALL_TRACKS)
+let chanPan = {};    // id -> StereoPannerNode
+let chanAnalyser = {}; // id -> AnalyserNode (VU)
 let masterAnalyser = null;
 
 function ensureCtx() {
@@ -2286,7 +2451,7 @@ function updateMeters() {
   const SCALE = 2.4; // map RMS -> 0..1 (chiptune levels are modest post-master)
   for (const ch of ALL_TRACKS) {
     const lvl = Math.min(1, rmsOf(chanAnalyser[ch]) * SCALE);
-    vuLevel[ch] = Math.max(lvl, vuLevel[ch] * 0.86); // instant attack, gentle decay
+    vuLevel[ch] = Math.max(lvl, (vuLevel[ch] || 0) * 0.86); // instant attack, gentle decay
     setMeter(vuMeters[ch], vuLevel[ch]);
   }
   const m = Math.min(1, rmsOf(masterAnalyser) * SCALE);
@@ -2554,9 +2719,11 @@ function scheduleTrackNotes(notes, startAt, eighthSec, fromCol, toCol, oscType, 
   }
 }
 function playOnce(startAt, eighthSec, fromCol, toCol) {
-  if (audible('lead')) scheduleTrackNotes(state.tracks.lead, startAt, eighthSec, fromCol, toCol, state.waveform.lead, 1, chanGain.lead);
-  if (audible('harmony')) scheduleTrackNotes(state.tracks.harmony, startAt, eighthSec, fromCol, toCol, state.waveform.harmony, 0.9, chanGain.harmony);
-  if (audible('bass')) scheduleTrackNotes(state.tracks.bass, startAt, eighthSec, fromCol, toCol, state.waveform.bass, 1, chanGain.bass);
+  for (const id of PITCH_TRACKS) {
+    if (!audible(id) || !chanGain[id]) continue;
+    const durScale = id === 'harmony' ? 0.9 : 1; // harmony sits back a touch (default song)
+    scheduleTrackNotes(state.tracks[id], startAt, eighthSec, fromCol, toCol, state.waveform[id] || 'square', durScale, chanGain[id]);
+  }
   if (audible('rhythm')) {
     const scheduleHit = { kick: scheduleKick, snare: scheduleSnare, tom: schedulePuka, hihat: scheduleHihat };
     for (const h of state.tracks.rhythm.filter(n => n.start >= fromCol && n.start < toCol)) {
@@ -2616,7 +2783,7 @@ document.getElementById('play').addEventListener('click', () => {
   document.body.classList.add('playing');
   startPlaybackFrom(state.playhead);
 });
-document.getElementById('stop').addEventListener('click', () => {
+function stopPlayback() {
   playing = false;
   document.body.classList.remove('playing');
   clearTimeout(loopTimer);
@@ -2626,7 +2793,7 @@ document.getElementById('stop').addEventListener('click', () => {
     ctx = null;
     masterGain = null;
     previewGain = null;
-    for (const ch of ALL_TRACKS) { chanGain[ch] = null; chanPan[ch] = null; chanAnalyser[ch] = null; }
+    chanGain = {}; chanPan = {}; chanAnalyser = {};
     masterAnalyser = null;
     stopMeters();
     noiseBuffer = null;
@@ -2636,7 +2803,8 @@ document.getElementById('stop').addEventListener('click', () => {
   }
   visualPlayhead = state.playhead;
   updatePlayheadPositions();
-});
+}
+document.getElementById('stop').addEventListener('click', stopPlayback);
 
 // Return to start (RTZ) and the loop on/off toggle button.
 document.getElementById('rtz').addEventListener('click', () => { seekTo(0); daw.scrollLeft = 0; });
@@ -2663,22 +2831,25 @@ function formatSeqLine(entry, isRhythm) {
   if (entry.chorus) parts.push(`chorus: true`);
   return `{ ${parts.join(', ')} }`;
 }
-function exportTrack(name, seq, isRhythm) {
-  const lines = seq.map(e => '  ' + formatSeqLine(e, isRhythm)).join(',\n');
-  return `export const ${name} = [\n${lines}\n];`;
+// Multi-line note/hit array literal indented under `indent` spaces.
+function exportNotesArray(seq, isRhythm, indent) {
+  const lines = seq.map(e => indent + '  ' + formatSeqLine(e, isRhythm)).join(',\n');
+  return `[\n${lines}\n${indent}]`;
 }
+const jsStr = (s) => `'${String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
 document.getElementById('export').addEventListener('click', () => {
   const box = document.getElementById('exportBox');
-  const code = [
-    exportTrack('LEAD', fromColumnNotes(state.tracks.lead), false),
-    exportTrack('HARMONY', fromColumnNotes(state.tracks.harmony), false),
-    exportTrack('BASS', fromColumnNotes(state.tracks.bass), false),
-    exportTrack('RHYTHM', fromColumnHits(state.tracks.rhythm), true)
-  ].join('\n\n');
-  const mix = `export const MIX = { lead: ${state.gains.lead}, harmony: ${state.gains.harmony}, bass: ${state.gains.bass}, rhythm: ${state.gains.rhythm} };`;
-  const v = (ch) => `{ osc: '${state.waveform[ch]}', pan: ${round2(state.pan[ch])} }`;
-  const voices = `export const VOICES = {\n  lead:    ${v('lead')},\n  harmony: ${v('harmony')},\n  bass:    ${v('bass')},\n  rhythm:  ${v('rhythm')}\n};`;
-  box.value = `// Tempo: ${state.tempo} BPM — also update TEMPO_BPM in audio.js if it changed.\n\n${mix}\n\n${voices}\n\n${code}`;
+  const toneBlocks = state.trackList.filter(t => t.kind === 'tone').map(t => {
+    const notes = exportNotesArray(fromColumnNotes(state.tracks[t.id]), false, '  ');
+    return `  { name: ${jsStr(t.name)}, osc: '${state.waveform[t.id]}', pan: ${round2(state.pan[t.id])}, mix: ${state.gains[t.id]}, notes: ${notes} }`;
+  }).join(',\n');
+  const tracksCode = `export const TRACKS = [\n${toneBlocks}\n];`;
+  const hits = exportNotesArray(fromColumnHits(state.tracks.rhythm), true, '');
+  const rhythmCode = `export const RHYTHM_TRACK = { name: 'Rhythm', pan: ${round2(state.pan.rhythm)}, mix: ${state.gains.rhythm}, hits: ${hits} };`;
+  box.value =
+    `// Paste over the TRACKS and RHYTHM_TRACK declarations in audio.js.\n` +
+    `// Tempo: ${state.tempo} BPM — also update TEMPO_BPM in audio.js if it changed.\n\n` +
+    `${tracksCode}\n\n${rhythmCode}`;
   box.style.display = 'block';
   box.focus();
   box.select();

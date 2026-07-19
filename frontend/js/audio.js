@@ -203,14 +203,24 @@ export const RHYTHM = [
   { type: 'tom', d: 2 }, { type: 'tom', d: 2 }, { type: 'snare', d: 2 }, { type: 'kick', d: 2 }, // takt 32
 ];
 
+// Låten som en ordnad lista av tonala röst-spår plus rytmspåret. Editorn
+// redigerar exakt den här formen och dess export återskapar den — så spår kan
+// läggas till, döpas om och tas bort utan att spelet behöver ändras. Byggs av
+// arrayerna ovan så standardlåten är oförändrad. Varje tonalt spår: name,
+// osc (vågform), pan (-1..1), mix (relativ volym), notes. Rytmspåret har hits.
+export const TRACKS = [
+  { name: 'Lead',    osc: VOICES.lead.osc,    pan: VOICES.lead.pan,    mix: MIX.lead,    notes: LEAD },
+  { name: 'Harmony', osc: VOICES.harmony.osc, pan: VOICES.harmony.pan, mix: MIX.harmony, notes: HARMONY },
+  { name: 'Bass',    osc: VOICES.bass.osc,    pan: VOICES.bass.pan,    mix: MIX.bass,    notes: BASS }
+];
+export const RHYTHM_TRACK = { name: 'Rhythm', pan: VOICES.rhythm.pan, mix: MIX.rhythm, hits: RHYTHM };
+
 export class AudioManager {
   constructor() {
     this._ctx         = null;
     this._master       = null;
     this._musicGain    = null;
-    this._leadGain     = null;
-    this._harmonyGain  = null;
-    this._bassGain     = null;
+    this._toneChans    = [];
     this._rhythmGain   = null;
     this._sfxGain      = null;
     this._noiseBuffer  = null;
@@ -238,33 +248,23 @@ export class AudioManager {
     this._musicGain.connect(this._master);
 
     // Per-kanal: gain → panner → musicGain, så varje spår kan panoreras
-    // (stereobild) oberoende. Panorering läses från VOICES.
-    this._leadPan = this._ctx.createStereoPanner();
-    this._leadPan.pan.value = VOICES.lead.pan;
-    this._leadPan.connect(this._musicGain);
-    this._leadGain = this._ctx.createGain();
-    this._leadGain.gain.value = MIX.lead;
-    this._leadGain.connect(this._leadPan);
-
-    this._harmonyPan = this._ctx.createStereoPanner();
-    this._harmonyPan.pan.value = VOICES.harmony.pan;
-    this._harmonyPan.connect(this._musicGain);
-    this._harmonyGain = this._ctx.createGain();
-    this._harmonyGain.gain.value = MIX.harmony;
-    this._harmonyGain.connect(this._harmonyPan);
-
-    this._bassPan = this._ctx.createStereoPanner();
-    this._bassPan.pan.value = VOICES.bass.pan;
-    this._bassPan.connect(this._musicGain);
-    this._bassGain = this._ctx.createGain();
-    this._bassGain.gain.value = MIX.bass;
-    this._bassGain.connect(this._bassPan);
+    // (stereobild) oberoende. En kedja per tonalt spår i TRACKS (dynamiskt
+    // antal) plus rytmspåret. Volym (mix) och panorering läses från spåret.
+    this._toneChans = TRACKS.map((t) => {
+      const pan = this._ctx.createStereoPanner();
+      pan.pan.value = t.pan;
+      pan.connect(this._musicGain);
+      const gain = this._ctx.createGain();
+      gain.gain.value = t.mix;
+      gain.connect(pan);
+      return { gain, pan };
+    });
 
     this._rhythmPan = this._ctx.createStereoPanner();
-    this._rhythmPan.pan.value = VOICES.rhythm.pan;
+    this._rhythmPan.pan.value = RHYTHM_TRACK.pan;
     this._rhythmPan.connect(this._musicGain);
     this._rhythmGain = this._ctx.createGain();
-    this._rhythmGain.gain.value = MIX.rhythm;
+    this._rhythmGain.gain.value = RHYTHM_TRACK.mix;
     this._rhythmGain.connect(this._rhythmPan);
 
     this._sfxGain = this._ctx.createGain();
@@ -363,12 +363,10 @@ export class AudioManager {
     if (this._musicOn || !this._ctx) return;
     this._musicOn = true;
     const startAt = this._ctx.currentTime + 0.1;
-    this._voices = [
-      { notes: LEAD,    index: 0, nextAt: startAt, gain: this._leadGain,    osc: VOICES.lead.osc,    kind: 'tone' },
-      { notes: HARMONY, index: 0, nextAt: startAt, gain: this._harmonyGain, osc: VOICES.harmony.osc, kind: 'tone' },
-      { notes: BASS,    index: 0, nextAt: startAt, gain: this._bassGain,    osc: VOICES.bass.osc,    kind: 'tone' },
-      { notes: RHYTHM,  index: 0, nextAt: startAt, kind: 'rhythm' }
-    ];
+    this._voices = TRACKS.map((t, i) => ({
+      notes: t.notes, index: 0, nextAt: startAt, gain: this._toneChans[i].gain, osc: t.osc, kind: 'tone'
+    }));
+    this._voices.push({ notes: RHYTHM_TRACK.hits, index: 0, nextAt: startAt, kind: 'rhythm' });
     this._scheduler();
   }
 
