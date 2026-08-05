@@ -6,6 +6,12 @@ Realtids-Frogger för två spelare, byggd med vanilla JavaScript och WebSockets.
 
 > Backend körs på Renders free tier och sover efter 15 min inaktivitet — första anslutningen kan ta upp till en minut.
 
+<p align="center">
+  <img src="docs/screenshots/start.png" alt="Startskärm" width="31%">
+  <img src="docs/screenshots/lobby.png" alt="Lobby, väntar på motståndare" width="31%">
+  <img src="docs/screenshots/gameplay.png" alt="Match i gång, två spelare på spelplanen" width="31%">
+</p>
+
 ## Spelregler
 
 - Spelplanen är 13×15 celler: målrad överst, flodzon med stockar, säker mittzon, trafikzon med bilar och startzon nederst.
