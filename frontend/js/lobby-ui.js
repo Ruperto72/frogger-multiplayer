@@ -25,7 +25,9 @@ export class LobbyUI {
   // Anropas från rAF-loopen
   update() {
     const s = this._state;
-    const visible = s.mode === 'quick' && (s.phase === 'waiting' || s.phase === 'lobby');
+    const inPrivateRoom = s.mode === 'tournament' && s.tournament?.size === 2 && s.you !== 'spectator';
+    const visible = (s.mode === 'quick' && (s.phase === 'waiting' || s.phase === 'lobby')) ||
+      (inPrivateRoom && s.phase === 'lobby');
     this._root.classList.toggle('hidden', !visible);
     if (!visible) return;
 

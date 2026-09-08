@@ -54,3 +54,15 @@ test('avbruten turnering tas bort och deltagarnas routing frigörs', () => {
   assert.equal(mgr.tournaments.has(t.code), false);
   assert.equal(ws2.freed, 1);
 });
+
+test('åskådare i privat rum får routing frigjord när rummet släpps', () => {
+  const mgr = new TournamentManager();
+  const wsHost = mockWs();
+  const t = mgr.create(wsHost, { size: 2, bestOf: 3, name: 'Värd' });
+  const wsGuest = mockWs();
+  mgr.join(wsGuest, { code: t.code, name: 'Gäst' }); // fyller rummet → auto-start
+  const wsSpec = mockWs();
+  mgr.join(wsSpec, { code: t.code, name: 'Kompis' }); // blir åskådare
+  t.room._endMatch('p1'); // matchslut → finished → release
+  assert.equal(wsSpec.freed, 1);
+});

@@ -42,9 +42,12 @@ export class TournamentUI {
   update() {
     const s = this._state;
     const t = s.tournament;
-    const visible = s.mode === 'tournament' && !!t &&
-      (t.phase === 'gathering' || t.phase === 'between_matches' ||
-       t.phase === 'finished' || s.phase === 'lobby');
+    // Privat 2-spelarrum: ingen bracket-vy — bara kod/länk under väntan,
+    // sen tar LobbyUI/canvas över precis som vid snabbmatch.
+    const visible = s.mode === 'tournament' && !!t && (t.size === 2
+      ? t.phase === 'gathering'
+      : (t.phase === 'gathering' || t.phase === 'between_matches' ||
+         t.phase === 'finished' || s.phase === 'lobby'));
     this._root.classList.toggle('hidden', !visible);
     if (!visible) return;
 

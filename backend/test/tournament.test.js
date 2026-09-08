@@ -46,8 +46,8 @@ test('join broadcastar tournament_state med rätt you per socket', () => {
 });
 
 test('full turnering avvisar fler deltagare', () => {
-  const { t } = makeTournament({ size: 2 });
-  joinAll(t, 2);
+  const { t } = makeTournament({ size: 3 });
+  joinAll(t, 3);
   const res = t.join(mockWs(), 'Sen');
   assert.equal(res.error, 'tournament_full');
 });
@@ -72,10 +72,53 @@ test('start med 2 skapar rum och skickar match_start till båda', () => {
 });
 
 test('start_tournament via socket fungerar bara för värden', () => {
-  const { t } = makeTournament({ size: 2 });
+  const { t } = makeTournament();
   const [, ws2] = joinAll(t, 2);
   ws2.emit('message', JSON.stringify({ type: 'start_tournament' }));
   assert.equal(t.phase, 'gathering');
+  t._release();
+});
+
+test('privat rum (storlek 2) auto-startar utan start_tournament', () => {
+  const { t } = makeTournament({ size: 2 });
+  const [ws1, ws2] = joinAll(t, 2);
+  assert.equal(t.phase, 'match');
+  assert.notEqual(t.room, null);
+  assert.ok(ws1.messages.some(m => m.type === 'match_start' && m.you !== 'spectator'));
+  assert.ok(ws2.messages.some(m => m.type === 'match_start' && m.you !== 'spectator'));
+  t._release();
+});
+
+test('tredje som går med i fullt privat rum blir åskådare', () => {
+  const { t } = makeTournament({ size: 2 });
+  joinAll(t, 2); // auto-startar
+  const wsSpec = mockWs();
+  const res = t.join(wsSpec, 'Kompis');
+  assert.equal(res.error, undefined);
+  assert.ok(res.spectator);
+  assert.ok(wsSpec.messages.some(m => m.type === 'match_start' && m.you === 'spectator'));
+  t._release();
+});
+
+test('åskådare i privat rum får uppdaterad tournament_state vid matchslut', () => {
+  const { t } = makeTournament({ size: 2 });
+  joinAll(t, 2);
+  const wsSpec = mockWs();
+  t.join(wsSpec, 'Kompis');
+  t.room._endMatch('p1');
+  const last = wsSpec.messages.filter(m => m.type === 'tournament_state').at(-1);
+  assert.equal(last.phase, 'finished');
+  assert.equal(last.you, null);
+});
+
+test('åskådare i privat rum tas bort vid frånkoppling utan att påverka turneringen', () => {
+  const { t, released } = makeTournament({ size: 2 });
+  joinAll(t, 2);
+  const wsSpec = mockWs();
+  t.join(wsSpec, 'Kompis');
+  wsSpec.emit('close');
+  assert.equal(t.spectators.length, 0);
+  assert.equal(released.length, 0);
   t._release();
 });
 
