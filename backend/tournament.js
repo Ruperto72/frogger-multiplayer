@@ -13,6 +13,7 @@ class Tournament {
     this.bestOf = [1, 3, 5].includes(bestOf) ? bestOf : 3;
     this.phase = 'gathering'; // gathering | between_matches | match | finished
     this.participants = [];   // { id, ws, name, connected, isHost }
+    this.spectators = [];     // { id, ws, name, connected } — bara privata 2-spelarrum
     this.bracket = null;
     this.currentMatch = null; // { round, index } | null
     this.room = null;
@@ -26,9 +27,17 @@ class Tournament {
   }
 
   join(ws, name, isHost = false) {
+    name = String(name ?? '').trim().slice(0, NAME_MAX_LEN) || `Player ${this._nextId}`;
+
+    // Privat 2-spelarrum: fullt/redan igång tar emot fler som åskådare i
+    // stället för att avvisa. Övriga turneringsstorlekar oförändrade —
+    // size===2 hinner aldrig vara "gathering och full" samtidigt, se start().
+    if (this.size === 2 && this.phase !== 'gathering') {
+      return this._joinSpectator(ws, name);
+    }
+
     if (this.phase !== 'gathering') return { error: 'already_started' };
     if (this.participants.length >= this.size) return { error: 'tournament_full' };
-    name = String(name ?? '').trim().slice(0, NAME_MAX_LEN) || `Player ${this._nextId}`;
     if (this.participants.some(p => p.name.toLowerCase() === name.toLowerCase())) {
       return { error: 'name_taken' };
     }
@@ -50,8 +59,28 @@ class Tournament {
     ws.on('message', onMessage);
     ws.on('close', onClose);
     this._handlers.push({ ws, onMessage, onClose });
-    this._broadcastState();
+
+    if (this.size === 2 && this.participants.length === this.size) {
+      this.start(); // privat rum: auto-start, inget manuellt start_tournament
+    } else {
+      this._broadcastState();
+    }
     return { participant: p };
+  }
+
+  _joinSpectator(ws, name) {
+    const s = { id: this._nextId++, ws, name, connected: true };
+    const onClose = () => this._onSpectatorLeave(s);
+    ws.on('close', onClose);
+    this._handlers.push({ ws, onMessage: () => {}, onClose });
+    this.spectators.push(s);
+    if (this.room) this.room.addSpectator(ws);
+    if (ws.readyState === 1) ws.send(JSON.stringify(this._statePayload(null)));
+    return { spectator: s };
+  }
+
+  _onSpectatorLeave(s) {
+    this.spectators = this.spectators.filter(x => x !== s);
   }
 
   start() {
@@ -145,9 +174,8 @@ class Tournament {
     this._onRelease?.(this);
   }
 
-  _broadcastState() {
-    if (this._released) return;
-    const payload = {
+  _statePayload(you) {
+    return {
       type: 'tournament_state',
       code: this.code,
       phase: this.phase,
@@ -156,10 +184,18 @@ class Tournament {
       participants: this.participants.map(({ id, name, connected, isHost }) =>
         ({ id, name, connected, isHost })),
       bracket: this.bracket,
-      currentMatch: this.currentMatch
+      currentMatch: this.currentMatch,
+      you
     };
+  }
+
+  _broadcastState() {
+    if (this._released) return;
     for (const p of this.participants) {
-      if (p.ws.readyState === 1) p.ws.send(JSON.stringify({ ...payload, you: p.id }));
+      if (p.ws.readyState === 1) p.ws.send(JSON.stringify(this._statePayload(p.id)));
+    }
+    for (const s of this.spectators) {
+      if (s.ws.readyState === 1) s.ws.send(JSON.stringify(this._statePayload(null)));
     }
   }
 

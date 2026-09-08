@@ -43,7 +43,7 @@ class TournamentManager {
 
   _release(t) {
     this.tournaments.delete(t.code);
-    for (const p of t.participants) p.ws.freeRoute?.();
+    for (const p of [...t.participants, ...t.spectators]) p.ws.freeRoute?.();
   }
 }
 

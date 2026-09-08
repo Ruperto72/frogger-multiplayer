@@ -13,7 +13,7 @@ export class StartUI {
     this._error  = document.getElementById('start-error');
     this._conn     = document.getElementById('start-conn');
     this._connText = document.getElementById('start-conn-text');
-    this._buttons  = ['start-quick', 'start-create', 'start-join']
+    this._buttons  = ['start-quick', 'start-room', 'start-create', 'start-join']
       .map(id => document.getElementById(id));
 
     const savedName = typeof localStorage !== 'undefined' ? localStorage.getItem('name') : null;
@@ -31,6 +31,16 @@ export class StartUI {
       // Förifyll snabbmatchens lobbypanel med samma namn
       document.getElementById('lobby-name').value = this._state.profile.name;
       this._net.send({ type: 'quick_match' });
+    });
+
+    document.getElementById('start-room').addEventListener('click', () => {
+      this._saveProfile();
+      this._net.send({
+        type: 'create_tournament',
+        size: 2,
+        bestOf: Number(this._bestof.value),
+        name: this._state.profile.name
+      });
     });
 
     document.getElementById('start-create').addEventListener('click', () => {
@@ -75,7 +85,7 @@ export class StartUI {
   _fillSizeOptions() {
     const current = this._size.value || '8';
     this._size.replaceChildren();
-    for (let n = 2; n <= 16; n++) {
+    for (let n = 3; n <= 16; n++) {
       const opt = document.createElement('option');
       opt.value = n;
       opt.textContent = t('start.players', { n });
